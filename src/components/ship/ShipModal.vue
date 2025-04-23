@@ -29,7 +29,7 @@
     <!-- 子モーダル -->
     <div v-if="cardModalVisible" class="card-modal-overlay" @click.self="closeCardModal">
       <div class="card-modal-content">
-        <img :src="`/img/ship/card/${cardBannerId}.png`" alt="カード画像" />
+        <img :src="`${import.meta.env.BASE_URL}img/ship/card/${cardBannerId}.png`" alt="カード画像" />
       </div>
     </div>
   </div>

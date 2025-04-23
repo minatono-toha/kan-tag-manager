@@ -2,7 +2,7 @@
   <li class="p-2 border rounded shadow hover:bg-gray-100 cursor-pointer">
     <img
       v-if="showBanner"
-      :src="`/img/ship/banner/${ship.bannerId}.png`"
+      :src="`${import.meta.env.BASE_URL}img/ship/banner/${ship.bannerId}.png`"
       alt="バナー"
       class="w-full h-auto"
       @click="$emit('openCard', ship.bannerId)"
