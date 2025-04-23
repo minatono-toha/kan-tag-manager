@@ -80,7 +80,7 @@ export default defineComponent({
       const snap = await getDocs(collection(db, 'shiplist'))
       allShips.value = snap.docs.map((doc) => {
         const ship = doc.data() as Ship
-        return { id: Number(doc.id), ...ship }
+        return { ...ship }
       })
       getUniqueOrigs()
     }

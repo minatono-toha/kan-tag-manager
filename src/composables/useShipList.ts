@@ -7,8 +7,8 @@ export const useShipList = async (): Promise<Ship[]> => {
   const ships: Ship[] = []
   querySnapshot.forEach((doc) => {
     ships.push({
-      id: doc.id,
-      ...(doc.data() as Ship), // Updated to use doc.data() instead of data
+      ...(doc.data() as Ship),
+      id: Number(doc.id),
     })
   })
   return ships
