@@ -29,7 +29,7 @@
     <!-- 子モーダル -->
     <div v-if="cardModalVisible" class="card-modal-overlay" @click.self="closeCardModal">
       <div class="card-modal-content">
-        <img :src="`/img/ship/card/${cardBannerId}.png`" alt="カード画像" />
+        <img :src="`${baseUrl}img/ship/card/${cardBannerId}.png`" alt="カード画像" />
       </div>
     </div>
   </div>
@@ -64,7 +64,7 @@ const closeCardModal = () => {
   cardModalVisible.value = false
   cardBannerId.value = null
 }
-
+const baseUrl = import.meta.env.BASE_URL
 watch(
   () => props.selectedShipOrig,
   (newOrig) => {

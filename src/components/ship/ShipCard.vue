@@ -2,7 +2,7 @@
   <li class="p-2 border rounded shadow hover:bg-gray-100 cursor-pointer">
     <img
       v-if="showBanner"
-      :src="`/img/ship/banner/${ship.bannerId}.png`"
+      :src="`${baseUrl}img/ship/banner/${ship.bannerId}.png`"
       alt="バナー"
       class="w-full h-auto"
       @click="$emit('openCard', ship.bannerId)"
@@ -22,7 +22,7 @@ const props = defineProps<{
 }>()
 
 const showBanner = props.showBanner ?? true
-
+const baseUrl = import.meta.env.BASE_URL
 defineEmits<{
   (e: 'select', orig: number): void
   (e: 'openCard', bannerId: number): void
