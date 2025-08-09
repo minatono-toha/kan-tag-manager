@@ -42,3 +42,58 @@ export interface Event {
 export interface ShipWithSpAttack extends Ship {
   spAttackData: Record<string, number>
 }
+
+// --- Vueコンポーネント用Props型 ---
+export interface ShipFilter {
+  id: number;
+  label: string;
+}
+
+export interface ShipModalProps {
+  ships: Ship[];
+  modalVisible: boolean;
+  selectedShipOrig: number | null;
+}
+
+export interface ShipListTableProps {
+  ships: Ship[];
+}
+
+export interface ShipCardProps {
+  ship: Ship;
+  showBanner?: boolean;
+}
+
+export interface ShipFilterTabsProps {
+  filters: ShipFilter[];
+  selectedFilterIds: number[];
+  isAllSelected: boolean;
+}
+
+export interface AttackTableProps {
+  filteredUniqueOrigs: Ship[];
+}
+
+export interface AttackTableBodyProps {
+  sortedShips: ShipWithSpAttack[];
+  sortedEventMaps: Event[];
+  expandedStages: Record<number, boolean>;
+  rowStyle: object;
+  getCellStyle: (spAttackData: number | undefined) => object;
+}
+
+export interface GroupedStage {
+  stageNum: number;
+  count: number;
+}
+
+export interface AttackTableHeaderProps {
+  groupedStageNums: GroupedStage[];
+  sortedEventMaps: Event[];
+  expandedStages: Record<number, boolean>;
+  sortKey: string;
+  sortOrder: string;
+  anyStageExpanded: boolean;
+  cellStyle?: Partial<CSSStyleDeclaration>;
+  headerStyle?: Partial<CSSStyleDeclaration>;
+}

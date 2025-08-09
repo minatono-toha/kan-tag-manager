@@ -29,7 +29,12 @@
     <!-- 子モーダル -->
     <div v-if="cardModalVisible" class="card-modal-overlay" @click.self="closeCardModal">
       <div class="card-modal-content">
-        <img :src="`${baseUrl}img/ship/card/${cardBannerId}.png`" alt="カード画像" />
+        <ShipImage
+          v-if="cardBannerId !== null"
+          :src="`${baseUrl}img/ship/card/${cardBannerId}.png`"
+          alt="カード画像"
+          imgClass="w-full h-auto"
+        />
       </div>
     </div>
   </div>
@@ -39,12 +44,9 @@
 import { ref, watch } from 'vue'
 import type { Ship } from '@/types/interfaces'
 import ShipCard from './ShipCard.vue'
+import ShipImage from './ShipImage.vue'
 
-const props = defineProps<{
-  ships: Ship[]
-  modalVisible: boolean
-  selectedShipOrig: number | null
-}>()
+const props = defineProps<ShipModalProps>()
 
 const emit = defineEmits(['close'])
 

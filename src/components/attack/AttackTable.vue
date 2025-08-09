@@ -4,38 +4,25 @@
     <div v-if="loading">読み込み中...</div>
     <div v-else>
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
-        <thead class="bg-gray-100" :style="headerStyle">
-          <tr>
-            <th
-              v-for="map in eventMaps.slice().sort((a, b) => a.mapId - b.mapId)"
-              :key="map.mapId"
-              :style="cellStyle"
-              class="border sp-col text-center cursor-pointer"
-              @click="sortBy(`mapId_${map.mapId}`)"
-            >
-              {{ map.stage }}
-              <span v-if="sortKey === `mapId_${map.mapId}`">{{
-                sortOrder === 'asc' ? '▲' : '▼'
-              }}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="ship in sortedShips" :key="ship.orig" :style="rowStyle">
-            <td
-              v-for="map in eventMaps.slice().sort((a, b) => a.mapId - b.mapId)"
-              :key="map.mapId"
-              :style="getCellStyle(ship.spAttackData[`mapId_${map.mapId}`])"
-              class="border sp-col text-center"
-            >
-              {{
-                typeof ship.spAttackData[`mapId_${map.mapId}`] === 'number'
-                  ? ship.spAttackData[`mapId_${map.mapId}`]
-                  : '-'
-              }}
-            </td>
-          </tr>
-        </tbody>
+        <AttackTableHeader
+          :groupedStageNums="groupedStageNums"
+          :sortedEventMaps="sortedEventMaps"
+          :expandedStages="expandedStages"
+          :sortKey="sortKey"
+          :sortOrder="sortOrder"
+          :anyStageExpanded="anyStageExpanded"
+          :cellStyle="cellStyle"
+          :headerStyle="headerStyle"
+          @toggleStage="toggleStage"
+          @sortBy="sortBy"
+        />
+        <AttackTableBody
+          :sortedShips="sortedShips"
+          :sortedEventMaps="sortedEventMaps"
+          :expandedStages="expandedStages"
+          :rowStyle="rowStyle"
+          :getCellStyle="getCellStyle"
+        />
       </table>
     </div>
   </div>
@@ -46,32 +33,29 @@ import { defineComponent, ref, computed, watch } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
 import { TABLE_STYLE } from '@/constants/tableStyle'
+import AttackTableHeader from './AttackTableHeader.vue'
+import AttackTableBody from './AttackTableBody.vue'
 import type { Ship, ShipWithSpAttack, Event } from '@/types/interfaces'
 
 export default defineComponent({
   name: 'AttackTable',
+  components: { AttackTableHeader, AttackTableBody },
   props: {
     filteredUniqueOrigs: {
-      type: Array as () => Ship[],
-      required: true,
-    },
+  type: Array as () => Ship[],
+  required: true,
+} as AttackTableProps['filteredUniqueOrigs'],
   },
   emits: ['update-sorted-ships'],
   setup(props, { emit }) {
     const eventMaps = ref<Event[]>([])
-    const mapIds = computed(() =>
-      eventMaps.value
-        .slice()
-        .sort((a, b) => a.mapId - b.mapId)
-        .map((map) => `mapId_${map.mapId}`),
-    )
-
     const shipsWithSpAttack = ref<ShipWithSpAttack[]>([])
     const loading = ref(true)
     const spAttackCache = ref<Record<number, Record<string, number>>>({})
 
     const sortKey = ref<string | null>(null)
     const sortOrder = ref<'asc' | 'desc'>('asc')
+    const expandedStages = ref<Record<number, boolean>>({})
 
     const sortBy = (key: string) => {
       if (sortKey.value === key) {
@@ -82,16 +66,41 @@ export default defineComponent({
       }
     }
 
+    const toggleStage = (stageNum: number) => {
+      expandedStages.value[stageNum] = !expandedStages.value[stageNum]
+    }
+
+    const anyStageExpanded = computed(() =>
+      Object.values(expandedStages.value).some((v) => v),
+    )
+
+    const sortedEventMaps = computed(() =>
+      eventMaps.value.slice().sort((a, b) => a.mapId - b.mapId),
+    )
+
+    const groupedStageNums = computed(() => {
+      const sorted = sortedEventMaps.value
+      const groups: { stageNum: number; count: number }[] = []
+
+      for (const map of sorted) {
+        const last = groups[groups.length - 1]
+        if (last && last.stageNum === map.stageNum) {
+          last.count++
+        } else {
+          groups.push({ stageNum: map.stageNum, count: 1 })
+        }
+      }
+
+      return groups
+    })
+
     const sortedShips = computed(() => {
       if (!sortKey.value) return shipsWithSpAttack.value
-
       return [...shipsWithSpAttack.value].sort((a, b) => {
         const aVal = a.spAttackData[sortKey.value!]
         const bVal = b.spAttackData[sortKey.value!]
-
         const aNum = typeof aVal === 'number' ? aVal : -Infinity
         const bNum = typeof bVal === 'number' ? bVal : -Infinity
-
         return sortOrder.value === 'asc' ? aNum - bNum : bNum - aNum
       })
     })
@@ -137,10 +146,7 @@ export default defineComponent({
     watch(
       () => sortedShips.value,
       (newSortedShips) => {
-        emit(
-          'update-sorted-ships',
-          newSortedShips.map((ship) => ({ ...ship })),
-        )
+        emit('update-sorted-ships', newSortedShips.map((ship) => ({ ...ship })))
       },
       { immediate: true },
     )
@@ -162,38 +168,31 @@ export default defineComponent({
 
     const getCellStyle = (spAttackData: number | undefined) => {
       let backgroundColor = 'rgb(255, 255, 255)'
-
-      if (typeof spAttackData === 'number') {
-        if (spAttackData === 1) {
-          backgroundColor = 'rgb(255, 255, 255)'
-        } else {
-          const intensity = Math.min(Math.max(spAttackData, 1.0), 2.0)
-          const red = 245
-          const green = Math.floor(255 - (intensity - 1) * 70)
-          const blue = 220
-          backgroundColor = `rgb(${red}, ${green}, ${blue})`
-        }
+      if (typeof spAttackData === 'number' && spAttackData !== 1) {
+        const intensity = Math.min(Math.max(spAttackData, 1.0), 2.0)
+        const red = 245
+        const green = Math.floor(255 - (intensity - 1) * 70)
+        const blue = 220
+        backgroundColor = `rgb(${red}, ${green}, ${blue})`
       }
-
-      return {
-        ...cellStyle,
-        backgroundColor,
-      }
+      return { ...cellStyle, backgroundColor }
     }
 
     return {
-      mapIds,
-      eventMaps,
-      shipsWithSpAttack,
+      groupedStageNums,
+      sortedEventMaps,
       sortedShips,
       loading,
       rowStyle,
       cellStyle,
       headerStyle,
-      getCellStyle,
       sortKey,
       sortOrder,
       sortBy,
+      expandedStages,
+      toggleStage,
+      anyStageExpanded,
+      getCellStyle,
     }
   },
 })

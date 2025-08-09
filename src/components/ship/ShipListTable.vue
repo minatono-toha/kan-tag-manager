@@ -35,9 +35,7 @@ import { defineProps, defineEmits } from 'vue'
 import type { Ship } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 
-const props = defineProps<{
-  ships: Ship[]
-}>()
+const props = defineProps<ShipListTableProps>()
 
 const emit = defineEmits<{
   (e: 'select', orig: number): void

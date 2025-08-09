@@ -21,11 +21,7 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  filters: { id: number; label: string }[]
-  selectedFilterIds: number[]
-  isAllSelected: boolean
-}>()
+defineProps<ShipFilterTabsProps>()
 
 defineEmits<{
   (e: 'toggle-filter', id: number): void
