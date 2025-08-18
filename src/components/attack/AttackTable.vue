@@ -45,6 +45,37 @@
               </template>
             </template>
           </tr>
+          <!-- tagId行追加 -->
+          <tr>
+            <template v-for="group in stageGroups">
+              <template v-if="isExpanded(group.stageNum)">
+                <th
+                  v-for="map in group.maps"
+                  :key="'tagId-' + map.mapId"
+                  :style="cellStyle"
+                  class="border sp-col text-center"
+                >
+                  <template v-for="tagId in getTagIds(map)" :key="'tag-' + map.mapId + '-' + tagId">
+                    <span
+                      :style="{ backgroundColor: tagMap[tagId]?.tagColor || '#eee', color: getTextColor(tagMap[tagId]?.tagColor), display: 'inline-block', padding: '2px 6px', borderRadius: '6px', margin: '1px' }"
+                    >
+                      {{ tagMap[tagId]?.tagName || ('tagId: ' + tagId) }}
+                    </span><br />
+                  </template>
+                </th>
+              </template>
+              <template v-else>
+                <th
+                  :colspan="group.maps.length"
+                  :style="cellStyle"
+                  class="border sp-col text-center"
+                  :key="'tagId-colspan-' + group.stageNum"
+                >
+                  <!-- tagId非表示 -->
+                </th>
+              </template>
+            </template>
+          </tr>
         </thead>
         <tbody>
           <tr v-for="ship in sortedShips" :key="ship.orig" :style="rowStyle">
@@ -81,7 +112,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, watch } from 'vue'
+import { defineComponent, ref, computed, watch, onMounted } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
 import { TABLE_STYLE } from '@/constants/tableStyle'
@@ -101,8 +132,39 @@ export default defineComponent({
   },
   emits: ['update-sorted-ships'],
   setup(props, { emit }) {
-    const eventMaps = ref<Event[]>([])
-    const expandedStageNums = ref<number[]>([])
+    // tag情報格納用
+    const tagMap = ref<Record<number, { tagName: string; tagColor: string }>>({})
+    // mapからtagId1～4の値（1以上のみ）を配列で返す
+    const getTagIds = (map: Event): number[] => {
+      return [map.tagId1, map.tagId2, map.tagId3, map.tagId4].filter(id => typeof id === 'number' && id >= 1)
+    }
+    // タグ色の明度に応じて文字色を決定
+    const getTextColor = (bgColor: string | undefined): string => {
+      if (!bgColor) return '#000';
+      // RGB形式
+      const rgbMatch = bgColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+      if (rgbMatch) {
+        const r = parseInt(rgbMatch[1], 10);
+        const g = parseInt(rgbMatch[2], 10);
+        const b = parseInt(rgbMatch[3], 10);
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        return luminance < 128 ? '#fff' : '#000';
+      }
+      // HEX形式
+      const hexMatch = bgColor.match(/^#([0-9a-fA-F]{6})$/);
+      if (hexMatch) {
+        const hex = hexMatch[1];
+        const r = parseInt(hex.substring(0,2), 16);
+        const g = parseInt(hex.substring(2,4), 16);
+        const b = parseInt(hex.substring(4,6), 16);
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        return luminance < 128 ? '#fff' : '#000';
+      }
+      // その他は黒文字
+      return '#000';
+    }
+  const eventMaps = ref<Event[]>([])
+  const expandedStageNums = ref<number[]>([])
 
     // stageNumごとにグループ化
     const stageGroups = computed(() => {
@@ -121,13 +183,33 @@ export default defineComponent({
     })
 
     const toggleStage = (stageNum: number) => {
-      if (expandedStageNums.value.includes(stageNum)) {
-        expandedStageNums.value = expandedStageNums.value.filter((num) => num !== stageNum)
+      const idx = expandedStageNums.value.indexOf(stageNum)
+      if (idx >= 0) {
+        expandedStageNums.value.splice(idx, 1)
       } else {
         expandedStageNums.value.push(stageNum)
       }
     }
     const isExpanded = (stageNum: number) => expandedStageNums.value.includes(stageNum)
+  // ...existing code...
+    // tagsコレクション取得
+    const fetchTags = async () => {
+      const snap = await getDocs(collection(db, 'tags'))
+      const map: Record<number, { tagName: string; tagColor: string }> = {}
+      snap.forEach((doc) => {
+        const data = doc.data()
+        if (typeof data.tagId === 'number') {
+          map[data.tagId] = {
+            tagName: data.tagName,
+            tagColor: data.tagColor,
+          }
+        }
+      })
+      tagMap.value = map
+    }
+    onMounted(() => {
+      fetchTags()
+    })
 
     const shipsWithSpAttack = ref<ShipWithSpAttack[]>([])
     const loading = ref(true)
@@ -157,7 +239,8 @@ export default defineComponent({
 
     const fetchEventMaps = async () => {
       const snap = await getDocs(collection(db, 'eventmap'))
-      eventMaps.value = snap.docs.map((doc) => doc.data() as Event)
+  eventMaps.value = snap.docs.map((doc) => doc.data() as Event)
+  expandedStageNums.value = []
     }
 
     const fetchAllSpAttackData = async () => {
@@ -240,21 +323,24 @@ export default defineComponent({
     }
 
     return {
-      eventMaps,
-      shipsWithSpAttack,
-      sortedShips,
-      loading,
-      rowStyle,
-      cellStyle,
-      headerStyle,
-      getCellStyle,
-      sortKey,
-      sortOrder,
-      sortBy,
-      expandedStageNums,
-      toggleStage,
-      isExpanded,
-      stageGroups,
+  eventMaps,
+  shipsWithSpAttack,
+  sortedShips,
+  loading,
+  rowStyle,
+  cellStyle,
+  headerStyle,
+  getCellStyle,
+  sortKey,
+  sortOrder,
+  sortBy,
+  expandedStageNums,
+  toggleStage,
+  isExpanded,
+  stageGroups,
+  getTagIds,
+  tagMap,
+  getTextColor,
     }
   },
 })
