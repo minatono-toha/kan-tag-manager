@@ -7,33 +7,72 @@
         <thead class="bg-gray-100" :style="headerStyle">
           <tr>
             <th
-              v-for="map in eventMaps.slice().sort((a, b) => a.mapId - b.mapId)"
-              :key="map.mapId"
+              v-for="group in stageGroups"
+              :key="'stageNum-' + group.stageNum"
+              :colspan="isExpanded(group.stageNum) ? group.maps.length : group.maps.length"
               :style="cellStyle"
               class="border sp-col text-center cursor-pointer"
-              @click="sortBy(`mapId_${map.mapId}`)"
+              @click="toggleStage(group.stageNum)"
             >
-              {{ map.stage }}
-              <span v-if="sortKey === `mapId_${map.mapId}`">{{
-                sortOrder === 'asc' ? '▲' : '▼'
-              }}</span>
+              E-{{ group.stageNum }}
             </th>
+          </tr>
+          <tr>
+            <template v-for="group in stageGroups">
+              <template v-if="isExpanded(group.stageNum)">
+                <th
+                  v-for="map in group.maps"
+                  :key="'mapId-' + map.mapId"
+                  :style="cellStyle"
+                  class="border sp-col text-center cursor-pointer"
+                  @click="sortBy(`mapId_${map.mapId}`)"
+                >
+                  {{ map.stage }}
+                  <span v-if="sortKey === `mapId_${map.mapId}`">{{
+                    sortOrder === 'asc' ? '▲' : '▼'
+                  }}</span>
+                </th>
+              </template>
+              <template v-else>
+                <th
+                  :colspan="group.maps.length"
+                  :style="cellStyle"
+                  class="border sp-col text-center"
+                  :key="'stageNum-colspan-' + group.stageNum"
+                >
+                  <!-- mapId非表示 -->
+                </th>
+              </template>
+            </template>
           </tr>
         </thead>
         <tbody>
           <tr v-for="ship in sortedShips" :key="ship.orig" :style="rowStyle">
-            <td
-              v-for="map in eventMaps.slice().sort((a, b) => a.mapId - b.mapId)"
-              :key="map.mapId"
-              :style="getCellStyle(ship.spAttackData[`mapId_${map.mapId}`])"
-              class="border sp-col text-center"
-            >
-              {{
-                typeof ship.spAttackData[`mapId_${map.mapId}`] === 'number'
-                  ? ship.spAttackData[`mapId_${map.mapId}`]
-                  : '-'
-              }}
-            </td>
+            <template v-for="group in stageGroups">
+              <template v-if="isExpanded(group.stageNum)">
+                <td
+                  v-for="map in group.maps"
+                  :key="'cell-' + ship.orig + '-' + map.mapId"
+                  :style="getCellStyle(ship.spAttackData[`mapId_${map.mapId}`])"
+                  class="border sp-col text-center"
+                >
+                  {{
+                    typeof ship.spAttackData[`mapId_${map.mapId}`] === 'number'
+                      ? ship.spAttackData[`mapId_${map.mapId}`]
+                      : '-'
+                  }}
+                </td>
+              </template>
+              <template v-else>
+                <td
+                  :colspan="group.maps.length"
+                  class="border sp-col text-center"
+                  :key="'cell-colspan-' + ship.orig + '-' + group.stageNum"
+                >
+                  <!-- mapId非表示 -->
+                </td>
+              </template>
+            </template>
           </tr>
         </tbody>
       </table>
@@ -63,12 +102,32 @@ export default defineComponent({
   emits: ['update-sorted-ships'],
   setup(props, { emit }) {
     const eventMaps = ref<Event[]>([])
-    const mapIds = computed(() =>
-      eventMaps.value
-        .slice()
-        .sort((a, b) => a.mapId - b.mapId)
-        .map((map) => `mapId_${map.mapId}`),
-    )
+    const expandedStageNums = ref<number[]>([])
+
+    // stageNumごとにグループ化
+    const stageGroups = computed(() => {
+      const groups: { stageNum: number; maps: Event[] }[] = []
+      const mapByStage: Record<number, Event[]> = {}
+      for (const map of eventMaps.value) {
+        if (!mapByStage[map.stageNum]) mapByStage[map.stageNum] = []
+        mapByStage[map.stageNum].push(map)
+      }
+      Object.keys(mapByStage)
+        .sort((a, b) => Number(a) - Number(b))
+        .forEach((stageNum) => {
+          groups.push({ stageNum: Number(stageNum), maps: mapByStage[Number(stageNum)] })
+        })
+      return groups
+    })
+
+    const toggleStage = (stageNum: number) => {
+      if (expandedStageNums.value.includes(stageNum)) {
+        expandedStageNums.value = expandedStageNums.value.filter((num) => num !== stageNum)
+      } else {
+        expandedStageNums.value.push(stageNum)
+      }
+    }
+    const isExpanded = (stageNum: number) => expandedStageNums.value.includes(stageNum)
 
     const shipsWithSpAttack = ref<ShipWithSpAttack[]>([])
     const loading = ref(true)
@@ -76,7 +135,6 @@ export default defineComponent({
 
     const sortKey = ref<string | null>(null)
     const sortOrder = ref<'asc' | 'desc'>('asc')
-
     const sortBy = (key: string) => {
       if (sortKey.value === key) {
         sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
@@ -88,14 +146,11 @@ export default defineComponent({
 
     const sortedShips = computed(() => {
       if (!sortKey.value) return shipsWithSpAttack.value
-
       return [...shipsWithSpAttack.value].sort((a, b) => {
         const aVal = a.spAttackData[sortKey.value!]
         const bVal = b.spAttackData[sortKey.value!]
-
         const aNum = typeof aVal === 'number' ? aVal : -Infinity
         const bNum = typeof bVal === 'number' ? bVal : -Infinity
-
         return sortOrder.value === 'asc' ? aNum - bNum : bNum - aNum
       })
     })
@@ -109,14 +164,11 @@ export default defineComponent({
       await fetchEventMaps()
       const snap = await getDocs(collection(db, 'maintable'))
       const results: Record<number, Record<string, number>> = {}
-
       snap.forEach((doc) => {
         const data = doc.data()
-        // 選択されたイベントIDでフィルタリング
         if (data.eventId === props.selectedEventId) {
           const orig: number = data.orig
           results[orig] = {}
-
           for (const map of eventMaps.value) {
             const mapKey = `mapId_${map.mapId}`
             if (typeof data[mapKey] === 'number') {
@@ -125,7 +177,6 @@ export default defineComponent({
           }
         }
       })
-
       spAttackCache.value = results
       updateShipsWithSpAttack()
       loading.value = false
@@ -161,20 +212,16 @@ export default defineComponent({
       height: `${TABLE_STYLE.rowHeight}px`,
       fontSize: TABLE_STYLE.fontSize,
     }
-
     const cellStyle = {
       padding: TABLE_STYLE.padding,
       whiteSpace: TABLE_STYLE.whiteSpace,
     }
-
     const headerStyle = {
       height: `${TABLE_STYLE.headerHeight}px`,
       fontSize: TABLE_STYLE.fontSize,
     }
-
     const getCellStyle = (spAttackData: number | undefined) => {
       let backgroundColor = 'rgb(255, 255, 255)'
-
       if (typeof spAttackData === 'number') {
         if (spAttackData === 1) {
           backgroundColor = 'rgb(255, 255, 255)'
@@ -186,7 +233,6 @@ export default defineComponent({
           backgroundColor = `rgb(${red}, ${green}, ${blue})`
         }
       }
-
       return {
         ...cellStyle,
         backgroundColor,
@@ -194,7 +240,6 @@ export default defineComponent({
     }
 
     return {
-      mapIds,
       eventMaps,
       shipsWithSpAttack,
       sortedShips,
@@ -206,6 +251,10 @@ export default defineComponent({
       sortKey,
       sortOrder,
       sortBy,
+      expandedStageNums,
+      toggleStage,
+      isExpanded,
+      stageGroups,
     }
   },
 })

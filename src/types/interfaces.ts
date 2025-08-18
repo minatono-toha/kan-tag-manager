@@ -32,6 +32,7 @@ export interface Event {
   mapId: number
   stage: string
   mapPlace: string
+  stageNum: number
   tagId1: number
   tagId2: number
   tagId3: number
