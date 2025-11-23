@@ -6,7 +6,24 @@
       <!-- 艦船ごとの詳細情報を表示 -->
       <ul class="ship-list">
         <li v-for="ship in filteredShips" :key="ship.id" class="ship-item">
-          <div class="ship-banner">
+          <a
+            v-if="ship.wiki_url"
+            :href="ship.wiki_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="ship-banner-link"
+            @click="handleBannerClick($event)"
+          >
+            <div class="ship-banner">
+              <ShipCard
+                :ship="ship"
+                :showBanner="true"
+                @select="() => {}"
+                @openCard="handleCardOpen"
+              />
+            </div>
+          </a>
+          <div v-else class="ship-banner">
             <ShipCard
               :ship="ship"
               :showBanner="true"
@@ -15,7 +32,19 @@
             />
           </div>
           <div class="ship-info">
-            <p><strong>艦名:</strong> {{ ship.name }}</p>
+            <p>
+              <strong>艦名:</strong>
+              <a
+                v-if="ship.wiki_url"
+                :href="ship.wiki_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="wiki-link"
+              >
+                {{ ship.name }}
+              </a>
+              <span v-else>{{ ship.name }}</span>
+            </p>
             <p><strong>艦型・艦番:</strong> {{ ship.class }} {{ ship.shipType }}</p>
             <p><strong>速力:</strong> {{ ship.speed }}</p>
             <p><strong>改造段階:</strong> {{ ship.updateLevel ?? '未設定' }}</p>
@@ -64,6 +93,22 @@ const closeCardModal = () => {
   cardModalVisible.value = false
   cardBannerId.value = null
 }
+
+const handleCardOpen = (bannerId: number) => {
+  // When the image is clicked, we want to open the modal, not navigate to the wiki
+  openCardModal(bannerId)
+}
+
+const handleBannerClick = (event: MouseEvent) => {
+  // Check if the click target is the image (which would have triggered handleCardOpen)
+  const target = event.target as HTMLElement
+  if (target.tagName === 'IMG') {
+    // Prevent the link from navigating when clicking the image
+    event.preventDefault()
+  }
+  // If clicking outside the image (the frame), allow the link to navigate normally
+}
+
 const baseUrl = import.meta.env.BASE_URL
 watch(
   () => props.selectedShipOrig,
@@ -111,7 +156,9 @@ const closeModal = () => {
   background-color: white;
   padding: 20px;
   border-radius: 8px;
-  width: 500px;
+  width: fit-content;
+  min-width: 500px;
+  max-width: 90vw;
   max-height: 90vh;
   overflow-y: auto;
   text-align: center;
@@ -140,6 +187,12 @@ const closeModal = () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.ship-banner-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
 }
 
 button {
@@ -179,4 +232,15 @@ button {
   max-width: 100%;
   max-height: 100%;
 }
+
+.wiki-link {
+  color: #4a90e2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.wiki-link:hover {
+  text-decoration: underline;
+}
+
 </style>

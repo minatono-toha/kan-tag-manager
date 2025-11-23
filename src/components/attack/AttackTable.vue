@@ -4,7 +4,7 @@
     <div v-if="loading">読み込み中...</div>
     <div v-else>
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
-        <thead class="bg-gray-100" :style="headerStyle">
+        <thead class="bg-gray-100" :style="headerStyle" ref="theadRef">
           <tr>
             <th
               v-for="group in stageGroups"
@@ -112,9 +112,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, watch, onMounted } from 'vue'
+import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { db } from '@/firebase'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, query, where } from 'firebase/firestore'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import type { Ship, ShipWithSpAttack, Event } from '@/types/interfaces'
 
@@ -130,7 +130,7 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['update-sorted-ships'],
+  emits: ['update-sorted-ships', 'loading', 'header-height-change'],
   setup(props, { emit }) {
     // tag情報格納用
     const tagMap = ref<Record<number, { tagName: string; tagColor: string }>>({})
@@ -189,12 +189,16 @@ export default defineComponent({
       } else {
         expandedStageNums.value.push(stageNum)
       }
+      nextTick(() => {
+        emitHeaderHeight()
+      })
     }
     const isExpanded = (stageNum: number) => expandedStageNums.value.includes(stageNum)
   // ...existing code...
     // tagsコレクション取得
     const fetchTags = async () => {
-      const snap = await getDocs(collection(db, 'tags'))
+      const q = query(collection(db, 'tags'), where('eventId', '==', props.selectedEventId))
+      const snap = await getDocs(q)
       const map: Record<number, { tagName: string; tagColor: string }> = {}
       snap.forEach((doc) => {
         const data = doc.data()
@@ -207,8 +211,31 @@ export default defineComponent({
       })
       tagMap.value = map
     }
+    const theadRef = ref<HTMLElement | null>(null)
+    let resizeObserver: ResizeObserver | null = null
+
+    const emitHeaderHeight = () => {
+      if (theadRef.value) {
+        emit('header-height-change', theadRef.value.getBoundingClientRect().height)
+      }
+    }
+
     onMounted(() => {
-      fetchTags()
+      // fetchTags() // fetchAllSpAttackDataで呼ぶので削除
+      if (theadRef.value) {
+        resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            emit('header-height-change', entry.contentRect.height)
+          }
+        })
+        resizeObserver.observe(theadRef.value)
+      }
+    })
+
+    onUnmounted(() => {
+      if (resizeObserver) {
+        resizeObserver.disconnect()
+      }
     })
 
     const shipsWithSpAttack = ref<ShipWithSpAttack[]>([])
@@ -224,6 +251,9 @@ export default defineComponent({
         sortKey.value = key
         sortOrder.value = 'desc'
       }
+      nextTick(() => {
+        emitHeaderHeight()
+      })
     }
 
     const sortedShips = computed(() => {
@@ -238,31 +268,39 @@ export default defineComponent({
     })
 
     const fetchEventMaps = async () => {
-      const snap = await getDocs(collection(db, 'eventmap'))
+      const q = query(collection(db, 'eventmap'), where('eventId', '==', props.selectedEventId))
+      const snap = await getDocs(q)
   eventMaps.value = snap.docs.map((doc) => doc.data() as Event)
   expandedStageNums.value = []
     }
 
     const fetchAllSpAttackData = async () => {
-      await fetchEventMaps()
-      const snap = await getDocs(collection(db, 'maintable'))
-      const results: Record<number, Record<string, number>> = {}
-      snap.forEach((doc) => {
-        const data = doc.data()
-        if (data.eventId === props.selectedEventId) {
-          const orig: number = data.orig
-          results[orig] = {}
-          for (const map of eventMaps.value) {
-            const mapKey = `mapId_${map.mapId}`
-            if (typeof data[mapKey] === 'number') {
-              results[orig][mapKey] = data[mapKey]
+      loading.value = true
+      emit('loading', true)
+      try {
+        await fetchEventMaps()
+        await fetchTags()
+        const snap = await getDocs(collection(db, 'maintable'))
+        const results: Record<number, Record<string, number>> = {}
+        snap.forEach((doc) => {
+          const data = doc.data()
+          if (data.eventId === props.selectedEventId) {
+            const orig: number = data.orig
+            results[orig] = {}
+            for (const map of eventMaps.value) {
+              const mapKey = `mapId_${map.mapId}`
+              if (typeof data[mapKey] === 'number') {
+                results[orig][mapKey] = data[mapKey]
+              }
             }
           }
-        }
-      })
-      spAttackCache.value = results
-      updateShipsWithSpAttack()
-      loading.value = false
+        })
+        spAttackCache.value = results
+        updateShipsWithSpAttack()
+      } finally {
+        loading.value = false
+        emit('loading', false)
+      }
     }
 
     const updateShipsWithSpAttack = () => {
@@ -341,6 +379,7 @@ export default defineComponent({
   getTagIds,
   tagMap,
   getTextColor,
+  theadRef,
     }
   },
 })

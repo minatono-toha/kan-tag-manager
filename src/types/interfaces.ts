@@ -12,6 +12,7 @@ export interface Ship {
   filtertype_jp: string
   filtertype_en: string
   updateLevel: number
+  wiki_url?: string
 }
 
 export interface EventInfo {

@@ -1,14 +1,15 @@
 <template>
   <div class="p-4">
     <h2 class="text-xl font-bold mb-2">艦船情報</h2>
-    <table class="w-full text-sm border-collapse border border-gray-300">
+    <div v-if="loading">読み込み中...</div>
+    <table v-else class="w-full text-sm border-collapse border border-gray-300">
       <thead class="bg-gray-100" :style="headerStyle">
         <tr>
-          <th :style="cellStyle" class="border text-left">図鑑ID</th>
-          <th :style="cellStyle" class="border text-left">艦名</th>
-          <th :style="cellStyle" class="border text-left">艦型・艦番</th>
-          <th :style="cellStyle" class="border text-left">艦種</th>
-          <th :style="cellStyle" class="border text-left">速力</th>
+          <th :style="cellStyle" class="border text-left align-bottom">図鑑ID</th>
+          <th :style="cellStyle" class="border text-left align-bottom">艦名</th>
+          <th :style="cellStyle" class="border text-left align-bottom">艦型・艦番</th>
+          <th :style="cellStyle" class="border text-left align-bottom">艦種</th>
+          <th :style="cellStyle" class="border text-left align-bottom">速力</th>
         </tr>
       </thead>
       <tbody>
@@ -31,12 +32,14 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue'
+import { computed } from 'vue'
 import type { Ship } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 
 const props = defineProps<{
   ships: Ship[]
+  loading?: boolean
+  targetHeaderHeight?: number
 }>()
 
 const emit = defineEmits<{
@@ -57,10 +60,10 @@ const cellStyle = {
   whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
-const headerStyle = {
-  height: `${TABLE_STYLE.headerHeight}px`,
+const headerStyle = computed(() => ({
+  height: props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`,
   fontSize: TABLE_STYLE.fontSize,
-}
+}))
 </script>
 
 <style scoped></style>

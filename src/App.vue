@@ -30,6 +30,8 @@
         <div class="list-container flex-1">
           <ShipListTable
             :ships="sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships"
+            :loading="loading"
+            :targetHeaderHeight="attackTableHeaderHeight"
             @select="openModal"
           />
         </div>
@@ -39,8 +41,10 @@
           <AttackTable
             v-if="selectedEventId"
             :filteredUniqueOrigs="ships"
-            :selectedEventId="selectedEventId"
+            :selectedEventId="selectedEventId!"
             @update-sorted-ships="handleSortedShipsUpdate"
+            @loading="handleLoading"
+            @header-height-change="handleHeaderHeightChange"
           />
           <div v-else class="p-4 text-center text-gray-500">
             イベントを選択してください
@@ -86,6 +90,16 @@ export default defineComponent({
 
     const sortedShipsFromAttackTable = ref<Ship[]>([])
     const selectedEventId = ref<number | null>(null)
+    const loading = ref(false)
+    const attackTableHeaderHeight = ref<number | undefined>(undefined)
+
+    const handleHeaderHeightChange = (height: number) => {
+      attackTableHeaderHeight.value = height
+    }
+
+    const handleLoading = (isLoading: boolean) => {
+      loading.value = isLoading
+    }
 
     const handleSortedShipsUpdate = (updated: Ship[]) => {
       sortedShipsFromAttackTable.value = updated
@@ -199,6 +213,10 @@ export default defineComponent({
       handleSortedShipsUpdate,
       selectedEventId,
       handleEventSelected,
+      loading,
+      handleLoading,
+      attackTableHeaderHeight,
+      handleHeaderHeightChange,
     }
   },
 })

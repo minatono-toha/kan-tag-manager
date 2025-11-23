@@ -71,7 +71,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { defineComponent, ref, computed, onMounted, watch, onUnmounted, type PropType } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
 import type { EventInfo } from '@/types/interfaces'
@@ -80,7 +80,7 @@ export default defineComponent({
   name: 'EventSelect',
   props: {
     selectedEventId: {
-      type: Number,
+      type: Number as PropType<number | null>,
       default: null,
     },
   },
@@ -156,7 +156,9 @@ export default defineComponent({
       }
 
       if (!endDate) {
-        return '終了日未定'
+        const elapsedMs = now.getTime() - startDate.getTime()
+        const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24))
+        return `終了日未定 (開始から${elapsedDays}日経過)`
       }
 
       if (now < startDate) {
