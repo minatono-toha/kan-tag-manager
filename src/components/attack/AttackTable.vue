@@ -87,11 +87,7 @@
                   :style="getCellStyle(ship.spAttackData[`mapId_${map.mapId}`])"
                   class="border sp-col text-center"
                 >
-                  {{
-                    typeof ship.spAttackData[`mapId_${map.mapId}`] === 'number'
-                      ? ship.spAttackData[`mapId_${map.mapId}`]
-                      : '-'
-                  }}
+                  {{ formatSpAttackValue(ship.spAttackData[`mapId_${map.mapId}`]) }}
                 </td>
               </template>
               <template v-else>
@@ -360,6 +356,16 @@ export default defineComponent({
       }
     }
 
+    const formatSpAttackValue = (value: number | undefined): string => {
+      if (typeof value !== 'number') {
+        return '-'
+      }
+      if (value === 1) {
+        return '1'
+      }
+      return value.toFixed(2)
+    }
+
     return {
   eventMaps,
   shipsWithSpAttack,
@@ -380,6 +386,7 @@ export default defineComponent({
   tagMap,
   getTextColor,
   theadRef,
+  formatSpAttackValue,
     }
   },
 })
