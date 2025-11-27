@@ -32,7 +32,9 @@
             :ships="sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships"
             :loading="loading"
             :targetHeaderHeight="attackTableHeaderHeight"
+            :hasFiltersSelected="selectedFilterIds.length > 0"
             @select="openModal"
+            @filter-change="handleShipFilterChange"
           />
         </div>
 
@@ -40,7 +42,7 @@
         <div class="attack-container flex-1">
           <AttackTable
             v-if="selectedEventId"
-            :filteredUniqueOrigs="ships"
+            :filteredUniqueOrigs="shipsToDisplay"
             :selectedEventId="selectedEventId!"
             @update-sorted-ships="handleSortedShipsUpdate"
             @loading="handleLoading"
@@ -92,6 +94,8 @@ export default defineComponent({
     const selectedEventId = ref<number | null>(null)
     const loading = ref(false)
     const attackTableHeaderHeight = ref<number | undefined>(undefined)
+    const filteredShipsFromSearch = ref<Ship[]>([])
+    const isSearchActive = ref(false)
 
     const handleHeaderHeightChange = (height: number) => {
       attackTableHeaderHeight.value = height
@@ -109,6 +113,11 @@ export default defineComponent({
       console.log('App: handleEventSelected called with:', eventId)
       selectedEventId.value = eventId
       console.log('App: selectedEventId updated to:', selectedEventId.value)
+    }
+
+    const handleShipFilterChange = (filtered: Ship[], isActive: boolean) => {
+      filteredShipsFromSearch.value = filtered
+      isSearchActive.value = isActive
     }
 
     const fetchShips = async () => {
@@ -141,7 +150,7 @@ export default defineComponent({
       uniqueOrigs.value = Array.from(map.values()).sort((a, b) => {
         const fa = a.filterId ?? 0
         const fb = b.filterId ?? 0
-        return fa !== fb ? fa - fb : a.id - b.id
+        return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
       })
     }
 
@@ -152,8 +161,16 @@ export default defineComponent({
         .sort((a, b) => {
           const fa = a.filterId ?? 0
           const fb = b.filterId ?? 0
-          return fa !== fb ? fa - fb : a.id - b.id
+          return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
         })
+    })
+
+    const shipsToDisplay = computed(() => {
+      if (!isSearchActive.value || filteredShipsFromSearch.value.length === 0) {
+        return ships.value
+      }
+      const searchedOrigs = new Set(filteredShipsFromSearch.value.map(s => s.orig))
+      return ships.value.filter(ship => searchedOrigs.has(ship.orig))
     })
 
     const toggleFilter = (id: number) => {
@@ -217,6 +234,8 @@ export default defineComponent({
       handleLoading,
       attackTableHeaderHeight,
       handleHeaderHeightChange,
+      shipsToDisplay,
+      handleShipFilterChange,
     }
   },
 })

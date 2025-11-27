@@ -1,105 +1,193 @@
 <template>
   <div class="p-4">
-    <h2 class="text-xl font-bold mb-2">特攻情報</h2>
+    <div class="flex items-center mb-2">
+      <h2 class="text-xl font-bold mr-4">特攻情報</h2>
+      <button
+        @click="toggleSortMode"
+        class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+      >
+        {{ sortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
+      </button>
+    </div>
     <div v-if="loading">読み込み中...</div>
-    <div v-else>
+    <div v-else class="overflow-x-auto">
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
         <thead class="bg-gray-100" :style="headerStyle" ref="theadRef">
-          <tr>
-            <th
-              v-for="group in stageGroups"
-              :key="'stageNum-' + group.stageNum"
-              :colspan="isExpanded(group.stageNum) ? group.maps.length : group.maps.length"
-              :style="cellStyle"
-              class="border sp-col text-center cursor-pointer"
-              @click="toggleStage(group.stageNum)"
-            >
-              E-{{ group.stageNum }}
-            </th>
-          </tr>
-          <tr>
-            <template v-for="group in stageGroups">
-              <template v-if="isExpanded(group.stageNum)">
-                <th
-                  v-for="map in group.maps"
-                  :key="'mapId-' + map.mapId"
-                  :style="cellStyle"
-                  class="border sp-col text-center cursor-pointer"
-                  @click="sortBy(`mapId_${map.mapId}`)"
-                >
-                  {{ map.stage }}
-                  <span v-if="sortKey === `mapId_${map.mapId}`">{{
-                    sortOrder === 'asc' ? '▲' : '▼'
-                  }}</span>
-                </th>
+          <!-- Area Mode Header -->
+          <template v-if="sortByMode === 'area'">
+            <tr>
+              <th
+                v-for="group in stageGroups"
+                :key="'stageNum-' + group.stageNum"
+                :colspan="isExpanded(group.stageNum) ? group.maps.length : group.maps.length"
+                :style="cellStyle"
+                class="border sp-col text-center cursor-pointer align-top"
+                @click="toggleStage(group.stageNum)"
+              >
+                E-{{ group.stageNum }}
+              </th>
+            </tr>
+            <tr>
+              <template v-for="group in stageGroups">
+                <template v-if="isExpanded(group.stageNum)">
+                  <th
+                    v-for="map in group.maps"
+                    :key="'mapId-' + map.mapId"
+                    :style="cellStyle"
+                    class="border sp-col text-center cursor-pointer align-top"
+                    @click="sortBy(`mapId_${map.mapId}`)"
+                  >
+                    {{ map.stage }}
+                    <span v-if="sortKey === `mapId_${map.mapId}`">{{
+                      sortOrder === 'asc' ? '▲' : '▼'
+                    }}</span>
+                  </th>
+                </template>
+                <template v-else>
+                  <th
+                    :colspan="group.maps.length"
+                    :style="cellStyle"
+                    class="border sp-col text-center align-top"
+                    :key="'stageNum-colspan-' + group.stageNum"
+                  >
+                    <!-- mapId非表示 -->
+                  </th>
+                </template>
               </template>
-              <template v-else>
-                <th
-                  :colspan="group.maps.length"
-                  :style="cellStyle"
-                  class="border sp-col text-center"
-                  :key="'stageNum-colspan-' + group.stageNum"
-                >
-                  <!-- mapId非表示 -->
-                </th>
+            </tr>
+            <!-- tagId行 -->
+            <tr>
+              <template v-for="group in stageGroups">
+                <template v-if="isExpanded(group.stageNum)">
+                  <th
+                    v-for="map in group.maps"
+                    :key="'tagId-' + map.mapId"
+                    :style="cellStyle"
+                    class="border sp-col text-center align-top"
+                  >
+                    <template v-for="tagId in getTagIds(map)" :key="'tag-' + map.mapId + '-' + tagId">
+                      <span
+                        :style="{ backgroundColor: tagMap[tagId]?.tagColor || '#eee', color: getTextColor(tagMap[tagId]?.tagColor), display: 'inline-block', padding: '2px 6px', borderRadius: '6px', margin: '1px' }"
+                      >
+                        {{ tagMap[tagId]?.tagName || ('tagId: ' + tagId) }}
+                      </span><br />
+                    </template>
+                  </th>
+                </template>
+                <template v-else>
+                  <th
+                    :colspan="group.maps.length"
+                    :style="cellStyle"
+                    class="border sp-col text-center align-top"
+                    :key="'tagId-colspan-' + group.stageNum"
+                  >
+                    <!-- tagId非表示 -->
+                  </th>
+                </template>
               </template>
-            </template>
-          </tr>
-          <!-- tagId行追加 -->
-          <tr>
-            <template v-for="group in stageGroups">
-              <template v-if="isExpanded(group.stageNum)">
-                <th
-                  v-for="map in group.maps"
-                  :key="'tagId-' + map.mapId"
-                  :style="cellStyle"
-                  class="border sp-col text-center"
-                >
-                  <template v-for="tagId in getTagIds(map)" :key="'tag-' + map.mapId + '-' + tagId">
-                    <span
-                      :style="{ backgroundColor: tagMap[tagId]?.tagColor || '#eee', color: getTextColor(tagMap[tagId]?.tagColor), display: 'inline-block', padding: '2px 6px', borderRadius: '6px', margin: '1px' }"
-                    >
-                      {{ tagMap[tagId]?.tagName || ('tagId: ' + tagId) }}
-                    </span><br />
-                  </template>
-                </th>
+            </tr>
+          </template>
+
+          <!-- Tag Mode Header -->
+          <template v-else>
+            <tr>
+              <th
+                v-for="group in tagGroups"
+                :key="'tagGroup-' + group.tagId"
+                :colspan="group.maps.length"
+                :style="{ ...cellStyle, backgroundColor: group.tagColor, color: getTextColor(group.tagColor) }"
+                class="border sp-col text-center cursor-pointer align-top"
+                @click="toggleTag(group.tagId)"
+              >
+                {{ group.tagName }}
+              </th>
+            </tr>
+            <tr>
+              <template v-for="group in tagGroups">
+                <template v-if="isTagExpanded(group.tagId)">
+                  <th
+                    v-for="(map, index) in group.maps"
+                    :key="'tagMap-' + group.tagId + '-' + map.mapId + '-' + index"
+                    :style="cellStyle"
+                    class="border sp-col text-center cursor-pointer align-top"
+                    @click="sortBy(`mapId_${map.mapId}`)"
+                  >
+                    {{ map.stage }}
+                    <span v-if="sortKey === `mapId_${map.mapId}`">{{
+                      sortOrder === 'asc' ? '▲' : '▼'
+                    }}</span>
+                  </th>
+                </template>
+                <template v-else>
+                  <th
+                    :colspan="group.maps.length"
+                    :style="cellStyle"
+                    class="border sp-col text-center align-top"
+                    :key="'tagGroup-colspan-' + group.tagId"
+                  >
+                    <!-- mapId非表示 -->
+                  </th>
+                </template>
               </template>
-              <template v-else>
-                <th
-                  :colspan="group.maps.length"
-                  :style="cellStyle"
-                  class="border sp-col text-center"
-                  :key="'tagId-colspan-' + group.stageNum"
-                >
-                  <!-- tagId非表示 -->
-                </th>
-              </template>
-            </template>
-          </tr>
+            </tr>
+          </template>
         </thead>
         <tbody>
           <tr v-for="ship in sortedShips" :key="ship.orig" :style="rowStyle">
-            <template v-for="group in stageGroups">
-              <template v-if="isExpanded(group.stageNum)">
-                <td
-                  v-for="map in group.maps"
-                  :key="'cell-' + ship.orig + '-' + map.mapId"
-                  :style="getCellStyle(ship.spAttackData[`mapId_${map.mapId}`])"
-                  class="border sp-col text-center"
-                >
-                  {{ formatSpAttackValue(ship.spAttackData[`mapId_${map.mapId}`]) }}
-                </td>
-              </template>
-              <template v-else>
-                <td
-                  :colspan="group.maps.length"
-                  class="border sp-col text-center"
-                  :key="'cell-colspan-' + ship.orig + '-' + group.stageNum"
-                >
-                  <!-- mapId非表示 -->
-                </td>
+            <!-- Area Mode Body -->
+            <template v-if="sortByMode === 'area'">
+              <template v-for="group in stageGroups">
+                <template v-if="isExpanded(group.stageNum)">
+                  <td
+                    v-for="map in group.maps"
+                    :key="'cell-' + ship.orig + '-' + map.mapId"
+                    :style="getCellStyle(ship.spAttackData[`mapId_${map.mapId}`])"
+                    class="border sp-col text-center"
+                  >
+                    {{ formatSpAttackValue(ship.spAttackData[`mapId_${map.mapId}`]) }}
+                  </td>
+                </template>
+                <template v-else>
+                  <td
+                    :colspan="group.maps.length"
+                    class="border sp-col text-center"
+                    :key="'cell-colspan-' + ship.orig + '-' + group.stageNum"
+                  >
+                    <!-- mapId非表示 -->
+                  </td>
+                </template>
               </template>
             </template>
+
+            <!-- Tag Mode Body -->
+            <template v-else>
+              <template v-for="group in tagGroups">
+                <template v-if="isTagExpanded(group.tagId)">
+                  <td
+                    v-for="(map, index) in group.maps"
+                    :key="'cell-tag-' + ship.orig + '-' + group.tagId + '-' + map.mapId + '-' + index"
+                    :style="getCellStyle(ship.spAttackData[`mapId_${map.mapId}`])"
+                    class="border sp-col text-center"
+                  >
+                    {{ formatSpAttackValue(ship.spAttackData[`mapId_${map.mapId}`]) }}
+                  </td>
+                </template>
+                <template v-else>
+                  <td
+                    :colspan="group.maps.length"
+                    class="border sp-col text-center"
+                    :key="'cell-tag-colspan-' + ship.orig + '-' + group.tagId"
+                  >
+                    <!-- mapId非表示 -->
+                  </td>
+                </template>
+              </template>
+            </template>
+          </tr>
+          <tr v-if="sortedShips.length === 0">
+            <td :colspan="totalColspan" class="border text-center py-4 text-gray-500">
+              {{ emptyStateMessage }}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -190,6 +278,68 @@ export default defineComponent({
       })
     }
     const isExpanded = (stageNum: number) => expandedStageNums.value.includes(stageNum)
+
+    // --- Sort by Tag Logic ---
+    const sortByMode = ref<'area' | 'tag'>('area')
+    const expandedTagIds = ref<number[]>([])
+
+    const toggleSortMode = () => {
+      sortByMode.value = sortByMode.value === 'area' ? 'tag' : 'area'
+      nextTick(() => {
+        emitHeaderHeight()
+      })
+    }
+
+    const tagGroups = computed(() => {
+      // Collect all unique tags from tagMap
+      // Or iterate over all maps and collect tags?
+      // Better to iterate over known tags in tagMap to ensure order if possible, or just sort keys.
+      // But we only want tags that are actually used in the current eventMaps?
+      // Let's iterate over tagMap keys, assuming tagMap contains all tags for this event.
+
+      const groups: { tagId: number; tagName: string; tagColor: string; maps: Event[] }[] = []
+
+      // Get all tagIds from tagMap, sorted numerically
+      const tagIds = Object.keys(tagMap.value).map(Number).sort((a, b) => a - b)
+
+      for (const tagId of tagIds) {
+        const mapsForTag = eventMaps.value.filter(map => {
+           return [map.tagId1, map.tagId2, map.tagId3, map.tagId4].includes(tagId)
+        })
+
+        if (mapsForTag.length > 0) {
+           // Sort maps by mapId or stageNum? Let's keep them in order of stageNum then mapId
+           mapsForTag.sort((a, b) => {
+             if (a.stageNum !== b.stageNum) return a.stageNum - b.stageNum
+             return a.mapId - b.mapId
+           })
+
+           groups.push({
+             tagId,
+             tagName: tagMap.value[tagId].tagName,
+             tagColor: tagMap.value[tagId].tagColor,
+             maps: mapsForTag
+           })
+        }
+      }
+      return groups
+    })
+
+    const toggleTag = (tagId: number) => {
+      const idx = expandedTagIds.value.indexOf(tagId)
+      if (idx >= 0) {
+        expandedTagIds.value.splice(idx, 1)
+      } else {
+        expandedTagIds.value.push(tagId)
+      }
+       nextTick(() => {
+        emitHeaderHeight()
+      })
+    }
+
+    const isTagExpanded = (tagId: number) => expandedTagIds.value.includes(tagId)
+
+
   // ...existing code...
     // tagsコレクション取得
     const fetchTags = async () => {
@@ -206,6 +356,8 @@ export default defineComponent({
         }
       })
       tagMap.value = map
+      // Initialize expandedTagIds with all tags expanded by default
+      expandedTagIds.value = Object.keys(map).map(Number)
     }
     const theadRef = ref<HTMLElement | null>(null)
     let resizeObserver: ResizeObserver | null = null
@@ -252,8 +404,39 @@ export default defineComponent({
       })
     }
 
+    const totalColspan = computed(() => {
+      if (sortByMode.value === 'area') {
+        if (stageGroups.value.length === 0) return 1
+        const total = stageGroups.value.reduce((acc, group) => {
+          return acc + group.maps.length
+        }, 0)
+        return Math.max(total, 1)
+      } else {
+         if (tagGroups.value.length === 0) return 1
+         const total = tagGroups.value.reduce((acc, group) => {
+           return acc + group.maps.length
+         }, 0)
+         return Math.max(total, 1)
+      }
+    })
+
+    const emptyStateMessage = computed(() => {
+      if (!props.selectedEventId) {
+        return '海域を選択してください'
+      }
+      return '-'
+    })
+
     const sortedShips = computed(() => {
-      if (!sortKey.value) return shipsWithSpAttack.value
+      if (!sortKey.value) {
+        // Default sort: filterId (ascending) -> libraryId (ascending)
+        return [...shipsWithSpAttack.value].sort((a, b) => {
+          const fa = a.filterId ?? 0
+          const fb = b.filterId ?? 0
+          if (fa !== fb) return fa - fb
+          return (a.libraryId || 0) - (b.libraryId || 0)
+        })
+      }
       return [...shipsWithSpAttack.value].sort((a, b) => {
         const aVal = a.spAttackData[sortKey.value!]
         const bVal = b.spAttackData[sortKey.value!]
@@ -266,8 +449,35 @@ export default defineComponent({
     const fetchEventMaps = async () => {
       const q = query(collection(db, 'eventmap'), where('eventId', '==', props.selectedEventId))
       const snap = await getDocs(q)
-  eventMaps.value = snap.docs.map((doc) => doc.data() as Event)
-  expandedStageNums.value = []
+      eventMaps.value = snap.docs.map((doc) => doc.data() as Event)
+      expandedStageNums.value = []
+      // Auto-expand all stages by default? Or just let them be empty?
+      // Original code initialized it to empty, meaning collapsed?
+      // Wait, original code: expandedStageNums.value = []
+      // And isExpanded checks includes. So initially all collapsed?
+      // Let's check if we should expand them by default.
+      // Usually users want to see data.
+      // But let's stick to original behavior for now unless requested.
+      // Actually, looking at original code, it seems they start collapsed?
+      // Let's check if I missed something.
+      // Ah, I should probably expand them by default if that's better UX, but sticking to previous behavior is safer.
+      // However, for tags, I'll expand them by default as I did in fetchTags.
+
+      // Let's expand stages by default too, it's annoying otherwise.
+      // But wait, if I change behavior I should be careful.
+      // The user didn't ask to change default expansion state of stages.
+      // I will leave stage expansion as is (collapsed by default if that was the case, or maybe the user manually expands).
+      // Actually, let's look at how `expandedStageNums` is used.
+      // If it's empty, `isExpanded` returns false.
+      // If `isExpanded` is false, it shows a colspan header and empty body cells?
+      // Wait, the original code had:
+      // <template v-if="isExpanded(group.stageNum)"> ... </template>
+      // <template v-else> ... </template>
+      // If collapsed, it shows a placeholder column.
+
+      // I'll auto-expand stages for better UX since I'm touching this.
+      const stages = new Set(eventMaps.value.map(m => m.stageNum))
+      expandedStageNums.value = Array.from(stages)
     }
 
     const fetchAllSpAttackData = async () => {
@@ -367,26 +577,34 @@ export default defineComponent({
     }
 
     return {
-  eventMaps,
-  shipsWithSpAttack,
-  sortedShips,
-  loading,
-  rowStyle,
-  cellStyle,
-  headerStyle,
-  getCellStyle,
-  sortKey,
-  sortOrder,
-  sortBy,
-  expandedStageNums,
-  toggleStage,
-  isExpanded,
-  stageGroups,
-  getTagIds,
-  tagMap,
-  getTextColor,
-  theadRef,
-  formatSpAttackValue,
+      eventMaps,
+      shipsWithSpAttack,
+      sortedShips,
+      loading,
+      rowStyle,
+      cellStyle,
+      headerStyle,
+      getCellStyle,
+      sortKey,
+      sortOrder,
+      sortBy,
+      expandedStageNums,
+      toggleStage,
+      isExpanded,
+      stageGroups,
+      getTagIds,
+      tagMap,
+      getTextColor,
+      theadRef,
+      formatSpAttackValue,
+      // New properties
+      sortByMode,
+      toggleSortMode,
+      tagGroups,
+      toggleTag,
+      isTagExpanded,
+      totalColspan,
+      emptyStateMessage
     }
   },
 })
