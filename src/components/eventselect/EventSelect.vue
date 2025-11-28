@@ -1,5 +1,5 @@
 <template>
-  <div class="event-select-container p-4">
+  <div class="event-select-container p-4 relative">
     <div class="flex items-start gap-6">
       <!-- イベント選択 -->
       <div class="w-32">
@@ -64,6 +64,11 @@
       </div>
     </div>
 
+    <!-- Theme Selector in bottom-right -->
+    <div class="absolute bottom-4 right-4">
+      <ThemeSelector :currentTheme="theme" @theme-change="handleThemeChange" />
+    </div>
+
     <div v-if="loading" class="mt-2 text-sm text-gray-500">
       読み込み中...
     </div>
@@ -75,16 +80,22 @@ import { defineComponent, ref, computed, onMounted, watch, onUnmounted, type Pro
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
 import type { EventInfo } from '@/types/interfaces'
+import ThemeSelector from '@/components/theme/ThemeSelector.vue'
 
 export default defineComponent({
   name: 'EventSelect',
+  components: { ThemeSelector },
   props: {
     selectedEventId: {
       type: Number as PropType<number | null>,
       default: null,
     },
+    theme: {
+      type: String as PropType<'light' | 'dark' | 'gradient'>,
+      default: 'light',
+    },
   },
-  emits: ['event-selected'],
+  emits: ['event-selected', 'theme-change'],
   setup(props, { emit }) {
     const events = ref<EventInfo[]>([])
     const localSelectedEventId = ref<number | null>(props.selectedEventId)
@@ -230,6 +241,10 @@ export default defineComponent({
       }
     }
 
+    const handleThemeChange = (newTheme: 'light' | 'dark' | 'gradient') => {
+      emit('theme-change', newTheme)
+    }
+
     // propsの変更を監視してローカル状態を更新
     watch(() => props.selectedEventId, (newValue) => {
       localSelectedEventId.value = newValue
@@ -260,6 +275,7 @@ export default defineComponent({
       formatDate,
       eventStatus,
       statusColorClass,
+      handleThemeChange,
     }
   },
 })

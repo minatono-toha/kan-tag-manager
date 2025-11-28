@@ -1,11 +1,13 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="`theme-${theme}`">
     <!-- イベント選択 -->
     <div class="sticky top-0 bg-white z-20 shadow-md border-b">
       <div class="p-4">
         <EventSelect
           :selectedEventId="selectedEventId"
+          :theme="theme"
           @event-selected="handleEventSelected"
+          @theme-change="handleThemeChange"
         />
       </div>
     </div>
@@ -27,7 +29,7 @@
     >
       <div class="main-content flex gap-4">
         <!-- 艦船一覧（左側） -->
-        <div class="list-container flex-1">
+        <div class="list-container" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }">
           <ShipListTable
             :ships="sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships"
             :loading="loading"
@@ -35,6 +37,7 @@
             :hasFiltersSelected="selectedFilterIds.length > 0"
             @select="openModal"
             @filter-change="handleShipFilterChange"
+            @display-mode-change="handleDisplayModeChange"
           />
         </div>
 
@@ -93,9 +96,29 @@ export default defineComponent({
     const sortedShipsFromAttackTable = ref<Ship[]>([])
     const selectedEventId = ref<number | null>(null)
     const loading = ref(false)
+    const theme = ref<'light' | 'dark' | 'gradient'>('light')
+
+    const handleThemeChange = (newTheme: 'light' | 'dark' | 'gradient') => {
+      theme.value = newTheme
+      // Save to localStorage for persistence
+      localStorage.setItem('app-theme', newTheme)
+    }
+
+    // Load theme from localStorage on mount
+    const loadTheme = () => {
+      const savedTheme = localStorage.getItem('app-theme') as 'light' | 'dark' | 'gradient' | null
+      if (savedTheme) {
+        theme.value = savedTheme
+      }
+    }
     const attackTableHeaderHeight = ref<number | undefined>(undefined)
     const filteredShipsFromSearch = ref<Ship[]>([])
     const isSearchActive = ref(false)
+    const shipListDisplayMode = ref<'detail' | 'nameOnly'>('detail')
+
+    const handleDisplayModeChange = (mode: 'detail' | 'nameOnly') => {
+      shipListDisplayMode.value = mode
+    }
 
     const handleHeaderHeightChange = (height: number) => {
       attackTableHeaderHeight.value = height
@@ -208,6 +231,7 @@ export default defineComponent({
     }
 
     onMounted(() => {
+      loadTheme()
       fetchShips()
       fetchFilters()
     })
@@ -236,6 +260,10 @@ export default defineComponent({
       handleHeaderHeightChange,
       shipsToDisplay,
       handleShipFilterChange,
+      theme,
+      handleThemeChange,
+      shipListDisplayMode,
+      handleDisplayModeChange,
     }
   },
 })
@@ -250,6 +278,7 @@ export default defineComponent({
 .list-container,
 .attack-container {
   flex: 1;
+  min-width: 0; /* Enable scrolling inside flex item */
 }
 
 .main-scroll-container {

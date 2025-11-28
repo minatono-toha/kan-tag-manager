@@ -1,10 +1,10 @@
 <template>
   <div class="p-4">
-    <div class="flex items-center mb-2">
-      <h2 class="text-xl font-bold mr-4">特攻情報</h2>
+    <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
+      <h2 class="text-xl font-bold mr-4 whitespace-nowrap">特攻情報</h2>
       <button
         @click="toggleSortMode"
-        class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+        class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
       >
         {{ sortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
       </button>
@@ -95,7 +95,7 @@
                 v-for="group in tagGroups"
                 :key="'tagGroup-' + group.tagId"
                 :colspan="group.maps.length"
-                :style="{ ...cellStyle, backgroundColor: group.tagColor, color: getTextColor(group.tagColor) }"
+                :style="{ ...cellStyle, backgroundColor: group.tagColor + ' !important', color: getTextColor(group.tagColor) + ' !important' }"
                 class="border sp-col text-center cursor-pointer align-top"
                 @click="toggleTag(group.tagId)"
               >
@@ -133,7 +133,12 @@
           </template>
         </thead>
         <tbody>
-          <tr v-for="ship in sortedShips" :key="ship.orig" :style="rowStyle">
+          <tr
+            v-for="ship in sortedShips"
+            :key="ship.orig"
+            :style="{ ...rowStyle, height: `${TABLE_STYLE.rowHeight}px`, boxSizing: 'border-box' }"
+            class="hover:bg-gray-100"
+          >
             <!-- Area Mode Body -->
             <template v-if="sortByMode === 'area'">
               <template v-for="group in stageGroups">
@@ -356,8 +361,8 @@ export default defineComponent({
         }
       })
       tagMap.value = map
-      // Initialize expandedTagIds with all tags expanded by default
-      expandedTagIds.value = Object.keys(map).map(Number)
+      // Initialize expandedTagIds to empty (collapsed by default)
+      expandedTagIds.value = []
     }
     const theadRef = ref<HTMLElement | null>(null)
     let resizeObserver: ResizeObserver | null = null
@@ -391,11 +396,18 @@ export default defineComponent({
     const spAttackCache = ref<Record<number, Record<string, number>>>({})
 
     const sortKey = ref<string | null>(null)
-    const sortOrder = ref<'asc' | 'desc'>('asc')
+    const sortOrder = ref<'asc' | 'desc'>('desc')
     const sortBy = (key: string) => {
       if (sortKey.value === key) {
-        sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+        // Cycle through: desc -> asc -> none
+        if (sortOrder.value === 'desc') {
+          sortOrder.value = 'asc'
+        } else if (sortOrder.value === 'asc') {
+          // Clear sort
+          sortKey.value = null
+        }
       } else {
+        // New column: start with desc
         sortKey.value = key
         sortOrder.value = 'desc'
       }
@@ -426,6 +438,17 @@ export default defineComponent({
       }
       return '-'
     })
+
+    // Watchers to sync header height
+    watch(
+      [sortByMode, expandedStageNums, tagGroups],
+      () => {
+        nextTick(() => {
+          emitHeaderHeight()
+        })
+      },
+      { deep: true }
+    )
 
     const sortedShips = computed(() => {
       if (!sortKey.value) {
@@ -475,9 +498,8 @@ export default defineComponent({
       // <template v-else> ... </template>
       // If collapsed, it shows a placeholder column.
 
-      // I'll auto-expand stages for better UX since I'm touching this.
-      const stages = new Set(eventMaps.value.map(m => m.stageNum))
-      expandedStageNums.value = Array.from(stages)
+      // Initialize expandedStageNums to empty (collapsed by default)
+      expandedStageNums.value = []
     }
 
     const fetchAllSpAttackData = async () => {
@@ -544,7 +566,6 @@ export default defineComponent({
       whiteSpace: TABLE_STYLE.whiteSpace,
     }
     const headerStyle = {
-      height: `${TABLE_STYLE.headerHeight}px`,
       fontSize: TABLE_STYLE.fontSize,
     }
     const getCellStyle = (spAttackData: number | undefined) => {
@@ -604,7 +625,8 @@ export default defineComponent({
       toggleTag,
       isTagExpanded,
       totalColspan,
-      emptyStateMessage
+      emptyStateMessage,
+      TABLE_STYLE,
     }
   },
 })

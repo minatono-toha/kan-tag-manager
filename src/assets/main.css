@@ -3,8 +3,10 @@
 #app {
   /* max-width: 1280px; */
   margin: 0;
-  padding: 2rem;
+  padding: 0;
   font-weight: normal;
+  width: 100%;
+  min-height: 100vh;
 }
 
 a,
@@ -32,4 +34,236 @@ a,
     grid-template-columns: 1fr 1fr;
     padding: 0 2rem;
   } */
+}
+
+/* ========================================
+   Theme Styles
+   ======================================== */
+
+/* Light Mode (Default) */
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border-color: #d1d5db;
+  --header-bg: #f3f4f6;
+  --header-text: #374151;
+  --hover-bg: #f3f4f6;
+  --table-border: #d1d5db;
+  --tab-grayed-text: #374151;
+}
+
+/* Dark Mode */
+.theme-dark {
+  --bg-primary: #1f2937;
+  --bg-secondary: #111827;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --border-color: #4b5563;
+  --header-bg: #374151;
+  --header-text: #f9fafb;
+  --hover-bg: #4b5563;
+  --table-border: #4b5563;
+  --tab-grayed-text: #111827;
+}
+
+/* Gradient Mode */
+.theme-gradient {
+  --bg-primary: linear-gradient(135deg, #1e3a8a 0%, #000000 100%);
+  --bg-secondary: rgba(30, 58, 138, 0.5);
+  --bg-tertiary: rgba(59, 130, 200, 0.3);
+  --text-primary: #f9fafb;
+  --text-secondary: #e5e7eb;
+  --text-tertiary: #d1d5db;
+  --border-color: rgba(99, 102, 241, 0.3);
+  --header-bg: rgba(30, 58, 138, 0.6);
+  --header-text: #f9fafb;
+  --hover-bg: rgba(99, 102, 241, 0.2);
+  --table-border: rgba(99, 102, 241, 0.3);
+  --tab-grayed-text: #111827;
+}
+
+/* Apply theme colors to root and body for full coverage */
+.theme-light,
+.theme-dark,
+.theme-gradient {
+  min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.theme-light {
+  background: #ffffff;
+  color: #111827;
+}
+
+.theme-dark {
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+.theme-gradient {
+  background: linear-gradient(135deg, #1e3a8a 0%, #000000 100%);
+  color: #f9fafb;
+}
+
+/* Ensure body fills screen */
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+.theme-dark body,
+.theme-gradient body {
+  background: inherit;
+}
+
+/* App container fills screen */
+.app-container {
+  min-height: 100vh;
+}
+
+/* Sticky header */
+.theme-light .sticky,
+.theme-dark .sticky,
+.theme-gradient .sticky {
+  background: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.theme-dark .sticky {
+  background: #1f2937 !important;
+}
+
+.theme-gradient .sticky {
+  background: rgba(30, 58, 138, 0.95) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Tab container */
+.theme-light .tabs-container,
+.theme-dark .tabs-container,
+.theme-gradient .tabs-container {
+  background: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.theme-dark .tabs-container {
+  background: #1f2937 !important;
+}
+
+.theme-gradient .tabs-container {
+  background: rgba(30, 58, 138, 0.8) !important;
+}
+
+/* Tab buttons - grayed out state uses dark text */
+.theme-dark .bg-gray-200,
+.theme-gradient .bg-gray-200 {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--tab-grayed-text) !important;
+}
+
+/* Tables */
+.theme-light table,
+.theme-dark table,
+.theme-gradient table {
+  border-color: var(--table-border) !important;
+}
+
+.theme-dark table {
+  background: transparent;
+}
+
+.theme-gradient table {
+  background: transparent;
+}
+
+.theme-light th,
+.theme-dark th,
+.theme-gradient th {
+  background-color: var(--header-bg) !important;
+  color: var(--header-text) !important;
+  border-color: var(--table-border) !important;
+}
+
+/* AttackTable cells keep black text in all themes */
+.theme-light .sp-attack-table td,
+.theme-dark .sp-attack-table td,
+.theme-gradient .sp-attack-table td {
+  color: #111827 !important;
+  border-color: var(--table-border) !important;
+}
+
+/* Other tables use theme text color */
+.theme-light td,
+.theme-dark td,
+.theme-gradient td {
+  color: var(--text-primary) !important;
+  border-color: var(--table-border) !important;
+}
+
+.theme-light tbody tr:hover,
+.theme-dark tbody tr:hover,
+.theme-gradient tbody tr:hover {
+  background-color: var(--hover-bg) !important;
+}
+
+/* Borders and inputs */
+.theme-light .border,
+.theme-dark .border,
+.theme-gradient .border {
+  border-color: var(--border-color) !important;
+}
+
+.theme-light select,
+.theme-dark select,
+.theme-gradient select,
+.theme-light input,
+.theme-dark input,
+.theme-gradient input {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Text colors */
+.theme-light .text-gray-700,
+.theme-dark .text-gray-700,
+.theme-gradient .text-gray-700 {
+  color: var(--text-primary) !important;
+}
+
+.theme-light .text-gray-500,
+.theme-dark .text-gray-500,
+.theme-gradient .text-gray-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* Backgrounds */
+.theme-light .bg-white,
+.theme-dark .bg-white,
+.theme-gradient .bg-white {
+  background-color: var(--bg-primary) !important;
+}
+
+.theme-dark .bg-white {
+  background-color: #1f2937 !important;
+}
+
+.theme-gradient .bg-white {
+  background-color: rgba(30, 58, 138, 0.5) !important;
+}
+
+.theme-light .bg-gray-50,
+.theme-dark .bg-gray-50,
+.theme-gradient .bg-gray-50,
+.theme-light .bg-gray-100,
+.theme-dark .bg-gray-100,
+.theme-gradient .bg-gray-100 {
+  background-color: var(--bg-secondary) !important;
 }
