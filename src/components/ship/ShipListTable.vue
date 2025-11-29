@@ -9,6 +9,7 @@
         {{ displayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
       </button>
     </div>
+    <TableAnnotations type="ship" />
     <div v-if="loading">読み込み中...</div>
     <table v-else class="w-full text-sm border-collapse border border-gray-300">
       <thead class="bg-gray-100">
@@ -170,6 +171,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import type { Ship } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
+import TableAnnotations from '../common/TableAnnotations.vue'
 
 const props = defineProps<{
   ships: Ship[]

@@ -70,50 +70,43 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, onMounted } from 'vue'
+import { defineComponent, ref, onMounted } from 'vue'
 import { Ship } from '@/types/interfaces'
 import ShipFilterTabs from './components/ship/ShipFilterTabs.vue'
 import ShipListTable from './components/ship/ShipListTable.vue'
 import ShipModal from './components/ship/ShipModal.vue'
 import AttackTable from './components/attack/AttackTable.vue'
 import EventSelect from './components/eventselect/EventSelect.vue'
-import { db } from '@/firebase'
-import { collection, getDocs } from 'firebase/firestore'
+import { useTheme } from '@/composables/useTheme'
+import { useShips } from '@/composables/useShips'
 
 export default defineComponent({
   components: { ShipFilterTabs, ShipListTable, ShipModal, AttackTable, EventSelect },
   setup() {
-    const allShips = ref<Ship[]>([])
-    const uniqueOrigs = ref<Ship[]>([])
+    const { theme, handleThemeChange } = useTheme()
+    const {
+      allShips,
+      filters,
+      selectedFilterIds,
+      ships,
+      shipsToDisplay,
+      fetchShips,
+      fetchFilters,
+      toggleFilter,
+      toggleAllFilters,
+      isAllSelected,
+      handleShipFilterChange,
+    } = useShips()
+
     const modalShips = ref<Ship[]>([])
     const modalVisible = ref(false)
-
-    const filters = ref<{ id: number; label: string }[]>([])
-    const selectedFilterIds = ref<number[]>([])
     const scrollRef = ref<HTMLElement | null>(null)
     const scrollPositions = ref<{ [key: string]: number }>({})
 
     const sortedShipsFromAttackTable = ref<Ship[]>([])
     const selectedEventId = ref<number | null>(null)
     const loading = ref(false)
-    const theme = ref<'light' | 'dark' | 'gradient'>('light')
-
-    const handleThemeChange = (newTheme: 'light' | 'dark' | 'gradient') => {
-      theme.value = newTheme
-      // Save to localStorage for persistence
-      localStorage.setItem('app-theme', newTheme)
-    }
-
-    // Load theme from localStorage on mount
-    const loadTheme = () => {
-      const savedTheme = localStorage.getItem('app-theme') as 'light' | 'dark' | 'gradient' | null
-      if (savedTheme) {
-        theme.value = savedTheme
-      }
-    }
     const attackTableHeaderHeight = ref<number | undefined>(undefined)
-    const filteredShipsFromSearch = ref<Ship[]>([])
-    const isSearchActive = ref(false)
     const shipListDisplayMode = ref<'detail' | 'nameOnly'>('detail')
 
     const handleDisplayModeChange = (mode: 'detail' | 'nameOnly') => {
@@ -138,79 +131,6 @@ export default defineComponent({
       console.log('App: selectedEventId updated to:', selectedEventId.value)
     }
 
-    const handleShipFilterChange = (filtered: Ship[], isActive: boolean) => {
-      filteredShipsFromSearch.value = filtered
-      isSearchActive.value = isActive
-    }
-
-    const fetchShips = async () => {
-      const snap = await getDocs(collection(db, 'shiplist'))
-      allShips.value = snap.docs.map((doc) => {
-        const ship = doc.data() as Ship
-        return { ...ship }
-      })
-      getUniqueOrigs()
-    }
-
-    const fetchFilters = async () => {
-      const snap = await getDocs(collection(db, 'filter'))
-      filters.value = snap.docs
-        .map((doc) => {
-          const data = doc.data()
-          return { id: Number(data.filterId), label: data.filtertype_jp }
-        })
-        .filter((f) => !isNaN(f.id))
-        .sort((a, b) => a.id - b.id)
-    }
-
-    const getUniqueOrigs = () => {
-      const map = new Map<number, Ship>()
-      for (const ship of allShips.value) {
-        if (!map.has(ship.orig) || ship.id < (map.get(ship.orig)?.id ?? Infinity)) {
-          map.set(ship.orig, ship)
-        }
-      }
-      uniqueOrigs.value = Array.from(map.values()).sort((a, b) => {
-        const fa = a.filterId ?? 0
-        const fb = b.filterId ?? 0
-        return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
-      })
-    }
-
-    const ships = computed(() => {
-      if (selectedFilterIds.value.length === 0) return []
-      return uniqueOrigs.value
-        .filter((ship) => selectedFilterIds.value.includes(ship.filterId))
-        .sort((a, b) => {
-          const fa = a.filterId ?? 0
-          const fb = b.filterId ?? 0
-          return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
-        })
-    })
-
-    const shipsToDisplay = computed(() => {
-      if (!isSearchActive.value || filteredShipsFromSearch.value.length === 0) {
-        return ships.value
-      }
-      const searchedOrigs = new Set(filteredShipsFromSearch.value.map(s => s.orig))
-      return ships.value.filter(ship => searchedOrigs.has(ship.orig))
-    })
-
-    const toggleFilter = (id: number) => {
-      const index = selectedFilterIds.value.indexOf(id)
-      if (index > -1) selectedFilterIds.value.splice(index, 1)
-      else selectedFilterIds.value.push(id)
-    }
-
-    const toggleAllFilters = () => {
-      if (isAllSelected.value) selectedFilterIds.value = []
-      else selectedFilterIds.value = filters.value.map((f) => f.id)
-    }
-
-    const isAllSelected = computed(() => {
-      return selectedFilterIds.value.length === filters.value.length && filters.value.length > 0
-    })
-
     const openModal = (orig: number) => {
       modalVisible.value = true
       modalShips.value = allShips.value
@@ -231,7 +151,6 @@ export default defineComponent({
     }
 
     onMounted(() => {
-      loadTheme()
       fetchShips()
       fetchFilters()
     })
