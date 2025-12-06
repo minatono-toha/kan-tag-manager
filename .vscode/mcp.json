@@ -1,0 +1,24 @@
+{
+  "servers": {
+    "serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "c:/srcuvx --from git+https://github.com/oraios/serena serena start-mcp-server/kan-tag-manager"
+      ],
+      "env": {}
+    },
+    "github": {
+      "type" : "http",
+      "url" : "https://api.githubcopilot.com/mcp/",
+      "gallery" : true
+    }
+  }
+}
