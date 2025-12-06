@@ -109,7 +109,9 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
     Object.keys(mapByStage)
       .sort((a, b) => Number(a) - Number(b))
       .forEach((stageNum) => {
-        groups.push({ stageNum: Number(stageNum), maps: mapByStage[Number(stageNum)] })
+        // Sort maps by mapId in ascending order
+        const sortedMaps = mapByStage[Number(stageNum)].sort((a, b) => a.mapId - b.mapId)
+        groups.push({ stageNum: Number(stageNum), maps: sortedMaps })
       })
     return groups
   })

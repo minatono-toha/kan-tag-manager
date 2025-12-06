@@ -1,21 +1,5 @@
 <template>
-  <div class="p-4">
-    <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
-      <h2 class="text-xl font-bold mr-4 whitespace-nowrap">特攻情報</h2>
-      <button
-        @click="toggleSortMode"
-        class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
-      >
-        {{ sortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
-      </button>
-      <button
-        @click="toggleAllStages"
-        class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-      >
-        {{ isAllExpanded ? '全格納' : '全展開' }}
-      </button>
-    </div>
-    <TableAnnotations type="attack" />
+  <div>
     <div v-if="loading">読み込み中...</div>
     <div v-else class="overflow-x-auto">
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
@@ -212,7 +196,6 @@ import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import type { Ship, Event } from '@/types/interfaces'
 import { useAttackData } from '@/composables/useAttackData'
-import TableAnnotations from '../common/TableAnnotations.vue'
 
 export default defineComponent({
   name: 'AttackTable',
@@ -226,10 +209,7 @@ export default defineComponent({
       required: true,
     },
   },
-  components: {
-    TableAnnotations,
-  },
-  emits: ['update-sorted-ships', 'loading', 'header-height-change'],
+  emits: ['update-sorted-ships', 'loading', 'header-height-change', 'update-sort-mode', 'update-is-all-expanded'],
   setup(props, { emit }) {
     const { filteredUniqueOrigs, selectedEventId } = toRefs(props)
 
@@ -358,6 +338,15 @@ export default defineComponent({
     // Emit loading state
     watch(loading, (newVal) => {
       emit('loading', newVal)
+    })
+
+    // Emit sort mode and expand state changes
+    watch(sortByMode, (newVal) => {
+      emit('update-sort-mode', newVal)
+    }, { immediate: true })
+
+    watch(isAllExpanded, (newVal) => {
+      emit('update-is-all-expanded', newVal)
     })
 
     watch(

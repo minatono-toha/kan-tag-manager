@@ -23,36 +23,73 @@
 
     <!-- メインコンテンツ：ここにスクロール管理を集約 -->
     <div
-      class="main-scroll-container overflow-y-auto h-[calc(100vh-200px)] p-4"
+      class="main-scroll-container overflow-y-auto overflow-x-auto h-[calc(100vh-200px)] p-4"
       ref="scrollRef"
       @scroll="onScroll"
+      :style="{ fontSize: `${scaleFactor * 100}%` }"
     >
       <div class="main-content flex gap-4">
-        <!-- 艦船一覧（左側） -->
-        <div class="list-container" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }">
-          <ShipListTable
-            :ships="sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships"
-            :loading="loading"
-            :targetHeaderHeight="attackTableHeaderHeight"
-            :hasFiltersSelected="selectedFilterIds.length > 0"
-            @select="openModal"
-            @filter-change="handleShipFilterChange"
+        <!-- 札管理（左側） -->
+        <div class="tag-manage-container flex-none flex flex-col" ref="tagManageContainerRef">
+          <TagManageTitle />
+          <div class="flex-grow">
+            <TagManageTable
+              :ships="sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships"
+              :selectedEventId="selectedEventId"
+              :loading="loading"
+              :targetHeaderHeight="attackTableHeaderHeight"
+              :tagManagementData="tagManagementData"
+              :stageOptions="stageOptions"
+              :updateTagManagement="updateTagManagement"
+              @filter-change="handleTagFilterChange"
+            />
+          </div>
+        </div>
+
+        <!-- 艦船一覧（中央） -->
+        <div class="list-container flex flex-col" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }" ref="shipListContainerRef">
+          <ShipListTitle
             @display-mode-change="handleDisplayModeChange"
           />
+          <div class="flex-grow">
+            <ShipListTable
+              :ships="tagFilterActive ? filteredShipsFromTagTable : (sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships)"
+              :loading="loading"
+              :targetHeaderHeight="attackTableHeaderHeight"
+              :hasFiltersSelected="selectedFilterIds.length > 0"
+              :displayMode="shipListDisplayMode"
+              :selectedEventId="selectedEventId"
+              :tagManagementData="tagManagementData"
+              @select="openModal"
+              @filter-change="handleShipFilterChange"
+            />
+          </div>
         </div>
 
         <!-- 特攻情報（右側） -->
-        <div class="attack-container flex-1">
-          <AttackTable
+        <div class="attack-container flex-1 flex flex-col" ref="attackContainerRef">
+          <AttackTitle
             v-if="selectedEventId"
-            :filteredUniqueOrigs="shipsToDisplay"
-            :selectedEventId="selectedEventId!"
-            @update-sorted-ships="handleSortedShipsUpdate"
-            @loading="handleLoading"
-            @header-height-change="handleHeaderHeightChange"
+            :sortByMode="attackSortByMode"
+            :isAllExpanded="attackIsAllExpanded"
+            @toggle-sort-mode="handleToggleSortMode"
+            @toggle-all-stages="handleToggleAllStages"
           />
-          <div v-else class="p-4 text-center text-gray-500">
-            イベントを選択してください
+          <div class="flex-grow">
+            <AttackTable
+              v-if="selectedEventId"
+              :filteredUniqueOrigs="tagFilterActive ? filteredShipsFromTagTable.map(s => s.orig) : shipsToDisplay"
+              :selectedEventId="selectedEventId!"
+              @update-sorted-ships="handleSortedShipsUpdate"
+              @loading="handleLoading"
+              @header-height-change="handleHeaderHeightChange"
+              @update-sort-mode="handleSortModeUpdate"
+              @update-is-all-expanded="handleIsAllExpandedUpdate"
+              ref="attackTableRef"
+            />
+            <div v-else class="p-4 text-center text-gray-500">
+              イベントを選択してください
+            </div>
           </div>
         </div>
       </div>
@@ -70,18 +107,33 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from 'vue'
+import { defineComponent, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Ship } from '@/types/interfaces'
 import ShipFilterTabs from './components/ship/ShipFilterTabs.vue'
+import ShipListTitle from './components/ship/ShipListTitle.vue'
 import ShipListTable from './components/ship/ShipListTable.vue'
 import ShipModal from './components/ship/ShipModal.vue'
+import AttackTitle from './components/attack/AttackTitle.vue'
 import AttackTable from './components/attack/AttackTable.vue'
+import TagManageTitle from './components/tag-manage/TagManageTitle.vue'
+import TagManageTable from './components/tag-manage/TagManageTable.vue'
 import EventSelect from './components/eventselect/EventSelect.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
+import { useTagManagement } from '@/composables/useTagManagement'
 
 export default defineComponent({
-  components: { ShipFilterTabs, ShipListTable, ShipModal, AttackTable, EventSelect },
+  components: {
+    ShipFilterTabs,
+    ShipListTitle,
+    ShipListTable,
+    ShipModal,
+    AttackTitle,
+    AttackTable,
+    TagManageTitle,
+    TagManageTable,
+    EventSelect
+  },
   setup() {
     const { theme, handleThemeChange } = useTheme()
     const {
@@ -103,11 +155,33 @@ export default defineComponent({
     const scrollRef = ref<HTMLElement | null>(null)
     const scrollPositions = ref<{ [key: string]: number }>({})
 
+    // Refs for table containers
+    const tagManageContainerRef = ref<HTMLElement | null>(null)
+    const shipListContainerRef = ref<HTMLElement | null>(null)
+    const attackContainerRef = ref<HTMLElement | null>(null)
+
     const sortedShipsFromAttackTable = ref<Ship[]>([])
     const selectedEventId = ref<number | null>(null)
     const loading = ref(false)
     const attackTableHeaderHeight = ref<number | undefined>(undefined)
     const shipListDisplayMode = ref<'detail' | 'nameOnly'>('detail')
+    const attackSortByMode = ref<string>('area')
+    const attackIsAllExpanded = ref<boolean>(false)
+
+    // Dynamic scaling
+    const scaleFactor = ref(1)
+
+    // Initialize tag management at App level to share state between tables
+    const { tagManagementData, stageOptions, updateTagManagement } = useTagManagement(selectedEventId, ships)
+
+    // Store filtered ships from tag management table
+    const filteredShipsFromTagTable = ref<Ship[]>([])
+    const tagFilterActive = ref(false)
+
+    const handleTagFilterChange = (filteredShips: Ship[], isFiltering: boolean) => {
+      filteredShipsFromTagTable.value = filteredShips
+      tagFilterActive.value = isFiltering
+    }
 
     const handleDisplayModeChange = (mode: 'detail' | 'nameOnly') => {
       shipListDisplayMode.value = mode
@@ -131,6 +205,28 @@ export default defineComponent({
       console.log('App: selectedEventId updated to:', selectedEventId.value)
     }
 
+    const handleSortModeUpdate = (mode: string) => {
+      attackSortByMode.value = mode
+    }
+
+    const handleIsAllExpandedUpdate = (expanded: boolean) => {
+      attackIsAllExpanded.value = expanded
+    }
+
+    const attackTableRef = ref<any>(null)
+
+    const handleToggleSortMode = () => {
+      if (attackTableRef.value?.toggleSortMode) {
+        attackTableRef.value.toggleSortMode()
+      }
+    }
+
+    const handleToggleAllStages = () => {
+      if (attackTableRef.value?.toggleAllStages) {
+        attackTableRef.value.toggleAllStages()
+      }
+    }
+
     const openModal = (orig: number) => {
       modalVisible.value = true
       modalShips.value = allShips.value
@@ -150,9 +246,74 @@ export default defineComponent({
       }
     }
 
+    // Function to align table container heights
+    const alignTableHeights = () => {
+      // Use nextTick to ensure DOM is updated
+      nextTick(() => {
+        const containers = [
+          tagManageContainerRef.value,
+          shipListContainerRef.value,
+          attackContainerRef.value
+        ].filter(el => el !== null) as HTMLElement[]
+
+        if (containers.length === 0) return
+
+        // Reset heights first
+        containers.forEach(container => {
+          container.style.height = 'auto'
+        })
+
+        // Calculate max height
+        const maxHeight = Math.max(...containers.map(container => container.offsetHeight))
+
+        // Apply max height to all containers
+        containers.forEach(container => {
+          container.style.height = `${maxHeight}px`
+        })
+      })
+    }
+
+    // Handle click events
+    const handleGlobalClick = () => {
+      alignTableHeights()
+    }
+
+    // Handle window resize (includes zoom changes)
+    const handleResize = () => {
+      // Calculate scale factor based on window width
+      // Base width 1500px, min scale 0.7, max scale 1.0
+      const baseWidth = 1500
+      const currentWidth = window.innerWidth
+      scaleFactor.value = Math.max(0.7, Math.min(1, currentWidth / baseWidth))
+
+      alignTableHeights()
+    }
+
     onMounted(() => {
       fetchShips()
       fetchFilters()
+
+      // Initial alignment
+      alignTableHeights()
+
+      // Add click event listener
+      document.addEventListener('click', handleGlobalClick)
+
+      // Add resize event listener for zoom changes
+      window.addEventListener('resize', handleResize)
+    })
+
+    onUnmounted(() => {
+      // Remove click event listener
+      document.removeEventListener('click', handleGlobalClick)
+
+      // Remove resize event listener
+      window.removeEventListener('resize', handleResize)
+    })
+
+    // Watch for data changes that might affect height
+    watch([sortedShipsFromAttackTable, loading, shipListDisplayMode], () => {
+      alignTableHeights()
     })
 
     return {
@@ -183,24 +344,52 @@ export default defineComponent({
       handleThemeChange,
       shipListDisplayMode,
       handleDisplayModeChange,
+      attackSortByMode,
+      attackIsAllExpanded,
+      handleToggleSortMode,
+      handleToggleAllStages,
+      attackTableRef,
+      handleSortModeUpdate,
+      handleIsAllExpandedUpdate,
+      tagManageContainerRef,
+      shipListContainerRef,
+      attackContainerRef,
+      scaleFactor,
+      tagManagementData,
+      stageOptions,
+      updateTagManagement,
+      filteredShipsFromTagTable,
+      tagFilterActive,
+      handleTagFilterChange,
     }
   },
 })
 </script>
 
-<style scoped>
+<style>
+@import '@/assets/zoom-responsive.css';
+
 .main-content {
   display: flex;
   gap: 20px;
+  flex-wrap: nowrap; /* Prevent wrapping - always horizontal */
 }
 
-.list-container,
+/* Set minimum widths for each container to prevent overlap */
+.tag-manage-container {
+  min-width: 390px; /* 80 + 60 + 100 + 150 columns */
+}
+
+.list-container {
+  min-width: 160px; /* Name only mode minimum */
+}
+
+.list-container.flex-1 {
+  min-width: 520px; /* Detail mode minimum (60 + 80 + 160 + 160 + 60) */
+}
+
 .attack-container {
   flex: 1;
-  min-width: 0; /* Enable scrolling inside flex item */
-}
-
-.main-scroll-container {
-  max-height: calc(100vh - 200px); /* イベント選択とタブ分除く */
+  min-width: 400px; /* Minimum width for attack table */
 }
 </style>

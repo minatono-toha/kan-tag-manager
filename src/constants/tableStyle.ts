@@ -4,10 +4,10 @@
 export const TABLE_ROW_HEIGHT = 40
 
 // フォントサイズ（CSSの文字列指定）
-export const TABLE_FONT_SIZE = '14px'
+export const TABLE_FONT_SIZE = '12px'
 
 // セル内のパディング
-export const TABLE_PADDING = '8px'
+export const TABLE_PADDING = '4px'
 
 // ヘッダーの高さ（必要であれば）
 export const TABLE_HEADER_HEIGHT = 40

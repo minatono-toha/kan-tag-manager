@@ -53,3 +53,14 @@ export interface Event {
 export interface ShipWithSpAttack extends Ship {
   spAttackData: Record<string, number>
 }
+
+// 札管理データ
+export interface TagManagement {
+  id?: string
+  eventId: number
+  orig: number  // Ship ID
+  assigned: boolean  // 割り当て済み
+  preserve: boolean  // 温存
+  targetStage: string  // 割当先
+  comment: string  // コメント
+}
