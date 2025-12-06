@@ -201,7 +201,7 @@ export default defineComponent({
   name: 'AttackTable',
   props: {
     filteredUniqueOrigs: {
-      type: Array as () => Ship[],
+      type: Array as () => number[],
       required: true,
     },
     selectedEventId: {
