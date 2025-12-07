@@ -1,20 +1,11 @@
 <template>
-  <div class="p-4 relative">
-    <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
-      <h2 class="text-xl font-bold mr-4 whitespace-nowrap">艦船情報</h2>
-      <button
-        @click="toggleDisplayMode"
-        class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-      >
-        {{ displayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
-      </button>
-    </div>
+  <div>
     <div v-if="loading">読み込み中...</div>
     <table v-else class="w-full text-sm border-collapse border border-gray-300">
       <thead class="bg-gray-100">
         <tr>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top">図鑑ID</th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px', boxSizing: 'border-box' }" class="border text-left align-top">艦種</th>
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top">図鑑ID</th>
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px', boxSizing: 'border-box' }" class="border text-left align-top">艦種</th>
           <th :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': searchQuery.trim() }">
             <div>艦名</div>
             <span
@@ -28,7 +19,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': classSearchQuery.trim() }">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': classSearchQuery.trim() }">
             <div>艦型・艦番</div>
             <span
               @click="toggleClassSearch($event)"
@@ -41,7 +32,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': speedFilterValue }">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': speedFilterValue }">
             <div>速力</div>
             <span
               @click="toggleSpeedFilter($event)"
@@ -60,18 +51,18 @@
         <tr
           v-for="ship in filteredShips"
           :key="ship.id"
-          :style="{ ...rowStyle, height: `${TABLE_STYLE.rowHeight}px`, boxSizing: 'border-box' }"
+          :style="{ ...rowStyle, ...getRowBackgroundStyle(ship.orig), height: `${TABLE_STYLE.rowHeight}px`, boxSizing: 'border-box' }"
           class="hover:bg-gray-100 cursor-pointer"
           @click="openModal(ship.orig)"
         >
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.shipType }}</td>
+          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
+          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.shipType }}</td>
           <td :style="cellStyle" class="border">{{ ship.name }}</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.class }}</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.speed }}</td>
+          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.class }}</td>
+          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.speed }}</td>
         </tr>
         <tr v-if="filteredShips.length === 0">
-          <td :colspan="displayMode === 'detail' ? 5 : 1" :style="cellStyle" class="border text-center py-4 text-gray-500">
+          <td :colspan="props.displayMode === 'detail' ? 5 : 1" :style="cellStyle" class="border text-center py-4 text-gray-500">
             {{ emptyStateMessage }}
           </td>
         </tr>
@@ -168,7 +159,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { watchDebounced } from '@vueuse/core'
-import type { Ship } from '@/types/interfaces'
+import type { Ship, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 
 const props = defineProps<{
@@ -176,12 +167,14 @@ const props = defineProps<{
   loading?: boolean
   targetHeaderHeight?: number
   hasFiltersSelected: boolean
+  displayMode: 'detail' | 'nameOnly'
+  selectedEventId: number | null
+  tagManagementData: Map<number, TagManagement>
 }>()
 
 const emit = defineEmits<{
   (e: 'select', orig: number): void
   (e: 'filter-change', filteredShips: Ship[], isFiltering: boolean): void
-  (e: 'display-mode-change', mode: 'detail' | 'nameOnly'): void
 }>()
 
 function openModal(orig: number) {
@@ -349,6 +342,28 @@ watchDebounced(
   { debounce: 150, maxWait: 300 }
 )
 
+// Get row background style based on tag flags
+const getRowBackgroundStyle = (orig: number) => {
+  // Access reactive tagManagementData directly from props (Vue unwraps refs)
+  const tagData = props.tagManagementData.get(orig)
+
+  // If no tag data, return default
+  if (!tagData) return {}
+
+  // Assigned flag takes priority
+  if (tagData.assigned) {
+    return { backgroundColor: '#e5e7eb' } // gray-200
+  }
+
+  // Preserve flag
+  if (tagData.preserve) {
+    return { backgroundColor: '#dbeafe' } // blue-100
+  }
+
+  // Default (no special background)
+  return {}
+}
+
 const rowStyle = {
   height: `${TABLE_STYLE.rowHeight}px`,
   fontSize: TABLE_STYLE.fontSize,
@@ -357,15 +372,6 @@ const rowStyle = {
 const cellStyle = {
   padding: TABLE_STYLE.padding,
   whiteSpace: TABLE_STYLE.whiteSpace,
-}
-
-// Display mode: 'detail' shows all columns, 'nameOnly' shows only ship name
-const displayMode = ref<'detail' | 'nameOnly'>('detail')
-
-
-function toggleDisplayMode() {
-  displayMode.value = displayMode.value === 'detail' ? 'nameOnly' : 'detail'
-  emit('display-mode-change', displayMode.value)
 }
 
 const headerStyle = computed(() => ({

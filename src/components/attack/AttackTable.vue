@@ -1,14 +1,5 @@
 <template>
-  <div class="p-4">
-    <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
-      <h2 class="text-xl font-bold mr-4 whitespace-nowrap">特攻情報</h2>
-      <button
-        @click="toggleSortMode"
-        class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-      >
-        {{ sortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
-      </button>
-    </div>
+  <div>
     <div v-if="loading">読み込み中...</div>
     <div v-else class="overflow-x-auto">
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
@@ -189,7 +180,7 @@
               </template>
             </template>
           </tr>
-          <tr v-if="sortedShips.length === 0">
+          <tr v-if="!selectedEventId || sortedShips.length === 0">
             <td :colspan="totalColspan" class="border text-center py-4 text-gray-500">
               {{ emptyStateMessage }}
             </td>
@@ -201,11 +192,10 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { db } from '@/firebase'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick, toRefs } from 'vue'
 import { TABLE_STYLE } from '@/constants/tableStyle'
-import type { Ship, ShipWithSpAttack, Event } from '@/types/interfaces'
+import type { Ship, Event } from '@/types/interfaces'
+import { useAttackData } from '@/composables/useAttackData'
 
 export default defineComponent({
   name: 'AttackTable',
@@ -219,10 +209,34 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['update-sorted-ships', 'loading', 'header-height-change'],
+  emits: ['update-sorted-ships', 'loading', 'header-height-change', 'update-sort-mode', 'update-is-all-expanded'],
   setup(props, { emit }) {
+    const { filteredUniqueOrigs, selectedEventId } = toRefs(props)
+
+    const {
+      eventMaps,
+      tagMap,
+      shipsWithSpAttack,
+      loading,
+      sortKey,
+      sortOrder,
+      sortByMode,
+      expandedStageNums,
+      sortedShips,
+      stageGroups,
+      tagGroups,
+      fetchAllSpAttackData,
+      sortBy,
+      toggleStage,
+      toggleTag,
+      toggleSortMode,
+      isExpanded,
+      isTagExpanded,
+      toggleAllStages,
+      isAllExpanded
+    } = useAttackData(selectedEventId, filteredUniqueOrigs)
+
     // tag情報格納用
-    const tagMap = ref<Record<number, { tagName: string; tagColor: string }>>({})
     // mapからtagId1～4の値（1以上のみ）を配列で返す
     const getTagIds = (map: Event): number[] => {
       return [map.tagId1, map.tagId2, map.tagId3, map.tagId4].filter(id => typeof id === 'number' && id >= 1)
@@ -252,118 +266,7 @@ export default defineComponent({
       // その他は黒文字
       return '#000';
     }
-  const eventMaps = ref<Event[]>([])
-  const expandedStageNums = ref<number[]>([])
 
-    // stageNumごとにグループ化
-    const stageGroups = computed(() => {
-      const groups: { stageNum: number; maps: Event[] }[] = []
-      const mapByStage: Record<number, Event[]> = {}
-      for (const map of eventMaps.value) {
-        if (!mapByStage[map.stageNum]) mapByStage[map.stageNum] = []
-        mapByStage[map.stageNum].push(map)
-      }
-      Object.keys(mapByStage)
-        .sort((a, b) => Number(a) - Number(b))
-        .forEach((stageNum) => {
-          groups.push({ stageNum: Number(stageNum), maps: mapByStage[Number(stageNum)] })
-        })
-      return groups
-    })
-
-    const toggleStage = (stageNum: number) => {
-      const idx = expandedStageNums.value.indexOf(stageNum)
-      if (idx >= 0) {
-        expandedStageNums.value.splice(idx, 1)
-      } else {
-        expandedStageNums.value.push(stageNum)
-      }
-      nextTick(() => {
-        emitHeaderHeight()
-      })
-    }
-    const isExpanded = (stageNum: number) => expandedStageNums.value.includes(stageNum)
-
-    // --- Sort by Tag Logic ---
-    const sortByMode = ref<'area' | 'tag'>('area')
-    const expandedTagIds = ref<number[]>([])
-
-    const toggleSortMode = () => {
-      sortByMode.value = sortByMode.value === 'area' ? 'tag' : 'area'
-      nextTick(() => {
-        emitHeaderHeight()
-      })
-    }
-
-    const tagGroups = computed(() => {
-      // Collect all unique tags from tagMap
-      // Or iterate over all maps and collect tags?
-      // Better to iterate over known tags in tagMap to ensure order if possible, or just sort keys.
-      // But we only want tags that are actually used in the current eventMaps?
-      // Let's iterate over tagMap keys, assuming tagMap contains all tags for this event.
-
-      const groups: { tagId: number; tagName: string; tagColor: string; maps: Event[] }[] = []
-
-      // Get all tagIds from tagMap, sorted numerically
-      const tagIds = Object.keys(tagMap.value).map(Number).sort((a, b) => a - b)
-
-      for (const tagId of tagIds) {
-        const mapsForTag = eventMaps.value.filter(map => {
-           return [map.tagId1, map.tagId2, map.tagId3, map.tagId4].includes(tagId)
-        })
-
-        if (mapsForTag.length > 0) {
-           // Sort maps by mapId or stageNum? Let's keep them in order of stageNum then mapId
-           mapsForTag.sort((a, b) => {
-             if (a.stageNum !== b.stageNum) return a.stageNum - b.stageNum
-             return a.mapId - b.mapId
-           })
-
-           groups.push({
-             tagId,
-             tagName: tagMap.value[tagId].tagName,
-             tagColor: tagMap.value[tagId].tagColor,
-             maps: mapsForTag
-           })
-        }
-      }
-      return groups
-    })
-
-    const toggleTag = (tagId: number) => {
-      const idx = expandedTagIds.value.indexOf(tagId)
-      if (idx >= 0) {
-        expandedTagIds.value.splice(idx, 1)
-      } else {
-        expandedTagIds.value.push(tagId)
-      }
-       nextTick(() => {
-        emitHeaderHeight()
-      })
-    }
-
-    const isTagExpanded = (tagId: number) => expandedTagIds.value.includes(tagId)
-
-
-  // ...existing code...
-    // tagsコレクション取得
-    const fetchTags = async () => {
-      const q = query(collection(db, 'tags'), where('eventId', '==', props.selectedEventId))
-      const snap = await getDocs(q)
-      const map: Record<number, { tagName: string; tagColor: string }> = {}
-      snap.forEach((doc) => {
-        const data = doc.data()
-        if (typeof data.tagId === 'number') {
-          map[data.tagId] = {
-            tagName: data.tagName,
-            tagColor: data.tagColor,
-          }
-        }
-      })
-      tagMap.value = map
-      // Initialize expandedTagIds to empty (collapsed by default)
-      expandedTagIds.value = []
-    }
     const theadRef = ref<HTMLElement | null>(null)
     let resizeObserver: ResizeObserver | null = null
 
@@ -374,7 +277,14 @@ export default defineComponent({
     }
 
     onMounted(() => {
-      // fetchTags() // fetchAllSpAttackDataで呼ぶので削除
+      // fetchAllSpAttackData is called by watcher in composable or manually?
+      // In composable:
+      // watch(() => selectedEventId.value, () => { if (selectedEventId.value) fetchAllSpAttackData() })
+      // But we also need to call it initially if selectedEventId is already set.
+      if (selectedEventId.value) {
+        fetchAllSpAttackData()
+      }
+
       if (theadRef.value) {
         resizeObserver = new ResizeObserver((entries) => {
           for (const entry of entries) {
@@ -390,31 +300,6 @@ export default defineComponent({
         resizeObserver.disconnect()
       }
     })
-
-    const shipsWithSpAttack = ref<ShipWithSpAttack[]>([])
-    const loading = ref(true)
-    const spAttackCache = ref<Record<number, Record<string, number>>>({})
-
-    const sortKey = ref<string | null>(null)
-    const sortOrder = ref<'asc' | 'desc'>('desc')
-    const sortBy = (key: string) => {
-      if (sortKey.value === key) {
-        // Cycle through: desc -> asc -> none
-        if (sortOrder.value === 'desc') {
-          sortOrder.value = 'asc'
-        } else if (sortOrder.value === 'asc') {
-          // Clear sort
-          sortKey.value = null
-        }
-      } else {
-        // New column: start with desc
-        sortKey.value = key
-        sortOrder.value = 'desc'
-      }
-      nextTick(() => {
-        emitHeaderHeight()
-      })
-    }
 
     const totalColspan = computed(() => {
       if (sortByMode.value === 'area') {
@@ -450,101 +335,19 @@ export default defineComponent({
       { deep: true }
     )
 
-    const sortedShips = computed(() => {
-      if (!sortKey.value) {
-        // Default sort: filterId (ascending) -> libraryId (ascending)
-        return [...shipsWithSpAttack.value].sort((a, b) => {
-          const fa = a.filterId ?? 0
-          const fb = b.filterId ?? 0
-          if (fa !== fb) return fa - fb
-          return (a.libraryId || 0) - (b.libraryId || 0)
-        })
-      }
-      return [...shipsWithSpAttack.value].sort((a, b) => {
-        const aVal = a.spAttackData[sortKey.value!]
-        const bVal = b.spAttackData[sortKey.value!]
-        const aNum = typeof aVal === 'number' ? aVal : -Infinity
-        const bNum = typeof bVal === 'number' ? bVal : -Infinity
-        return sortOrder.value === 'asc' ? aNum - bNum : bNum - aNum
-      })
+    // Emit loading state
+    watch(loading, (newVal) => {
+      emit('loading', newVal)
     })
 
-    const fetchEventMaps = async () => {
-      const q = query(collection(db, 'eventmap'), where('eventId', '==', props.selectedEventId))
-      const snap = await getDocs(q)
-      eventMaps.value = snap.docs.map((doc) => doc.data() as Event)
-      expandedStageNums.value = []
-      // Auto-expand all stages by default? Or just let them be empty?
-      // Original code initialized it to empty, meaning collapsed?
-      // Wait, original code: expandedStageNums.value = []
-      // And isExpanded checks includes. So initially all collapsed?
-      // Let's check if we should expand them by default.
-      // Usually users want to see data.
-      // But let's stick to original behavior for now unless requested.
-      // Actually, looking at original code, it seems they start collapsed?
-      // Let's check if I missed something.
-      // Ah, I should probably expand them by default if that's better UX, but sticking to previous behavior is safer.
-      // However, for tags, I'll expand them by default as I did in fetchTags.
+    // Emit sort mode and expand state changes
+    watch(sortByMode, (newVal) => {
+      emit('update-sort-mode', newVal)
+    }, { immediate: true })
 
-      // Let's expand stages by default too, it's annoying otherwise.
-      // But wait, if I change behavior I should be careful.
-      // The user didn't ask to change default expansion state of stages.
-      // I will leave stage expansion as is (collapsed by default if that was the case, or maybe the user manually expands).
-      // Actually, let's look at how `expandedStageNums` is used.
-      // If it's empty, `isExpanded` returns false.
-      // If `isExpanded` is false, it shows a colspan header and empty body cells?
-      // Wait, the original code had:
-      // <template v-if="isExpanded(group.stageNum)"> ... </template>
-      // <template v-else> ... </template>
-      // If collapsed, it shows a placeholder column.
-
-      // Initialize expandedStageNums to empty (collapsed by default)
-      expandedStageNums.value = []
-    }
-
-    const fetchAllSpAttackData = async () => {
-      loading.value = true
-      emit('loading', true)
-      try {
-        await fetchEventMaps()
-        await fetchTags()
-        const snap = await getDocs(collection(db, 'maintable'))
-        const results: Record<number, Record<string, number>> = {}
-        snap.forEach((doc) => {
-          const data = doc.data()
-          if (data.eventId === props.selectedEventId) {
-            const orig: number = data.orig
-            results[orig] = {}
-            for (const map of eventMaps.value) {
-              const mapKey = `mapId_${map.mapId}`
-              if (typeof data[mapKey] === 'number') {
-                results[orig][mapKey] = data[mapKey]
-              }
-            }
-          }
-        })
-        spAttackCache.value = results
-        updateShipsWithSpAttack()
-      } finally {
-        loading.value = false
-        emit('loading', false)
-      }
-    }
-
-    const updateShipsWithSpAttack = () => {
-      shipsWithSpAttack.value = props.filteredUniqueOrigs.map((ship) => ({
-        ...ship,
-        spAttackData: spAttackCache.value[ship.orig] || {},
-      }))
-    }
-
-    watch(() => props.filteredUniqueOrigs, updateShipsWithSpAttack)
-    watch(() => props.selectedEventId, () => {
-      if (props.selectedEventId) {
-        fetchAllSpAttackData()
-      }
+    watch(isAllExpanded, (newVal) => {
+      emit('update-is-all-expanded', newVal)
     })
-    fetchAllSpAttackData()
 
     watch(
       () => sortedShips.value,
@@ -618,7 +421,6 @@ export default defineComponent({
       getTextColor,
       theadRef,
       formatSpAttackValue,
-      // New properties
       sortByMode,
       toggleSortMode,
       tagGroups,
@@ -627,6 +429,8 @@ export default defineComponent({
       totalColspan,
       emptyStateMessage,
       TABLE_STYLE,
+      toggleAllStages,
+      isAllExpanded,
     }
   },
 })

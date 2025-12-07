@@ -1,0 +1,653 @@
+<template>
+  <div>
+      <div v-if="loading" class="p-4">読み込み中...</div>
+      <table v-else class="w-full text-sm border-collapse border border-gray-300">
+      <thead class="bg-gray-100" ref="theadRef">
+        <tr>
+          <th :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': assignedFilter !== null }">
+            割当済
+            <span
+              @click="toggleAssignedFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="assignedIconRef"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+          </th>
+          <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': preserveFilter !== null }">
+            温存
+            <span
+              @click="togglePreserveFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="preserveIconRef"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+          </th>
+          <th :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': targetStageFilter.length > 0 }">
+            割当先
+            <span
+              @click="toggleTargetStageFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="targetStageIconRef"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+          </th>
+          <th :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': commentFilter.length > 0 }">
+            コメント
+            <span
+              @click="toggleCommentFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="commentIconRef"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="ship in displayedShips"
+          :key="ship.orig"
+          :style="{ ...rowStyle, ...getRowBackgroundStyle(ship.orig), height: `${TABLE_STYLE.rowHeight}px`, boxSizing: 'border-box' }"
+          class="hover:bg-gray-100"
+        >
+          <!-- 割当済 -->
+          <td :style="cellStyle" class="border text-center cursor-pointer" @click="toggleAssigned(ship.orig)">
+            <input
+              type="checkbox"
+              :checked="getTagData(ship.orig).assigned"
+              class="pointer-events-none"
+            />
+          </td>
+          <!-- 温存 -->
+          <td :style="cellStyle" class="border text-center cursor-pointer" @click="togglePreserve(ship.orig)">
+            <input
+              type="checkbox"
+              :checked="getTagData(ship.orig).preserve"
+              class="pointer-events-none"
+            />
+          </td>
+          <!-- 割当先 -->
+          <td :style="cellStyle" class="border text-center">
+            <select
+              :value="getTagData(ship.orig).targetStage"
+              @change="handleTargetStageChange(ship.orig, ($event.target as HTMLSelectElement).value)"
+              class="w-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer"
+              :style="{ fontSize: TABLE_STYLE.fontSize }"
+            >
+              <option value="">-</option>
+              <option v-for="stage in props.stageOptions" :key="stage" :value="stage">
+                {{ stage }}
+              </option>
+            </select>
+          </td>
+          <!-- コメント -->
+          <td :style="cellStyle" class="border">
+            <input
+              type="text"
+              :value="getTagData(ship.orig).comment"
+              @input="handleCommentChange(ship.orig, ($event.target as HTMLInputElement).value)"
+              class="w-full px-1 py-0 text-sm border-0 bg-transparent"
+              :style="{ fontSize: TABLE_STYLE.fontSize }"
+              placeholder=""
+            />
+          </td>
+        </tr>
+        <tr v-if="displayedShips.length === 0">
+          <td colspan="4" :style="cellStyle" class="border text-center py-4 text-gray-500">
+            {{ emptyStateMessage }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Assigned Filter Popup -->
+    <div
+      v-if="showAssignedFilter"
+      ref="assignedPopupRef"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50"
+      :style="{ top: assignedFilterPosition.y + 'px', left: assignedFilterPosition.x + 'px' }"
+      @click.stop
+    >
+      <div class="font-bold mb-2">割当済で絞り込み</div>
+      <div class="space-y-2">
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="radio"
+            :value="true"
+            v-model="assignedFilter"
+            class="mr-2"
+          />
+          <span>選択済</span>
+        </label>
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="radio"
+            :value="false"
+            v-model="assignedFilter"
+            class="mr-2"
+          />
+          <span>未選択</span>
+        </label>
+        <button
+          @click="clearAssignedFilter"
+          class="mt-2 text-sm text-blue-600 hover:underline"
+        >
+          クリア
+        </button>
+      </div>
+    </div>
+
+    <!-- Preserve Filter Popup -->
+    <div
+      v-if="showPreserveFilter"
+      ref="preservePopupRef"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50"
+      :style="{ top: preserveFilterPosition.y + 'px', left: preserveFilterPosition.x + 'px' }"
+      @click.stop
+    >
+      <div class="font-bold mb-2">温存で絞り込み</div>
+      <div class="space-y-2">
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="radio"
+            :value="true"
+            v-model="preserveFilter"
+            class="mr-2"
+          />
+          <span>選択済</span>
+        </label>
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="radio"
+            :value="false"
+            v-model="preserveFilter"
+            class="mr-2"
+          />
+          <span>未選択</span>
+        </label>
+        <button
+          @click="clearPreserveFilter"
+          class="mt-2 text-sm text-blue-600 hover:underline"
+        >
+          クリア
+        </button>
+      </div>
+    </div>
+
+    <!-- Target Stage Filter Popup -->
+    <div
+      v-if="showTargetStageFilter"
+      ref="targetStagePopupRef"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50 max-h-80 overflow-y-auto"
+      :style="{ top: targetStageFilterPosition.y + 'px', left: targetStageFilterPosition.x + 'px' }"
+      @click.stop
+    >
+      <div class="font-bold mb-2">割当先で絞り込み</div>
+      <div class="space-y-1">
+        <label v-for="stage in uniqueTargetStages" :key="stage" class="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            :checked="targetStageFilter.includes(stage)"
+            @change="toggleTargetStageFilterOption(stage)"
+            class="mr-2"
+          />
+          <span>{{ stage }}</span>
+        </label>
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            :checked="targetStageFilter.includes('')"
+            @change="toggleTargetStageFilterOption('')"
+            class="mr-2"
+          />
+          <span>(空白)</span>
+        </label>
+        <button
+          @click="clearTargetStageFilter"
+          class="mt-2 text-sm text-blue-600 hover:underline"
+        >
+          クリア
+        </button>
+      </div>
+    </div>
+
+    <!-- Comment Filter Popup -->
+    <div
+      v-if="showCommentFilter"
+      ref="commentPopupRef"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50 max-h-80 overflow-y-auto"
+      :style="{ top: commentFilterPosition.y + 'px', left: commentFilterPosition.x + 'px' }"
+      @click.stop
+    >
+      <div class="font-bold mb-2">コメントで絞り込み</div>
+      <div class="space-y-1">
+        <label v-for="comment in uniqueComments" :key="comment" class="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            :checked="commentFilter.includes(comment)"
+            @change="toggleCommentFilterOption(comment)"
+            class="mr-2"
+          />
+          <span>{{ comment }}</span>
+        </label>
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            :checked="commentFilter.includes('')"
+            @change="toggleCommentFilterOption('')"
+            class="mr-2"
+          />
+          <span>(空白)</span>
+        </label>
+        <button
+          @click="clearCommentFilter"
+          class="mt-2 text-sm text-blue-600 hover:underline"
+        >
+          クリア
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
+import type { Ship, TagManagement } from '@/types/interfaces'
+import { TABLE_STYLE } from '@/constants/tableStyle'
+
+const props = defineProps<{
+  ships: Ship[]
+  sourceShips: Ship[]
+  selectedEventId: number | null
+  loading?: boolean
+  targetHeaderHeight?: number
+  tagManagementData: Map<number, TagManagement>
+  stageOptions: string[]
+  updateTagManagement: (data: TagManagement) => Promise<void>
+}>()
+
+const emit = defineEmits<{
+  (e: 'filter-change', filteredShips: Ship[], isFiltering: boolean): void
+}>()
+
+// Helper function to get tag data from the shared tagManagementData
+const getTagData = (orig: number): TagManagement => {
+  const existing = props.tagManagementData.get(orig)
+  if (existing) return existing
+
+  // Return default values
+  return {
+    eventId: props.selectedEventId || 0,
+    orig,
+    assigned: false,
+    preserve: false,
+    targetStage: '',
+    comment: ''
+  }
+}
+
+// Filter states
+const assignedFilter = ref<boolean | null>(null)
+const preserveFilter = ref<boolean | null>(null)
+const targetStageFilter = ref<string[]>([])
+const commentFilter = ref<string[]>([])
+
+// Filter popup states
+const showAssignedFilter = ref(false)
+const showPreserveFilter = ref(false)
+const showTargetStageFilter = ref(false)
+const showCommentFilter = ref(false)
+
+const assignedFilterPosition = ref({ x: 0, y: 0 })
+const preserveFilterPosition = ref({ x: 0, y: 0 })
+const targetStageFilterPosition = ref({ x: 0, y: 0 })
+const commentFilterPosition = ref({ x: 0, y: 0 })
+
+const assignedIconRef = ref<HTMLElement | null>(null)
+const preserveIconRef = ref<HTMLElement | null>(null)
+const targetStageIconRef = ref<HTMLElement | null>(null)
+const commentIconRef = ref<HTMLElement | null>(null)
+
+const assignedPopupRef = ref<HTMLElement | null>(null)
+const preservePopupRef = ref<HTMLElement | null>(null)
+const targetStagePopupRef = ref<HTMLElement | null>(null)
+const commentPopupRef = ref<HTMLElement | null>(null)
+
+const theadRef = ref<HTMLElement | null>(null)
+
+const emptyStateMessage = computed(() => {
+  if (!props.selectedEventId) {
+    return '海域を選択してください'
+  }
+  if (props.ships.length === 0) {
+    return '-'
+  }
+  return '該当なし'
+})
+
+// Get unique target stages from all source ships (for filter options)
+const uniqueTargetStages = computed(() => {
+  const stages = new Set<string>()
+  props.sourceShips.forEach(ship => {
+    const data = getTagData(ship.orig)
+    if (data.targetStage && data.targetStage.trim()) {
+      stages.add(data.targetStage)
+    }
+  })
+  return Array.from(stages).sort()
+})
+
+// Get unique comments from all source ships (for filter options)
+const uniqueComments = computed(() => {
+  const comments = new Set<string>()
+  props.sourceShips.forEach(ship => {
+    const data = getTagData(ship.orig)
+    if (data.comment && data.comment.trim()) {
+      comments.add(data.comment)
+    }
+  })
+  return Array.from(comments).sort()
+})
+
+// Displayed ships (for the table UI)
+const displayedShips = computed(() => {
+  // We don't apply filters here because the parent component (App.vue)
+  // is expected to pass the filtered list back to us as `props.ships`.
+  // However, we might want to apply local display logic if needed.
+  // For now, we trust props.ships is what we should display.
+  // Wait, if we stop filtering locally for display, we break the immediate UI feedback loop?
+  //
+  // The architectural pattern we want is:
+  // 1. TagManageTable calculates filters based on `sourceShips` and emits `filter-change`.
+  // 2. App.vue receives `filter-change`, updates `filteredShipsFromTagTable`.
+  // 3. App.vue passes `filteredShipsFromTagTable` (or potentially sorted version from AttackTable) back to `TagManageTable` as `props.ships`.
+  //
+  // So, `displayedShips` should strictly reflect `props.ships`.
+  return props.ships
+})
+
+// Filtered ships for EMIT (based on sourceShips + local filters)
+const filteredShipsForEmit = computed(() => {
+  let result = props.sourceShips
+
+  // Apply assigned filter
+  if (assignedFilter.value !== null) {
+    result = result.filter(ship => getTagData(ship.orig).assigned === assignedFilter.value)
+  }
+
+  // Apply preserve filter
+  if (preserveFilter.value !== null) {
+    result = result.filter(ship => getTagData(ship.orig).preserve === preserveFilter.value)
+  }
+
+  // Apply target stage filter
+  if (targetStageFilter.value.length > 0) {
+    result = result.filter(ship => {
+      const data = getTagData(ship.orig)
+      const stage = data.targetStage || ''
+      return targetStageFilter.value.includes(stage)
+    })
+  }
+
+  // Apply comment filter
+  if (commentFilter.value.length > 0) {
+    result = result.filter(ship => {
+      const data = getTagData(ship.orig)
+      const comment = data.comment || ''
+      return commentFilter.value.includes(comment)
+    })
+  }
+
+  return result
+})
+
+// Watch filteredShipsForEmit and emit changes to parent
+watch(filteredShipsForEmit, (newFiltered) => {
+  const isFiltering = assignedFilter.value !== null ||
+                     preserveFilter.value !== null ||
+                     targetStageFilter.value.length > 0 ||
+                     commentFilter.value.length > 0
+  emit('filter-change', newFiltered, isFiltering)
+}, { immediate: true })
+
+// Debounced update function
+const debouncedUpdate = useDebounceFn((data: TagManagement) => {
+  props.updateTagManagement(data)
+}, 500)
+
+// Toggle assigned checkbox by clicking the cell
+const toggleAssigned = (orig: number) => {
+  const current = getTagData(orig)
+  const updated: TagManagement = {
+    ...current,
+    assigned: !current.assigned
+  }
+  debouncedUpdate(updated)
+}
+
+// Toggle preserve checkbox by clicking the cell
+const togglePreserve = (orig: number) => {
+  const current = getTagData(orig)
+  const updated: TagManagement = {
+    ...current,
+    preserve: !current.preserve
+  }
+  debouncedUpdate(updated)
+}
+
+const handleTargetStageChange = (orig: number, value: string) => {
+  const current = getTagData(orig)
+  const updated: TagManagement = {
+    ...current,
+    targetStage: value
+  }
+  debouncedUpdate(updated)
+}
+
+const handleCommentChange = (orig: number, value: string) => {
+  const current = getTagData(orig)
+  const updated: TagManagement = {
+    ...current,
+    comment: value
+  }
+  debouncedUpdate(updated)
+}
+
+// Filter popup controls
+const toggleAssignedFilter = (event: MouseEvent) => {
+  event.stopPropagation()
+  showAssignedFilter.value = !showAssignedFilter.value
+  if (showAssignedFilter.value) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    assignedFilterPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 5
+    }
+  }
+}
+
+const togglePreserveFilter = (event: MouseEvent) => {
+  event.stopPropagation()
+  showPreserveFilter.value = !showPreserveFilter.value
+  if (showPreserveFilter.value) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    preserveFilterPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 5
+    }
+  }
+}
+
+const toggleTargetStageFilter = (event: MouseEvent) => {
+  event.stopPropagation()
+  showTargetStageFilter.value = !showTargetStageFilter.value
+  if (showTargetStageFilter.value) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    targetStageFilterPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 5
+    }
+  }
+}
+
+const toggleCommentFilter = (event: MouseEvent) => {
+  event.stopPropagation()
+  showCommentFilter.value = !showCommentFilter.value
+  if (showCommentFilter.value) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    commentFilterPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 5
+    }
+  }
+}
+
+const clearAssignedFilter = () => {
+  assignedFilter.value = null
+  showAssignedFilter.value = false
+}
+
+const clearPreserveFilter = () => {
+  preserveFilter.value = null
+  showPreserveFilter.value = false
+}
+
+const clearTargetStageFilter = () => {
+  targetStageFilter.value = []
+  showTargetStageFilter.value = false
+}
+
+const clearCommentFilter = () => {
+  commentFilter.value = []
+  showCommentFilter.value = false
+}
+
+const toggleTargetStageFilterOption = (stage: string) => {
+  const index = targetStageFilter.value.indexOf(stage)
+  if (index >= 0) {
+    targetStageFilter.value.splice(index, 1)
+  } else {
+    targetStageFilter.value.push(stage)
+  }
+}
+
+const toggleCommentFilterOption = (comment: string) => {
+  const index = commentFilter.value.indexOf(comment)
+  if (index >= 0) {
+    commentFilter.value.splice(index, 1)
+  } else {
+    commentFilter.value.push(comment)
+  }
+}
+
+// Close popups when clicking outside
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+
+  // Handle Assigned Filter Popup
+  if (showAssignedFilter.value && assignedPopupRef.value) {
+    const clickedIcon = assignedIconRef.value?.contains(target)
+    const clickedPopup = assignedPopupRef.value.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showAssignedFilter.value = false
+    }
+  }
+
+  // Handle Preserve Filter Popup
+  if (showPreserveFilter.value && preservePopupRef.value) {
+    const clickedIcon = preserveIconRef.value?.contains(target)
+    const clickedPopup = preservePopupRef.value.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showPreserveFilter.value = false
+    }
+  }
+
+  // Handle Target Stage Filter Popup
+  if (showTargetStageFilter.value && targetStagePopupRef.value) {
+    const clickedIcon = targetStageIconRef.value?.contains(target)
+    const clickedPopup = targetStagePopupRef.value.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showTargetStageFilter.value = false
+    }
+  }
+
+  // Handle Comment Filter Popup
+  if (showCommentFilter.value && commentPopupRef.value) {
+    const clickedIcon = commentIconRef.value?.contains(target)
+    const clickedPopup = commentPopupRef.value.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showCommentFilter.value = false
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// Get row background style based on tag flags
+const getRowBackgroundStyle = (orig: number) => {
+  const tagData = getTagData(orig)
+
+  // Assigned flag takes priority
+  if (tagData.assigned) {
+    return { backgroundColor: '#e5e7eb' } // gray-200
+  }
+
+  // Preserve flag
+  if (tagData.preserve) {
+    return { backgroundColor: '#dbeafe' } // blue-100
+  }
+
+  // Default (no special background)
+  return {}
+}
+
+const rowStyle = {
+  height: `${TABLE_STYLE.rowHeight}px`,
+  fontSize: TABLE_STYLE.fontSize,
+}
+
+const cellStyle = {
+  padding: TABLE_STYLE.padding,
+  whiteSpace: TABLE_STYLE.whiteSpace,
+}
+
+const headerStyle = computed(() => ({
+  height: props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`,
+  fontSize: TABLE_STYLE.fontSize,
+}))
+</script>
+
+<style scoped>
+/* Remove default browser styling for select and input within table */
+select:focus,
+input:focus {
+  outline: none;
+}
+
+/* Prevent checkbox from being clicked directly */
+input[type="checkbox"].pointer-events-none {
+  pointer-events: none;
+}
+</style>

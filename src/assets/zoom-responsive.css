@@ -1,0 +1,40 @@
+.main-scroll-container {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* スクロールバーのスタイル */
+.main-scroll-container::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.main-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.main-scroll-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 6px;
+}
+
+.main-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* テーブルコンテナの調整 */
+/* フォントサイズに応じてem単位で最小幅を指定することで、スケールに合わせて最小幅も変動させる */
+.tag-manage-container {
+  min-width: 20em; /* approx 320px at 16px */
+  flex-shrink: 0;
+}
+
+.list-container {
+  min-width: 15em; /* approx 240px at 16px */
+  flex-shrink: 1;
+}
+
+.attack-container {
+  min-width: 25em; /* approx 400px at 16px */
+  flex-shrink: 1;
+}

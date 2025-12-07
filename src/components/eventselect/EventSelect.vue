@@ -212,18 +212,10 @@ export default defineComponent({
         const snap = await getDocs(collection(db, 'eventinfo'))
         events.value = snap.docs.map((doc) => doc.data() as EventInfo)
 
-        // デバッグ用：最初のイベントのデータ構造を確認
-        if (events.value.length > 0) {
-          console.log('First event data structure:', events.value[0])
-          console.log('eventStart type:', typeof events.value[0].eventStart)
-          console.log('eventEnd type:', typeof events.value[0].eventEnd)
-        }
-
         // 最大のeventIdを自動的にセット
         if (events.value.length > 0) {
           const maxEventId = Math.max(...events.value.map(event => event.eventId))
           localSelectedEventId.value = maxEventId
-          console.log('EventSelect: Auto-selecting max eventId:', maxEventId)
           emit('event-selected', maxEventId)
         }
       } catch (error) {
@@ -234,9 +226,7 @@ export default defineComponent({
     }
 
     const handleEventChange = () => {
-      console.log('EventSelect: handleEventChange called, localSelectedEventId:', localSelectedEventId.value)
       if (localSelectedEventId.value !== null) {
-        console.log('EventSelect: emitting event-selected with:', localSelectedEventId.value)
         emit('event-selected', localSelectedEventId.value)
       }
     }
