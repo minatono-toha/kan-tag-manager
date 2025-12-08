@@ -2,11 +2,11 @@
   <div>
     <div v-if="loading">読み込み中...</div>
     <table v-else class="w-full text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100">
+      <thead class="bg-gray-100 sticky top-0 z-10">
         <tr>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top">図鑑ID</th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px', boxSizing: 'border-box' }" class="border text-left align-top">艦種</th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': searchQuery.trim() }">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">艦種</th>
+          <th :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-blue-100' : 'bg-gray-100'">
             <div>艦名</div>
             <span
               @click="toggleSearch($event)"
@@ -14,12 +14,15 @@
               title="検索"
               ref="searchIconRef"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg v-if="!searchQuery.trim()" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': classSearchQuery.trim() }">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-blue-100' : 'bg-gray-100'">
             <div>艦型・艦番</div>
             <span
               @click="toggleClassSearch($event)"
@@ -27,12 +30,15 @@
               title="検索"
               ref="classSearchIconRef"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg v-if="!classSearchQuery.trim()" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="{ 'bg-gray-300': speedFilterValue }">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-blue-100' : 'bg-gray-100'">
             <div>速力</div>
             <span
               @click="toggleSpeedFilter($event)"
@@ -40,8 +46,11 @@
               title="絞り込み"
               ref="speedIconRef"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg v-if="!speedFilterValue" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
             </span>
           </th>
@@ -79,18 +88,27 @@
     >
       <div class="font-bold mb-2">艦名で検索</div>
       <input
-        v-model="searchQuery"
+        v-model="tempSearchQuery"
         type="text"
         placeholder="艦名を入力..."
         class="w-full px-2 py-1 border border-gray-300 rounded mb-2"
         autofocus
+        @keydown.enter="applySearch"
       />
-      <button
-        @click="clearSearch"
-        class="text-sm text-blue-600 hover:underline"
-      >
-        クリア
-      </button>
+      <div class="flex items-center justify-between mt-2">
+        <button
+          @click="clearSearch"
+          class="text-sm text-gray-500 hover:underline"
+        >
+          クリア
+        </button>
+        <button
+          @click="applySearch"
+          class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+        >
+          OK
+        </button>
+      </div>
     </div>
 
     <!-- Class search popup -->
@@ -103,18 +121,27 @@
     >
       <div class="font-bold mb-2">艦型・艦番で検索</div>
       <input
-        v-model="classSearchQuery"
+        v-model="tempClassSearchQuery"
         type="text"
         placeholder="艦型・艦番を入力..."
         class="w-full px-2 py-1 border border-gray-300 rounded mb-2"
         autofocus
+        @keydown.enter="applyClassSearch"
       />
-      <button
-        @click="clearClassSearch"
-        class="text-sm text-blue-600 hover:underline"
-      >
-        クリア
-      </button>
+      <div class="flex items-center justify-between mt-2">
+        <button
+          @click="clearClassSearch"
+          class="text-sm text-gray-500 hover:underline"
+        >
+          クリア
+        </button>
+        <button
+          @click="applyClassSearch"
+          class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+        >
+          OK
+        </button>
+      </div>
     </div>
 
     <!-- Speed filter popup -->
@@ -131,7 +158,7 @@
           <input
             type="radio"
             value="低"
-            v-model="speedFilterValue"
+            v-model="tempSpeedFilterValue"
             class="mr-2"
           />
           <span>低</span>
@@ -140,17 +167,25 @@
           <input
             type="radio"
             value="高"
-            v-model="speedFilterValue"
+            v-model="tempSpeedFilterValue"
             class="mr-2"
           />
           <span>高</span>
         </label>
-        <button
-          @click="clearSpeedFilter"
-          class="mt-2 text-sm text-blue-600 hover:underline"
-        >
-          クリア
-        </button>
+        <div class="flex items-center justify-between mt-2">
+          <button
+            @click="clearSpeedFilter"
+            class="text-sm text-gray-500 hover:underline"
+          >
+            クリア
+          </button>
+          <button
+            @click="applySpeedFilter"
+            class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          >
+            OK
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -187,10 +222,23 @@ const searchPopupPosition = ref({ x: 0, y: 0 })
 const searchIconRef = ref<HTMLElement | null>(null)
 const searchPopupRef = ref<HTMLElement | null>(null)
 
+const tempSearchQuery = ref('')
+
+const closeAllPopups = () => {
+  showSearchInput.value = false
+  showClassSearchInput.value = false
+  showSpeedFilter.value = false
+}
+
 function toggleSearch(event: MouseEvent) {
   event.stopPropagation()
-  showSearchInput.value = !showSearchInput.value
+  const willOpen = !showSearchInput.value
+  if (willOpen) closeAllPopups()
+  showSearchInput.value = willOpen
+
   if (showSearchInput.value) {
+    // Initialize temp value with current active value
+    tempSearchQuery.value = searchQuery.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     searchPopupPosition.value = {
       x: rect.left,
@@ -199,8 +247,14 @@ function toggleSearch(event: MouseEvent) {
   }
 }
 
+function applySearch() {
+  searchQuery.value = tempSearchQuery.value
+  showSearchInput.value = false
+}
+
 function clearSearch() {
   searchQuery.value = ''
+  tempSearchQuery.value = ''
   showSearchInput.value = false
 }
 
@@ -210,10 +264,17 @@ const classSearchPopupPosition = ref({ x: 0, y: 0 })
 const classSearchIconRef = ref<HTMLElement | null>(null)
 const classSearchPopupRef = ref<HTMLElement | null>(null)
 
+const tempClassSearchQuery = ref('')
+
 function toggleClassSearch(event: MouseEvent) {
   event.stopPropagation()
-  showClassSearchInput.value = !showClassSearchInput.value
+  const willOpen = !showClassSearchInput.value
+  if (willOpen) closeAllPopups()
+  showClassSearchInput.value = willOpen
+
   if (showClassSearchInput.value) {
+    // Initialize temp value with current active value
+    tempClassSearchQuery.value = classSearchQuery.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     classSearchPopupPosition.value = {
       x: rect.left,
@@ -222,20 +283,32 @@ function toggleClassSearch(event: MouseEvent) {
   }
 }
 
+function applyClassSearch() {
+  classSearchQuery.value = tempClassSearchQuery.value
+  showClassSearchInput.value = false
+}
+
 function clearClassSearch() {
   classSearchQuery.value = ''
+  tempClassSearchQuery.value = ''
   showClassSearchInput.value = false
 }
 
 const showSpeedFilter = ref(false)
 const speedFilterValue = ref('')
+const tempSpeedFilterValue = ref('')
 const speedFilterPosition = ref({ x: 0, y: 0 })
 const speedIconRef = ref<HTMLElement | null>(null)
 
 function toggleSpeedFilter(event: MouseEvent) {
   event.stopPropagation()
-  showSpeedFilter.value = !showSpeedFilter.value
+  const willOpen = !showSpeedFilter.value
+  if (willOpen) closeAllPopups()
+  showSpeedFilter.value = willOpen
+
   if (showSpeedFilter.value) {
+    // Initialize temp value
+    tempSpeedFilterValue.value = speedFilterValue.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     speedFilterPosition.value = {
       x: rect.left,
@@ -244,8 +317,14 @@ function toggleSpeedFilter(event: MouseEvent) {
   }
 }
 
+function applySpeedFilter() {
+  speedFilterValue.value = tempSpeedFilterValue.value
+  showSpeedFilter.value = false
+}
+
 function clearSpeedFilter() {
   speedFilterValue.value = ''
+  tempSpeedFilterValue.value = ''
   showSpeedFilter.value = false
 }
 
@@ -380,4 +459,9 @@ const headerStyle = computed(() => ({
 }))
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Force opaque borders */
+table, th, td {
+  border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
+}
+</style>

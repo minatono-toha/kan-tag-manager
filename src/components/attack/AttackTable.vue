@@ -1,9 +1,9 @@
 <template>
   <div>
     <div v-if="loading">読み込み中...</div>
-    <div v-else class="overflow-x-auto">
+    <div v-else>
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
-        <thead class="bg-gray-100" :style="headerStyle" ref="theadRef">
+        <thead class="bg-gray-100 sticky top-0 z-10" :style="headerStyle" ref="theadRef">
           <!-- Area Mode Header -->
           <template v-if="sortByMode === 'area'">
             <tr>
@@ -12,7 +12,7 @@
                 :key="'stageNum-' + group.stageNum"
                 :colspan="isExpanded(group.stageNum) ? group.maps.length : group.maps.length"
                 :style="cellStyle"
-                class="border sp-col text-center cursor-pointer align-top"
+                class="border sp-col text-center cursor-pointer align-top bg-gray-100"
                 @click="toggleStage(group.stageNum)"
               >
                 E-{{ group.stageNum }}
@@ -25,7 +25,7 @@
                     v-for="map in group.maps"
                     :key="'mapId-' + map.mapId"
                     :style="cellStyle"
-                    class="border sp-col text-center cursor-pointer align-top"
+                    class="border sp-col text-center cursor-pointer align-top bg-gray-100"
                     @click="sortBy(`mapId_${map.mapId}`)"
                   >
                     {{ map.stage }}
@@ -38,7 +38,7 @@
                   <th
                     :colspan="group.maps.length"
                     :style="cellStyle"
-                    class="border sp-col text-center align-top"
+                    class="border sp-col text-center align-top bg-gray-100"
                     :key="'stageNum-colspan-' + group.stageNum"
                   >
                     <!-- mapId非表示 -->
@@ -54,7 +54,7 @@
                     v-for="map in group.maps"
                     :key="'tagId-' + map.mapId"
                     :style="cellStyle"
-                    class="border sp-col text-center align-top"
+                    class="border sp-col text-center align-top bg-gray-100"
                   >
                     <template v-for="tagId in getTagIds(map)" :key="'tag-' + map.mapId + '-' + tagId">
                       <span
@@ -69,7 +69,7 @@
                   <th
                     :colspan="group.maps.length"
                     :style="cellStyle"
-                    class="border sp-col text-center align-top"
+                    class="border sp-col text-center align-top bg-gray-100"
                     :key="'tagId-colspan-' + group.stageNum"
                   >
                     <!-- tagId非表示 -->
@@ -435,3 +435,10 @@ export default defineComponent({
   },
 })
 </script>
+
+<style scoped>
+/* Force opaque borders */
+table, th, td {
+  border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
+}
+</style>

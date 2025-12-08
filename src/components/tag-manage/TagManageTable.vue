@@ -2,9 +2,9 @@
   <div>
       <div v-if="loading" class="p-4">読み込み中...</div>
       <table v-else class="w-full text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100" ref="theadRef">
+      <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef">
         <tr>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': assignedFilter !== null }">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-left align-top relative pb-6" :class="assignedFilter !== null ? 'bg-blue-100' : 'bg-gray-100'">
             割当済
             <span
               @click="toggleAssignedFilter($event)"
@@ -12,12 +12,15 @@
               title="絞り込み"
               ref="assignedIconRef"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg v-if="assignedFilter === null" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': preserveFilter !== null }">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="preserveFilter !== null ? 'bg-blue-100' : 'bg-gray-100'">
             温存
             <span
               @click="togglePreserveFilter($event)"
@@ -25,12 +28,15 @@
               title="絞り込み"
               ref="preserveIconRef"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg v-if="preserveFilter === null" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': targetStageFilter.length > 0 }">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-blue-100' : 'bg-gray-100'">
             割当先
             <span
               @click="toggleTargetStageFilter($event)"
@@ -38,12 +44,15 @@
               title="絞り込み"
               ref="targetStageIconRef"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg v-if="targetStageFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-center align-top relative pb-6" :class="{ 'bg-gray-300': commentFilter.length > 0 }">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-left align-top relative pb-6" :class="commentFilter.length > 0 ? 'bg-blue-100' : 'bg-gray-100'">
             コメント
             <span
               @click="toggleCommentFilter($event)"
@@ -51,8 +60,11 @@
               title="絞り込み"
               ref="commentIconRef"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg v-if="commentFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
             </span>
           </th>
@@ -129,7 +141,7 @@
           <input
             type="radio"
             :value="true"
-            v-model="assignedFilter"
+            v-model="tempAssignedFilter"
             class="mr-2"
           />
           <span>選択済</span>
@@ -138,17 +150,25 @@
           <input
             type="radio"
             :value="false"
-            v-model="assignedFilter"
+            v-model="tempAssignedFilter"
             class="mr-2"
           />
           <span>未選択</span>
         </label>
-        <button
-          @click="clearAssignedFilter"
-          class="mt-2 text-sm text-blue-600 hover:underline"
-        >
-          クリア
-        </button>
+        <div class="flex items-center justify-between mt-2">
+          <button
+            @click="clearAssignedFilter"
+            class="text-sm text-gray-500 hover:underline"
+          >
+            クリア
+          </button>
+          <button
+            @click="applyAssignedFilter"
+            class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          >
+            OK
+          </button>
+        </div>
       </div>
     </div>
 
@@ -166,7 +186,7 @@
           <input
             type="radio"
             :value="true"
-            v-model="preserveFilter"
+            v-model="tempPreserveFilter"
             class="mr-2"
           />
           <span>選択済</span>
@@ -175,17 +195,25 @@
           <input
             type="radio"
             :value="false"
-            v-model="preserveFilter"
+            v-model="tempPreserveFilter"
             class="mr-2"
           />
           <span>未選択</span>
         </label>
-        <button
-          @click="clearPreserveFilter"
-          class="mt-2 text-sm text-blue-600 hover:underline"
-        >
-          クリア
-        </button>
+        <div class="flex items-center justify-between mt-2">
+          <button
+            @click="clearPreserveFilter"
+            class="text-sm text-gray-500 hover:underline"
+          >
+            クリア
+          </button>
+          <button
+            @click="applyPreserveFilter"
+            class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          >
+            OK
+          </button>
+        </div>
       </div>
     </div>
 
@@ -469,11 +497,26 @@ const handleCommentChange = (orig: number, value: string) => {
   debouncedUpdate(updated)
 }
 
+const tempAssignedFilter = ref<boolean | null>(null)
+const tempPreserveFilter = ref<boolean | null>(null)
+
+const closeAllPopups = () => {
+  showAssignedFilter.value = false
+  showPreserveFilter.value = false
+  showTargetStageFilter.value = false
+  showCommentFilter.value = false
+}
+
 // Filter popup controls
 const toggleAssignedFilter = (event: MouseEvent) => {
   event.stopPropagation()
-  showAssignedFilter.value = !showAssignedFilter.value
+  const willOpen = !showAssignedFilter.value
+  if (willOpen) closeAllPopups()
+  showAssignedFilter.value = willOpen
+
   if (showAssignedFilter.value) {
+    // Initialize temp value
+    tempAssignedFilter.value = assignedFilter.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     assignedFilterPosition.value = {
       x: rect.left,
@@ -484,8 +527,13 @@ const toggleAssignedFilter = (event: MouseEvent) => {
 
 const togglePreserveFilter = (event: MouseEvent) => {
   event.stopPropagation()
-  showPreserveFilter.value = !showPreserveFilter.value
+  const willOpen = !showPreserveFilter.value
+  if (willOpen) closeAllPopups()
+  showPreserveFilter.value = willOpen
+
   if (showPreserveFilter.value) {
+    // Initialize temp value
+    tempPreserveFilter.value = preserveFilter.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     preserveFilterPosition.value = {
       x: rect.left,
@@ -494,9 +542,22 @@ const togglePreserveFilter = (event: MouseEvent) => {
   }
 }
 
+const applyAssignedFilter = () => {
+  assignedFilter.value = tempAssignedFilter.value
+  showAssignedFilter.value = false
+}
+
+const applyPreserveFilter = () => {
+  preserveFilter.value = tempPreserveFilter.value
+  showPreserveFilter.value = false
+}
+
 const toggleTargetStageFilter = (event: MouseEvent) => {
   event.stopPropagation()
-  showTargetStageFilter.value = !showTargetStageFilter.value
+  const willOpen = !showTargetStageFilter.value
+  if (willOpen) closeAllPopups()
+  showTargetStageFilter.value = willOpen
+
   if (showTargetStageFilter.value) {
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     targetStageFilterPosition.value = {
@@ -508,7 +569,10 @@ const toggleTargetStageFilter = (event: MouseEvent) => {
 
 const toggleCommentFilter = (event: MouseEvent) => {
   event.stopPropagation()
-  showCommentFilter.value = !showCommentFilter.value
+  const willOpen = !showCommentFilter.value
+  if (willOpen) closeAllPopups()
+  showCommentFilter.value = willOpen
+
   if (showCommentFilter.value) {
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     commentFilterPosition.value = {
@@ -520,11 +584,13 @@ const toggleCommentFilter = (event: MouseEvent) => {
 
 const clearAssignedFilter = () => {
   assignedFilter.value = null
+  tempAssignedFilter.value = null
   showAssignedFilter.value = false
 }
 
 const clearPreserveFilter = () => {
   preserveFilter.value = null
+  tempPreserveFilter.value = null
   showPreserveFilter.value = false
 }
 
@@ -649,5 +715,10 @@ input:focus {
 /* Prevent checkbox from being clicked directly */
 input[type="checkbox"].pointer-events-none {
   pointer-events: none;
+}
+
+/* Force opaque borders */
+table, th, td {
+  border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
 }
 </style>

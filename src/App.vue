@@ -1,8 +1,8 @@
 <template>
   <div class="app-container" :class="`theme-${theme}`">
-    <!-- イベント選択 -->
+    <!-- イベント選択 & タブ (固定ヘッダー) -->
     <div class="sticky top-0 bg-white z-20 shadow-md border-b">
-      <div class="p-4">
+      <div class="px-1 pt-0.5 pb-0.5">
         <EventSelect
           :selectedEventId="selectedEventId"
           :theme="theme"
@@ -10,20 +10,21 @@
           @theme-change="handleThemeChange"
         />
       </div>
-    </div>
 
-    <!-- タブ -->
-    <ShipFilterTabs
-      :filters="filters"
-      :selectedFilterIds="selectedFilterIds"
-      :isAllSelected="isAllSelected"
-      @toggle-filter="toggleFilter"
-      @toggle-all="toggleAllFilters"
-    />
+      <!-- タブ -->
+      <ShipFilterTabs
+        :filters="filters"
+        :selectedFilterIds="selectedFilterIds"
+        :isAllSelected="isAllSelected"
+        @toggle-filter="toggleFilter"
+        @toggle-all="toggleAllFilters"
+        class="pb-2 px-1 -mt-[5px]"
+      />
+    </div>
 
     <!-- メインコンテンツ：ここにスクロール管理を集約 -->
     <div
-      class="main-scroll-container overflow-y-auto overflow-x-auto h-[calc(100vh-200px)] p-4"
+      class="main-scroll-container overflow-y-auto overflow-x-auto h-[calc(100vh-200px)] px-1 pb-1"
       ref="scrollRef"
       @scroll="onScroll"
       :style="{ fontSize: `${scaleFactor * 100}%` }"
@@ -31,10 +32,14 @@
       <div class="main-content flex gap-4">
         <!-- 札管理（左側） -->
         <div class="tag-manage-container flex-none flex flex-col" ref="tagManageContainerRef">
-          <TagManageTitle />
+          <!-- Spacer to align with other tables -->
+           <TableTitle title="制御札管理" type="tag" />
+          <div class="p-1 pb-0">
+            <div class="flex items-center mb-2" style="min-height: 44px;"></div>
+          </div>
           <div class="flex-grow">
             <TagManageTable
-              :ships="sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships"
+              :ships="isSearchActive ? filteredShipsFromSearch : (sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships)"
               :sourceShips="ships"
               :selectedEventId="selectedEventId"
               :loading="loading"
@@ -49,9 +54,17 @@
 
         <!-- 艦船一覧（中央） -->
         <div class="list-container flex flex-col" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }" ref="shipListContainerRef">
-          <ShipListTitle
-            @display-mode-change="handleDisplayModeChange"
-          />
+             <TableTitle title="艦船情報" type="ship" />
+          <div class="p-1 pb-0">
+            <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
+              <button
+                @click="handleDisplayModeChange(shipListDisplayMode === 'detail' ? 'nameOnly' : 'detail')"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                {{ shipListDisplayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
+              </button>
+            </div>
+          </div>
           <div class="flex-grow">
             <ShipListTable
               :ships="tagFilterActive ? filteredShipsFromTagTable : (sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships)"
@@ -62,24 +75,34 @@
               :selectedEventId="selectedEventId"
               :tagManagementData="tagManagementData"
               @select="openModal"
-              @filter-change="handleShipFilterChange"
+              @filter-change="handleSafeShipFilterChange"
             />
           </div>
         </div>
 
         <!-- 特攻情報（右側） -->
         <div class="attack-container flex-1 flex flex-col" ref="attackContainerRef">
-          <AttackTitle
-            v-if="selectedEventId"
-            :sortByMode="attackSortByMode"
-            :isAllExpanded="attackIsAllExpanded"
-            @toggle-sort-mode="handleToggleSortMode"
-            @toggle-all-stages="handleToggleAllStages"
-          />
+             <TableTitle v-if="selectedEventId" title="海域特攻情報" type="attack" />
+          <div v-if="selectedEventId" class="p-1 pb-0">
+            <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
+              <button
+                @click="handleToggleSortMode"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
+              >
+                {{ attackSortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
+              </button>
+              <button
+                @click="handleToggleAllStages"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                {{ attackIsAllExpanded ? '全格納' : '全展開' }}
+              </button>
+            </div>
+          </div>
           <div class="flex-grow">
             <AttackTable
               v-if="selectedEventId"
-              :filteredUniqueOrigs="tagFilterActive ? filteredShipsFromTagTable : ships"
+              :filteredUniqueOrigs="isSearchActive ? filteredShipsFromSearch : (tagFilterActive ? filteredShipsFromTagTable : ships)"
               :selectedEventId="selectedEventId!"
               @update-sorted-ships="handleSortedShipsUpdate"
               @loading="handleLoading"
@@ -108,15 +131,13 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { defineComponent, ref, onMounted, onUnmounted } from 'vue'
 import { Ship } from '@/types/interfaces'
 import ShipFilterTabs from './components/ship/ShipFilterTabs.vue'
-import ShipListTitle from './components/ship/ShipListTitle.vue'
+import TableTitle from './components/common/TableTitle.vue'
 import ShipListTable from './components/ship/ShipListTable.vue'
 import ShipModal from './components/ship/ShipModal.vue'
-import AttackTitle from './components/attack/AttackTitle.vue'
 import AttackTable from './components/attack/AttackTable.vue'
-import TagManageTitle from './components/tag-manage/TagManageTitle.vue'
 import TagManageTable from './components/tag-manage/TagManageTable.vue'
 import EventSelect from './components/eventselect/EventSelect.vue'
 import { useTheme } from '@/composables/useTheme'
@@ -126,12 +147,10 @@ import { useTagManagement } from '@/composables/useTagManagement'
 export default defineComponent({
   components: {
     ShipFilterTabs,
-    ShipListTitle,
+    TableTitle,
     ShipListTable,
     ShipModal,
-    AttackTitle,
     AttackTable,
-    TagManageTitle,
     TagManageTable,
     EventSelect
   },
@@ -150,6 +169,8 @@ export default defineComponent({
       toggleAllFilters,
       isAllSelected,
       handleShipFilterChange,
+      filteredShipsFromSearch,
+      isSearchActive
     } = useShips()
 
     const modalShips = ref<Ship[]>([])
@@ -184,6 +205,39 @@ export default defineComponent({
     const handleTagFilterChange = (filteredShips: Ship[], isFiltering: boolean) => {
       filteredShipsFromTagTable.value = filteredShips
       tagFilterActive.value = isFiltering
+    }
+
+    // Loop prevention: Only update if IDs change or length changes
+    const handleSafeShipFilterChange = (filtered: Ship[], isActive: boolean) => {
+      // If active state changes, update immediately
+      if (isSearchActive.value !== isActive) {
+        handleShipFilterChange(filtered, isActive)
+        return
+      }
+
+      // If length differs, update
+      if (filteredShipsFromSearch.value.length !== filtered.length) {
+        handleShipFilterChange(filtered, isActive)
+        return
+      }
+
+      // Check for ID mismatch (order matters if we want to preserve sort?
+      // Actually ShipListTable output determines 'filteredShipsFromSearch'.
+      // If we want to accept Sorted feedback, we should allow order change?
+      // If Input changes order, Output changes order.
+      // If we update 'filteredShipsFromSearch', AttackTable updates.
+      // So yes, we should allow order updates but ensure stability.
+
+      // Optimized check: Compare IDs manually to avoid JSON.stringify overhead
+      const currentShips = filteredShipsFromSearch.value
+      const len = currentShips.length
+
+      for (let i = 0; i < len; i++) {
+        if (currentShips[i].orig !== filtered[i].orig) {
+          handleShipFilterChange(filtered, isActive)
+          return
+        }
+      }
     }
 
     const handleDisplayModeChange = (mode: 'detail' | 'nameOnly') => {
@@ -314,6 +368,9 @@ export default defineComponent({
       filteredShipsFromTagTable,
       tagFilterActive,
       handleTagFilterChange,
+      filteredShipsFromSearch,
+      isSearchActive,
+      handleSafeShipFilterChange
     }
   },
 })

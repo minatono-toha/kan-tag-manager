@@ -1670,7 +1670,7 @@ This typically indicates that your device does not have a healthy Internet conne
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */class ir{static emptySet(t){return new ir(t.comparator)}constructor(t){this.comparator=t?(n,r)=>t(n,r)||nt.comparator(n.key,r.key):(n,r)=>nt.comparator(n.key,r.key),this.keyedMap=Br(),this.sortedSet=new Dt(this.comparator)}has(t){return this.keyedMap.get(t)!=null}get(t){return this.keyedMap.get(t)}first(){return this.sortedSet.minKey()}last(){return this.sortedSet.maxKey()}isEmpty(){return this.sortedSet.isEmpty()}indexOf(t){const n=this.keyedMap.get(t);return n?this.sortedSet.indexOf(n):-1}get size(){return this.sortedSet.size}forEach(t){this.sortedSet.inorderTraversal((n,r)=>(t(n),!1))}add(t){const n=this.delete(t.key);return n.copy(n.keyedMap.insert(t.key,t),n.sortedSet.insert(t,null))}delete(t){const n=this.get(t);return n?this.copy(this.keyedMap.remove(t),this.sortedSet.remove(n)):this}isEqual(t){if(!(t instanceof ir)||this.size!==t.size)return!1;const n=this.sortedSet.getIterator(),r=t.sortedSet.getIterator();for(;n.hasNext();){const s=n.getNext().key,o=r.getNext().key;if(!s.isEqual(o))return!1}return!0}toString(){const t=[];return this.forEach(n=>{t.push(n.toString())}),t.length===0?"DocumentSet ()":`DocumentSet (
-  `+t.join(`  
+  `+t.join(`
 `)+`
 )`}copy(t,n){const r=new ir;return r.comparator=this.comparator,r.keyedMap=t,r.sortedSet=n,r}}/**
  * @license

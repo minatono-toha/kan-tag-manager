@@ -1,7 +1,7 @@
 // src/constants/tableStyle.ts
 
 // 行の高さ（px）
-export const TABLE_ROW_HEIGHT = 40
+export const TABLE_ROW_HEIGHT = 30
 
 // フォントサイズ（CSSの文字列指定）
 export const TABLE_FONT_SIZE = '12px'
