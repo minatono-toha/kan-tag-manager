@@ -2,9 +2,9 @@
   <div>
       <div v-if="loading" class="p-4">読み込み中...</div>
       <table v-else class="w-full text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef">
+      <thead class="bg-gray-100 sticky top-0 z-50" ref="theadRef">
         <tr>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-left align-top relative pb-6" :class="assignedFilter !== null ? 'bg-blue-100' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-left align-top relative pb-6" :class="assignedFilter !== null ? 'bg-gray-300' : 'bg-gray-100'">
             割当済
             <span
               @click="toggleAssignedFilter($event)"
@@ -20,7 +20,7 @@
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="preserveFilter !== null ? 'bg-blue-100' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="preserveFilter !== null ? 'bg-gray-300' : 'bg-gray-100'">
             温存
             <span
               @click="togglePreserveFilter($event)"
@@ -36,7 +36,7 @@
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-blue-100' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
             割当先
             <span
               @click="toggleTargetStageFilter($event)"
@@ -52,7 +52,7 @@
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-left align-top relative pb-6" :class="commentFilter.length > 0 ? 'bg-blue-100' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-left align-top relative pb-6" :class="commentFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
             コメント
             <span
               @click="toggleCommentFilter($event)"
@@ -94,18 +94,14 @@
             />
           </td>
           <!-- 割当先 -->
-          <td :style="cellStyle" class="border text-center">
-            <select
-              :value="getTagData(ship.orig).targetStage"
-              @change="handleTargetStageChange(ship.orig, ($event.target as HTMLSelectElement).value)"
-              class="w-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer"
+          <td :style="cellStyle" class="border text-center relative">
+            <div
+              class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px]"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
+              @click.stop="openStageSelector($event, ship.orig)"
             >
-              <option value="">-</option>
-              <option v-for="stage in props.stageOptions" :key="stage" :value="stage">
-                {{ stage }}
-              </option>
-            </select>
+              {{ getTagData(ship.orig).targetStage || '-' }}
+            </div>
           </td>
           <!-- コメント -->
           <td :style="cellStyle" class="border">
@@ -158,7 +154,7 @@
         <div class="flex items-center justify-between mt-2">
           <button
             @click="clearAssignedFilter"
-            class="text-sm text-gray-500 hover:underline"
+            class="text-xs text-gray-500 hover:underline"
           >
             クリア
           </button>
@@ -203,7 +199,7 @@
         <div class="flex items-center justify-between mt-2">
           <button
             @click="clearPreserveFilter"
-            class="text-sm text-gray-500 hover:underline"
+            class="text-xs text-gray-500 hover:underline"
           >
             クリア
           </button>
@@ -230,27 +226,35 @@
         <label v-for="stage in uniqueTargetStages" :key="stage" class="flex items-center cursor-pointer">
           <input
             type="checkbox"
-            :checked="targetStageFilter.includes(stage)"
-            @change="toggleTargetStageFilterOption(stage)"
+            :value="stage"
+            v-model="tempTargetStageFilter"
             class="mr-2"
           />
-          <span>{{ stage }}</span>
+          <span class="text-sm font-normal">{{ stage }}</span>
         </label>
         <label class="flex items-center cursor-pointer">
           <input
             type="checkbox"
-            :checked="targetStageFilter.includes('')"
-            @change="toggleTargetStageFilterOption('')"
+            :value="''"
+            v-model="tempTargetStageFilter"
             class="mr-2"
           />
-          <span>(空白)</span>
+          <span class="text-sm font-normal">(空白)</span>
         </label>
-        <button
-          @click="clearTargetStageFilter"
-          class="mt-2 text-sm text-blue-600 hover:underline"
-        >
-          クリア
-        </button>
+        <div class="flex items-center justify-between mt-2">
+          <button
+            @click="clearTargetStageFilter"
+            class="text-xs text-gray-500 hover:underline"
+          >
+            クリア
+          </button>
+          <button
+            @click="applyTargetStageFilter"
+            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+          >
+            OK
+          </button>
+        </div>
       </div>
     </div>
 
@@ -267,27 +271,85 @@
         <label v-for="comment in uniqueComments" :key="comment" class="flex items-center cursor-pointer">
           <input
             type="checkbox"
-            :checked="commentFilter.includes(comment)"
-            @change="toggleCommentFilterOption(comment)"
+            :value="comment"
+            v-model="tempCommentFilter"
             class="mr-2"
           />
-          <span>{{ comment }}</span>
+          <span class="text-sm font-normal">{{ comment }}</span>
         </label>
         <label class="flex items-center cursor-pointer">
           <input
             type="checkbox"
-            :checked="commentFilter.includes('')"
-            @change="toggleCommentFilterOption('')"
+            :value="''"
+            v-model="tempCommentFilter"
             class="mr-2"
           />
-          <span>(空白)</span>
+          <span class="text-sm font-normal">(空白)</span>
         </label>
-        <button
-          @click="clearCommentFilter"
-          class="mt-2 text-sm text-blue-600 hover:underline"
-        >
-          クリア
-        </button>
+        <div class="flex items-center justify-between mt-2">
+          <button
+            @click="clearCommentFilter"
+            class="text-xs text-gray-500 hover:underline"
+          >
+            クリア
+          </button>
+          <button
+            @click="applyCommentFilter"
+            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage Selection Popup (Cascading Style) -->
+    <!-- Main Menu: List of Areas -->
+    <div
+      v-if="showStageSelectorPopup"
+      ref="stageSelectorPopupRef"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-50 overflow-y-auto"
+      :style="{ top: stageSelectorPosition.y + 'px', left: stageSelectorPosition.x + 'px', maxHeight: '300px', width: '120px' }"
+      @click.stop
+    >
+      <div
+        v-for="area in uniqueAreas"
+        :key="area"
+        class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center relative group hover:bg-gray-100"
+        @mouseenter="handleAreaHover($event, area)"
+        @click="handleAreaClick($event, area)"
+        :class="{ 'bg-gray-100': hoveredArea === area }"
+      >
+        <span>{{ area }}</span>
+        <span class="text-gray-400 text-xs ml-2">▶</span>
+      </div>
+       <!-- Option to clear selection -->
+       <div class="border-t my-1"></div>
+       <div
+          @click="applyStageSelection('')"
+          class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-gray-500 text-xs"
+          @mouseenter="hoveredArea = null"
+       >
+          選択解除
+       </div>
+    </div>
+
+    <!-- Sub Menu: List of Stages for Hovered Area -->
+    <div
+      v-if="showStageSelectorPopup && hoveredArea"
+      ref="subMenuRef"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] overflow-y-auto"
+      :style="{ top: subMenuPosition.y + 'px', left: subMenuPosition.x + 'px', maxHeight: '300px', width: '140px' }"
+      @click.stop
+      @mouseenter="cancelCloseSubMenu"
+    >
+       <div
+        v-for="stage in getStagesForArea(hoveredArea)"
+        :key="stage"
+        @click="applyStageSelection(stage)"
+        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm"
+      >
+        {{ stage }}
       </div>
     </div>
   </div>
@@ -356,6 +418,15 @@ const assignedPopupRef = ref<HTMLElement | null>(null)
 const preservePopupRef = ref<HTMLElement | null>(null)
 const targetStagePopupRef = ref<HTMLElement | null>(null)
 const commentPopupRef = ref<HTMLElement | null>(null)
+
+// Stage Selector State
+const showStageSelectorPopup = ref(false)
+const stageSelectorPosition = ref({ x: 0, y: 0 })
+const stageSelectorPopupRef = ref<HTMLElement | null>(null)
+const subMenuRef = ref<HTMLElement | null>(null)
+const editingShipOrig = ref<number | null>(null)
+const hoveredArea = ref<string | null>(null)
+const subMenuPosition = ref({ x: 0, y: 0 })
 
 const theadRef = ref<HTMLElement | null>(null)
 
@@ -499,12 +570,15 @@ const handleCommentChange = (orig: number, value: string) => {
 
 const tempAssignedFilter = ref<boolean | null>(null)
 const tempPreserveFilter = ref<boolean | null>(null)
+const tempTargetStageFilter = ref<string[]>([])
+const tempCommentFilter = ref<string[]>([])
 
 const closeAllPopups = () => {
   showAssignedFilter.value = false
   showPreserveFilter.value = false
   showTargetStageFilter.value = false
   showCommentFilter.value = false
+  showStageSelectorPopup.value = false
 }
 
 // Filter popup controls
@@ -559,6 +633,7 @@ const toggleTargetStageFilter = (event: MouseEvent) => {
   showTargetStageFilter.value = willOpen
 
   if (showTargetStageFilter.value) {
+    tempTargetStageFilter.value = [...targetStageFilter.value]
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     targetStageFilterPosition.value = {
       x: rect.left,
@@ -574,12 +649,23 @@ const toggleCommentFilter = (event: MouseEvent) => {
   showCommentFilter.value = willOpen
 
   if (showCommentFilter.value) {
+    tempCommentFilter.value = [...commentFilter.value]
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     commentFilterPosition.value = {
       x: rect.left,
       y: rect.bottom + 5
     }
   }
+}
+
+const applyTargetStageFilter = () => {
+    targetStageFilter.value = [...tempTargetStageFilter.value]
+    showTargetStageFilter.value = false
+}
+
+const applyCommentFilter = () => {
+    commentFilter.value = [...tempCommentFilter.value]
+    showCommentFilter.value = false
 }
 
 const clearAssignedFilter = () => {
@@ -596,30 +682,113 @@ const clearPreserveFilter = () => {
 
 const clearTargetStageFilter = () => {
   targetStageFilter.value = []
+  tempTargetStageFilter.value = []
   showTargetStageFilter.value = false
 }
 
 const clearCommentFilter = () => {
   commentFilter.value = []
+  tempCommentFilter.value = []
   showCommentFilter.value = false
 }
 
-const toggleTargetStageFilterOption = (stage: string) => {
-  const index = targetStageFilter.value.indexOf(stage)
-  if (index >= 0) {
-    targetStageFilter.value.splice(index, 1)
-  } else {
-    targetStageFilter.value.push(stage)
+// Stage Selector Logic
+const uniqueAreas = computed(() => {
+  const areas = new Set<string>()
+  props.stageOptions.forEach(stage => {
+    // Determine Area from stage string (e.g. "E-2-1" -> "E-2", "E-7" -> "E-7")
+    // Assumption: Format is "E-{Area}-{Map}" or "E-{Area}"
+    const parts = stage.split('-')
+    if (parts.length >= 2) {
+      // "E" + "-" + "1" -> "E-1"
+      const area = `${parts[0]}-${parts[1]}`
+      areas.add(area)
+    } else {
+      // Fallback
+      areas.add(stage)
+    }
+  })
+  // Sort areas naturally
+  return Array.from(areas).sort((a, b) => {
+      const aNum = parseInt(a.replace('E-', '')) || 0
+      const bNum = parseInt(b.replace('E-', '')) || 0
+      return aNum - bNum
+  })
+})
+
+const getStagesForArea = (area: string) => {
+  return props.stageOptions.filter(stage => stage.startsWith(area))
+}
+
+const openStageSelector = (event: MouseEvent, orig: number) => {
+  const willOpen = true
+  closeAllPopups()
+
+  if (willOpen) {
+    editingShipOrig.value = orig
+    showStageSelectorPopup.value = true
+    hoveredArea.value = null
+
+    // Improve positioning to prevent overflow
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+
+    // Default: show below
+    let top = rect.bottom + 5
+    const left = rect.left
+
+    // Check if bottom overflow (viewport height)
+    const viewportHeight = window.innerHeight
+    const estimatedHeight = 300
+    if (top + estimatedHeight > viewportHeight) {
+        // Show above
+        top = rect.top - estimatedHeight - 5
+    }
+
+    stageSelectorPosition.value = {
+      x: left,
+      y: top
+    }
   }
 }
 
-const toggleCommentFilterOption = (comment: string) => {
-  const index = commentFilter.value.indexOf(comment)
-  if (index >= 0) {
-    commentFilter.value.splice(index, 1)
-  } else {
-    commentFilter.value.push(comment)
+const handleAreaHover = (event: MouseEvent, area: string) => {
+  hoveredArea.value = area
+
+  // Calculate sub-menu position based on the hovered item
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+
+  // Default: align top with item, place to the right
+  const top = rect.top
+  let left = rect.right
+
+  // Adjust if overflow
+  // We can't strictly know width/height of sub-menu yet, assume width ~140, height variable
+  const viewportWidth = window.innerWidth
+  if (left + 140 > viewportWidth) {
+      // Place to the left if no room on right
+      left = rect.left - 140
   }
+
+  subMenuPosition.value = { x: left, y: top }
+}
+
+const handleAreaClick = (event: MouseEvent, area: string) => {
+  // Mobile support: click behaves like hover
+  handleAreaHover(event, area)
+}
+
+const cancelCloseSubMenu = () => {
+   // Logic to keep menu open if needed
+}
+
+const applyStageSelection = (stage: string) => {
+    if (editingShipOrig.value !== null) {
+        handleTargetStageChange(editingShipOrig.value, stage)
+    }
+    showStageSelectorPopup.value = false
+    editingShipOrig.value = null
+    hoveredArea.value = null
 }
 
 // Close popups when clicking outside
@@ -659,6 +828,25 @@ const handleClickOutside = (event: MouseEvent) => {
     const clickedPopup = commentPopupRef.value.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showCommentFilter.value = false
+    }
+  }
+
+  // Handle Stage Selector Popup
+  if (showStageSelectorPopup.value) {
+     let clickedInsideMain = false
+     if (stageSelectorPopupRef.value) {
+        clickedInsideMain = stageSelectorPopupRef.value.contains(target)
+     }
+
+     let clickedInsideSub = false
+     if (subMenuRef.value) {
+        clickedInsideSub = subMenuRef.value.contains(target)
+     }
+
+     if (!clickedInsideMain && !clickedInsideSub) {
+      showStageSelectorPopup.value = false
+      editingShipOrig.value = null
+      hoveredArea.value = null
     }
   }
 }
@@ -720,5 +908,12 @@ input[type="checkbox"].pointer-events-none {
 /* Force opaque borders */
 table, th, td {
   border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
+  border-style: solid !important;
+  border-width: 1px !important;
+}
+
+/* Ensure header cells have opaque background covering the border */
+th {
+  background-clip: padding-box;
 }
 </style>

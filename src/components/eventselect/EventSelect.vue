@@ -14,64 +14,74 @@
           :disabled="loading"
         >
           <option :value="null" disabled>イベントを選択してください</option>
-          <option
-            v-for="event in sortedEvents"
-            :key="event.eventId"
-            :value="event.eventId"
-          >
+          <option v-for="event in sortedEvents" :key="event.eventId" :value="event.eventId">
             {{ event.event_jp }}
           </option>
         </select>
       </div>
 
       <!-- イベント名 -->
-      <div class="flex-1">
-        <div class="block text-sm font-medium text-gray-700 mb-2">
-          イベント名
-        </div>
-        <div v-if="selectedEvent && !loading" class="px-3 py-2 border border-gray-300 rounded-md bg-white text-sm">
+      <div class="flex-1 mr-72">
+        <div class="block text-sm font-medium text-gray-700 mb-2">イベント名</div>
+        <div
+          v-if="selectedEvent && !loading"
+          class="px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+        >
           {{ selectedEvent.eventName }}
         </div>
-        <div v-else class="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-500">
+        <div
+          v-else
+          class="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-500"
+        >
           イベントを選択してください
         </div>
       </div>
+    </div>
 
-
+    <!-- ご意見・ご要望リンク（更新履歴の上） -->
+    <div class="absolute top-4 right-4 w-64 mb-1">
+      <div class="text-right mb-1">
+        <a
+          href="https://github.com/minatono-toha/kan_tag_manager/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xxs text-blue-600 hover:text-blue-800"
+        >
+          ご意見・ご要望はコチラ
+        </a>
+      </div>
+      <ChangelogDisplay />
     </div>
 
     <!-- 期間情報（イベント名の下に配置） -->
     <div class="mt-4 ml-40">
       <div class="flex items-center gap-2">
-        <span v-if="selectedEvent && !loading" class="text-xs">
+        <span v-if="selectedEvent && !loading" class="text-sm">
           {{ formatDate(selectedEvent.eventStart) }}
         </span>
-        <span v-else class="text-xs text-gray-500">-</span>
+        <span v-else class="text-sm text-gray-500">-</span>
 
-        <span class="text-xs text-gray-500">～</span>
+        <span class="text-sm text-gray-500">～</span>
 
-        <span v-if="selectedEvent && !loading" class="text-xs">
+        <span v-if="selectedEvent && !loading" class="text-sm">
           {{ formatDate(selectedEvent.eventEnd) }}
         </span>
-        <span v-else class="text-xs text-gray-500">-</span>
+        <span v-else class="text-sm text-gray-500">-</span>
 
-        <span class="text-xs text-gray-500 mx-2">|</span>
+        <span class="text-sm text-gray-500 mx-2">|</span>
 
-        <span v-if="selectedEvent && !loading" class="text-xs font-medium" :class="statusColorClass">
+        <span
+          v-if="selectedEvent && !loading"
+          class="text-sm font-medium"
+          :class="statusColorClass"
+        >
           {{ eventStatus }}
         </span>
         <span v-else class="text-xs text-gray-500">-</span>
       </div>
     </div>
 
-    <!-- Theme Selector in bottom-right -->
-    <div class="absolute bottom-4 right-4">
-      <ThemeSelector :currentTheme="theme" @theme-change="handleThemeChange" />
-    </div>
-
-    <div v-if="loading" class="mt-2 text-sm text-gray-500">
-      読み込み中...
-    </div>
+    <div v-if="loading" class="mt-2 text-sm text-gray-500">読み込み中...</div>
   </div>
 </template>
 
@@ -80,11 +90,11 @@ import { defineComponent, ref, computed, onMounted, watch, onUnmounted, type Pro
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
 import type { EventInfo } from '@/types/interfaces'
-import ThemeSelector from '@/components/theme/ThemeSelector.vue'
+import ChangelogDisplay from './ChangelogDisplay.vue'
 
 export default defineComponent({
   name: 'EventSelect',
-  components: { ThemeSelector },
+  components: { ChangelogDisplay },
   props: {
     selectedEventId: {
       type: Number as PropType<number | null>,
@@ -111,7 +121,7 @@ export default defineComponent({
     // 選択されたイベント
     const selectedEvent = computed(() => {
       if (!localSelectedEventId.value) return null
-      return events.value.find(event => event.eventId === localSelectedEventId.value)
+      return events.value.find((event) => event.eventId === localSelectedEventId.value)
     })
 
     // 日付フォーマット関数
@@ -136,7 +146,8 @@ export default defineComponent({
       const year = d.getFullYear()
       const month = String(d.getMonth() + 1).padStart(2, '0')
       const day = String(d.getDate()).padStart(2, '0')
-      return `${year}/${month}/${day}`
+      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()]
+      return `${year}/${month}/${day} (${dayOfWeek})`
     }
 
     // 日付をDateオブジェクトに変換するヘルパー関数
@@ -200,7 +211,16 @@ export default defineComponent({
       if (now < startDate) {
         return 'text-blue-600'
       } else if (now >= startDate && now <= endDate) {
-        return 'text-green-600'
+        const remainingMs = endDate.getTime() - now.getTime()
+        const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+
+        if (remainingDays < 7) {
+          return 'text-red-600'
+        } else if (remainingDays < 14) {
+          return 'text-orange-500'
+        } else {
+          return 'text-green-600'
+        }
       } else {
         return 'text-gray-500'
       }
@@ -214,7 +234,7 @@ export default defineComponent({
 
         // 最大のeventIdを自動的にセット
         if (events.value.length > 0) {
-          const maxEventId = Math.max(...events.value.map(event => event.eventId))
+          const maxEventId = Math.max(...events.value.map((event) => event.eventId))
           localSelectedEventId.value = maxEventId
           emit('event-selected', maxEventId)
         }
@@ -236,9 +256,12 @@ export default defineComponent({
     }
 
     // propsの変更を監視してローカル状態を更新
-    watch(() => props.selectedEventId, (newValue) => {
-      localSelectedEventId.value = newValue
-    })
+    watch(
+      () => props.selectedEventId,
+      (newValue) => {
+        localSelectedEventId.value = newValue
+      },
+    )
 
     onMounted(() => {
       fetchEvents()

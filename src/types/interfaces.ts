@@ -64,3 +64,10 @@ export interface TagManagement {
   targetStage: string  // 割当先
   comment: string  // コメント
 }
+
+// 更新履歴データ
+export interface Changelog {
+  c_logId: number  // ログID（ソート用）
+  c_logDate: any  // Firestore Timestamp
+  c_logStr: string  // ログメッセージ
+}

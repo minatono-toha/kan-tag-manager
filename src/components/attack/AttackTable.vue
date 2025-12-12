@@ -3,7 +3,7 @@
     <div v-if="loading">読み込み中...</div>
     <div v-else>
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
-        <thead class="bg-gray-100 sticky top-0 z-10" :style="headerStyle" ref="theadRef">
+        <thead class="bg-gray-100 sticky top-0 z-50" :style="headerStyle" ref="theadRef">
           <!-- Area Mode Header -->
           <template v-if="sortByMode === 'area'">
             <tr>
@@ -440,5 +440,12 @@ export default defineComponent({
 /* Force opaque borders */
 table, th, td {
   border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
+  border-style: solid !important;
+  border-width: 1px !important;
+}
+
+/* Ensure header cells have opaque background covering the border */
+th {
+  background-clip: padding-box;
 }
 </style>

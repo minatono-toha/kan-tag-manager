@@ -1,5 +1,5 @@
 <template>
-  <div class="tabs-container bg-white border-b shadow-sm">
+  <div class="tabs-container bg-white shadow-sm">
     <div class="px-1 pt-[2px] text-sm font-bold text-gray-700">艦種選択ボタン</div>
     <div class="flex flex-wrap gap-2 px-1 pb-1 pt-[1px]">
       <!-- 全選択ボタン -->

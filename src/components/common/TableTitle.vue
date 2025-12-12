@@ -6,13 +6,13 @@
     @click="onClick"
   >
     <h2
-      class="text-xl font-bold mb-2 cursor-help border-b-2 border-dotted border-gray-400 inline-block hover:text-blue-600 transition-colors select-none"
+      class="text-lg font-bold mb-2 mt-4 cursor-help border-b-2 border-dotted border-gray-400 inline-block hover:text-blue-600 transition-colors select-none"
     >
       {{ title }}
     </h2>
     <div
       v-if="isVisible"
-      class="absolute left-0 top-full mt-1 z-50 w-80 bg-gray-100 border border-gray-200 rounded-lg shadow-xl p-4 text-sm font-normal text-left"
+      class="absolute left-0 top-full mt-1 z-[60] w-80 bg-gray-100 border border-gray-200 rounded-lg shadow-xl p-4 text-sm font-normal text-left"
       @click.stop
     >
       <TableAnnotations :type="type" />

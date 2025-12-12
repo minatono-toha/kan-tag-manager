@@ -11,15 +11,17 @@
         />
       </div>
 
-      <!-- タブ -->
-      <ShipFilterTabs
-        :filters="filters"
-        :selectedFilterIds="selectedFilterIds"
-        :isAllSelected="isAllSelected"
-        @toggle-filter="toggleFilter"
-        @toggle-all="toggleAllFilters"
-        class="pb-2 px-1 -mt-[5px]"
-      />
+      <!-- タブ and Theme Selector -->
+      <div class="flex items-end justify-between pb-2 px-1 -mt-[5px]">
+        <ShipFilterTabs
+          :filters="filters"
+          :selectedFilterIds="selectedFilterIds"
+          :isAllSelected="isAllSelected"
+          @toggle-filter="toggleFilter"
+          @toggle-all="toggleAllFilters"
+        />
+        <ThemeSelector :currentTheme="theme" @theme-change="handleThemeChange" />
+      </div>
     </div>
 
     <!-- メインコンテンツ：ここにスクロール管理を集約 -->
@@ -39,8 +41,8 @@
           </div>
           <div class="flex-grow">
             <TagManageTable
-              :ships="isSearchActive ? filteredShipsFromSearch : (sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships)"
-              :sourceShips="ships"
+              :ships="finalShips"
+              :sourceShips="shipsToDisplay"
               :selectedEventId="selectedEventId"
               :loading="loading"
               :targetHeaderHeight="attackTableHeaderHeight"
@@ -67,7 +69,7 @@
           </div>
           <div class="flex-grow">
             <ShipListTable
-              :ships="tagFilterActive ? filteredShipsFromTagTable : (sortedShipsFromAttackTable.length > 0 ? sortedShipsFromAttackTable : ships)"
+              :ships="finalShips"
               :loading="loading"
               :targetHeaderHeight="attackTableHeaderHeight"
               :hasFiltersSelected="selectedFilterIds.length > 0"
@@ -102,7 +104,7 @@
           <div class="flex-grow">
             <AttackTable
               v-if="selectedEventId"
-              :filteredUniqueOrigs="isSearchActive ? filteredShipsFromSearch : (tagFilterActive ? filteredShipsFromTagTable : ships)"
+              :filteredUniqueOrigs="tagFilterActive ? filteredShipsFromTagTable : shipsToDisplay"
               :selectedEventId="selectedEventId!"
               @update-sorted-ships="handleSortedShipsUpdate"
               @loading="handleLoading"
@@ -131,7 +133,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted, onUnmounted } from 'vue'
+import { defineComponent, ref, onMounted, onUnmounted, computed } from 'vue'
 import { Ship } from '@/types/interfaces'
 import ShipFilterTabs from './components/ship/ShipFilterTabs.vue'
 import TableTitle from './components/common/TableTitle.vue'
@@ -140,6 +142,7 @@ import ShipModal from './components/ship/ShipModal.vue'
 import AttackTable from './components/attack/AttackTable.vue'
 import TagManageTable from './components/tag-manage/TagManageTable.vue'
 import EventSelect from './components/eventselect/EventSelect.vue'
+import ThemeSelector from './components/theme/ThemeSelector.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
@@ -152,7 +155,8 @@ export default defineComponent({
     ShipModal,
     AttackTable,
     TagManageTable,
-    EventSelect
+    EventSelect,
+    ThemeSelector
   },
   setup() {
     const { theme, handleThemeChange } = useTheme()
@@ -370,7 +374,20 @@ export default defineComponent({
       handleTagFilterChange,
       filteredShipsFromSearch,
       isSearchActive,
-      handleSafeShipFilterChange
+      handleSafeShipFilterChange,
+      finalShips: computed(() => {
+        // If sorting is active (via AttackTable), use the sorted list.
+        if (sortedShipsFromAttackTable.value.length > 0) {
+          return sortedShipsFromAttackTable.value
+        }
+        // If sorted list is empty but tag filter is active, it means the filter matched 0 items.
+        // In this case we should return empty list.
+        if (tagFilterActive.value) {
+          return []
+        }
+        // Fallback to base display list (Search + Category Filter)
+        return shipsToDisplay.value
+      })
     }
   },
 })

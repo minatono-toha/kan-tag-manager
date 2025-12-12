@@ -2,11 +2,11 @@
   <div>
     <div v-if="loading">読み込み中...</div>
     <table v-else class="w-full text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100 sticky top-0 z-10">
+      <thead class="bg-gray-100 sticky top-0 z-50">
         <tr>
           <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
           <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">艦種</th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-blue-100' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦名</div>
             <span
               @click="toggleSearch($event)"
@@ -22,7 +22,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-blue-100' : 'bg-gray-100'">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦型・艦番</div>
             <span
               @click="toggleClassSearch($event)"
@@ -38,7 +38,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-blue-100' : 'bg-gray-100'">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-gray-300' : 'bg-gray-100'">
             <div>速力</div>
             <span
               @click="toggleSpeedFilter($event)"
@@ -98,13 +98,13 @@
       <div class="flex items-center justify-between mt-2">
         <button
           @click="clearSearch"
-          class="text-sm text-gray-500 hover:underline"
+          class="text-xs text-gray-500 hover:underline"
         >
           クリア
         </button>
         <button
           @click="applySearch"
-          class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
         >
           OK
         </button>
@@ -131,13 +131,13 @@
       <div class="flex items-center justify-between mt-2">
         <button
           @click="clearClassSearch"
-          class="text-sm text-gray-500 hover:underline"
+          class="text-xs text-gray-500 hover:underline"
         >
           クリア
         </button>
         <button
           @click="applyClassSearch"
-          class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
         >
           OK
         </button>
@@ -175,13 +175,13 @@
         <div class="flex items-center justify-between mt-2">
           <button
             @click="clearSpeedFilter"
-            class="text-sm text-gray-500 hover:underline"
+            class="text-xs text-gray-500 hover:underline"
           >
             クリア
           </button>
           <button
             @click="applySpeedFilter"
-            class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
           >
             OK
           </button>
@@ -463,5 +463,12 @@ const headerStyle = computed(() => ({
 /* Force opaque borders */
 table, th, td {
   border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
+  border-style: solid !important;
+  border-width: 1px !important;
+}
+
+/* Ensure header cells have opaque background covering the border */
+th {
+  background-clip: padding-box;
 }
 </style>
