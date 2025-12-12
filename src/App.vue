@@ -12,7 +12,7 @@
       </div>
 
       <!-- タブ and Theme Selector -->
-      <div class="flex items-end justify-between pb-2 px-1 -mt-[5px]">
+      <div class="flex items-end justify-between pb-1 px-1 -mt-[5px]">
         <ShipFilterTabs
           :filters="filters"
           :selectedFilterIds="selectedFilterIds"
@@ -31,13 +31,24 @@
       @scroll="onScroll"
       :style="{ fontSize: `${scaleFactor * 100}%` }"
     >
-      <div class="main-content flex gap-4">
+      <div class="main-content flex gap-10">
         <!-- 札管理（左側） -->
-        <div class="tag-manage-container flex-none flex flex-col" ref="tagManageContainerRef">
+        <div
+          class="tag-manage-container flex-none flex flex-col"
+          ref="tagManageContainerRef"
+          :class="{ 'check-only': tagManageDisplayMode === 'checkOnly' }"
+        >
           <!-- Spacer to align with other tables -->
            <TableTitle title="制御札管理" type="tag" />
           <div class="p-1 pb-0">
-            <div class="flex items-center mb-2" style="min-height: 44px;"></div>
+            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
+               <button
+                @click="handleTagManageDisplayModeChange(tagManageDisplayMode === 'detail' ? 'checkOnly' : 'detail')"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                {{ tagManageDisplayMode === 'detail' ? 'チェックのみ' : '詳細表示' }}
+              </button>
+            </div>
           </div>
           <div class="flex-grow">
             <TagManageTable
@@ -49,6 +60,8 @@
               :tagManagementData="tagManagementData"
               :stageOptions="stageOptions"
               :updateTagManagement="updateTagManagement"
+              :displayMode="tagManageDisplayMode"
+              :theme="theme"
               @filter-change="handleTagFilterChange"
             />
           </div>
@@ -58,7 +71,7 @@
         <div class="list-container flex flex-col" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }" ref="shipListContainerRef">
              <TableTitle title="艦船情報" type="ship" />
           <div class="p-1 pb-0">
-            <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
+            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
               <button
                 @click="handleDisplayModeChange(shipListDisplayMode === 'detail' ? 'nameOnly' : 'detail')"
                 class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
@@ -76,6 +89,7 @@
               :displayMode="shipListDisplayMode"
               :selectedEventId="selectedEventId"
               :tagManagementData="tagManagementData"
+              :theme="theme"
               @select="openModal"
               @filter-change="handleSafeShipFilterChange"
             />
@@ -86,7 +100,7 @@
         <div class="attack-container flex-1 flex flex-col" ref="attackContainerRef">
              <TableTitle v-if="selectedEventId" title="海域特攻情報" type="attack" />
           <div v-if="selectedEventId" class="p-1 pb-0">
-            <div class="flex items-center mb-2 flex-nowrap" style="min-height: 44px;">
+            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
               <button
                 @click="handleToggleSortMode"
                 class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
@@ -248,6 +262,11 @@ export default defineComponent({
       shipListDisplayMode.value = mode
     }
 
+    const tagManageDisplayMode = ref<'detail' | 'checkOnly'>('detail')
+    const handleTagManageDisplayModeChange = (mode: 'detail' | 'checkOnly') => {
+      tagManageDisplayMode.value = mode
+    }
+
     const handleHeaderHeightChange = (height: number) => {
       attackTableHeaderHeight.value = height
     }
@@ -375,6 +394,8 @@ export default defineComponent({
       filteredShipsFromSearch,
       isSearchActive,
       handleSafeShipFilterChange,
+      tagManageDisplayMode,
+      handleTagManageDisplayModeChange,
       finalShips: computed(() => {
         // If sorting is active (via AttackTable), use the sorted list.
         if (sortedShipsFromAttackTable.value.length > 0) {
@@ -398,7 +419,7 @@ export default defineComponent({
 
 .main-content {
   display: flex;
-  gap: 20px;
+  gap: 10px;
   flex-wrap: nowrap; /* Prevent wrapping - always horizontal */
 }
 
@@ -406,13 +427,16 @@ export default defineComponent({
 .tag-manage-container {
   min-width: 390px; /* 80 + 60 + 100 + 150 columns */
 }
+.tag-manage-container.check-only {
+  min-width: 140px; /* 60 + 60 + padding */
+}
 
 .list-container {
   min-width: 160px; /* Name only mode minimum */
 }
 
 .list-container.flex-1 {
-  min-width: 520px; /* Detail mode minimum (60 + 80 + 160 + 160 + 60) */
+  min-width: 560px; /* Detail mode minimum (60 + 120 + 160 + 165 + 55) */
 }
 
 .attack-container {

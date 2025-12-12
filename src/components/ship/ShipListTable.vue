@@ -5,7 +5,7 @@
       <thead class="bg-gray-100 sticky top-0 z-50">
         <tr>
           <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">艦種</th>
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">艦種</th>
           <th :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦名</div>
             <span
@@ -22,7 +22,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '160px', minWidth: '160px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '165px', minWidth: '165px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦型・艦番</div>
             <span
               @click="toggleClassSearch($event)"
@@ -38,7 +38,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '55px', minWidth: '55px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-gray-300' : 'bg-gray-100'">
             <div>速力</div>
             <span
               @click="toggleSpeedFilter($event)"
@@ -197,7 +197,7 @@ import { watchDebounced } from '@vueuse/core'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   ships: Ship[]
   loading?: boolean
   targetHeaderHeight?: number
@@ -205,7 +205,10 @@ const props = defineProps<{
   displayMode: 'detail' | 'nameOnly'
   selectedEventId: number | null
   tagManagementData: Map<number, TagManagement>
-}>()
+  theme?: 'light' | 'dark' | 'gradient'
+}>(), {
+  theme: 'light' // Default if not provided (though App always provides it)
+})
 
 const emit = defineEmits<{
   (e: 'select', orig: number): void
@@ -431,11 +434,17 @@ const getRowBackgroundStyle = (orig: number) => {
 
   // Assigned flag takes priority
   if (tagData.assigned) {
+    if (props.theme === 'dark' || props.theme === 'gradient') {
+      return { backgroundColor: '#4b5563', color: '#f3f4f6' } // gray-600, gray-100 text
+    }
     return { backgroundColor: '#e5e7eb' } // gray-200
   }
 
   // Preserve flag
   if (tagData.preserve) {
+    if (props.theme === 'dark' || props.theme === 'gradient') {
+      return { backgroundColor: '#1e40af', color: '#dbeafe' } // blue-800, blue-100 text
+    }
     return { backgroundColor: '#dbeafe' } // blue-100
   }
 
@@ -460,15 +469,20 @@ const headerStyle = computed(() => ({
 </script>
 
 <style scoped>
-/* Force opaque borders */
-table, th, td {
-  border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
-  border-style: solid !important;
-  border-width: 1px !important;
+/* Fix properties for Firefox sticky header compatibility */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0;
+  border-top: 1px solid #d1d5db !important;
+  border-left: 1px solid #d1d5db !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
 }
 
-/* Ensure header cells have opaque background covering the border */
-th {
-  background-clip: padding-box;
+th, td {
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 1px solid #d1d5db !important;
+  border-bottom: 1px solid #d1d5db !important;
 }
 </style>

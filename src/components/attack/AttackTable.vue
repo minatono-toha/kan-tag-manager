@@ -437,15 +437,20 @@ export default defineComponent({
 </script>
 
 <style scoped>
-/* Force opaque borders */
-table, th, td {
-  border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
-  border-style: solid !important;
-  border-width: 1px !important;
+/* Fix properties for Firefox sticky header compatibility */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0;
+  border-top: 1px solid #d1d5db !important;
+  border-left: 1px solid #d1d5db !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
 }
 
-/* Ensure header cells have opaque background covering the border */
-th {
-  background-clip: padding-box;
+th, td {
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 1px solid #d1d5db !important;
+  border-bottom: 1px solid #d1d5db !important;
 }
 </style>

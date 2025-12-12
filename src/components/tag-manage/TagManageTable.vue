@@ -4,7 +4,7 @@
       <table v-else class="w-full text-sm border-collapse border border-gray-300">
       <thead class="bg-gray-100 sticky top-0 z-50" ref="theadRef">
         <tr>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-left align-top relative pb-6" :class="assignedFilter !== null ? 'bg-gray-300' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="assignedFilter !== null ? 'bg-gray-300' : 'bg-gray-100'">
             割当済
             <span
               @click="toggleAssignedFilter($event)"
@@ -36,7 +36,7 @@
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
             割当先
             <span
               @click="toggleTargetStageFilter($event)"
@@ -52,7 +52,7 @@
               </svg>
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-left align-top relative pb-6" :class="commentFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-left align-top relative pb-6" :class="commentFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
             コメント
             <span
               @click="toggleCommentFilter($event)"
@@ -94,7 +94,7 @@
             />
           </td>
           <!-- 割当先 -->
-          <td :style="cellStyle" class="border text-center relative">
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border text-center relative">
             <div
               class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px]"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
@@ -104,7 +104,7 @@
             </div>
           </td>
           <!-- コメント -->
-          <td :style="cellStyle" class="border">
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">
             <input
               type="text"
               :value="getTagData(ship.orig).comment"
@@ -116,7 +116,7 @@
           </td>
         </tr>
         <tr v-if="displayedShips.length === 0">
-          <td colspan="4" :style="cellStyle" class="border text-center py-4 text-gray-500">
+          <td :colspan="displayMode === 'detail' ? 4 : 2" :style="cellStyle" class="border text-center py-4 text-gray-500">
             {{ emptyStateMessage }}
           </td>
         </tr>
@@ -361,7 +361,7 @@ import { useDebounceFn } from '@vueuse/core'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   ships: Ship[]
   sourceShips: Ship[]
   selectedEventId: number | null
@@ -370,7 +370,12 @@ const props = defineProps<{
   tagManagementData: Map<number, TagManagement>
   stageOptions: string[]
   updateTagManagement: (data: TagManagement) => Promise<void>
-}>()
+  displayMode?: 'detail' | 'checkOnly'
+  theme?: 'light' | 'dark' | 'gradient'
+}>(), {
+  displayMode: 'detail',
+  theme: 'light'
+})
 
 const emit = defineEmits<{
   (e: 'filter-change', filteredShips: Ship[], isFiltering: boolean): void
@@ -865,11 +870,17 @@ const getRowBackgroundStyle = (orig: number) => {
 
   // Assigned flag takes priority
   if (tagData.assigned) {
+    if (props.theme === 'dark' || props.theme === 'gradient') {
+      return { backgroundColor: '#4b5563', color: '#f3f4f6' } // gray-600, gray-100 text
+    }
     return { backgroundColor: '#e5e7eb' } // gray-200
   }
 
   // Preserve flag
   if (tagData.preserve) {
+    if (props.theme === 'dark' || props.theme === 'gradient') {
+      return { backgroundColor: '#1e40af', color: '#dbeafe' } // blue-800, blue-100 text
+    }
     return { backgroundColor: '#dbeafe' } // blue-100
   }
 
@@ -894,26 +905,29 @@ const headerStyle = computed(() => ({
 </script>
 
 <style scoped>
-/* Remove default browser styling for select and input within table */
+/* Fix properties for Firefox sticky header compatibility */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0;
+  border-top: 1px solid #d1d5db !important;
+  border-left: 1px solid #d1d5db !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+}
+
+th, td {
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 1px solid #d1d5db !important;
+  border-bottom: 1px solid #d1d5db !important;
+}
+
 select:focus,
 input:focus {
   outline: none;
 }
 
-/* Prevent checkbox from being clicked directly */
 input[type="checkbox"].pointer-events-none {
   pointer-events: none;
-}
-
-/* Force opaque borders */
-table, th, td {
-  border-color: #d1d5db !important; /* Tailwind gray-300 equivalent */
-  border-style: solid !important;
-  border-width: 1px !important;
-}
-
-/* Ensure header cells have opaque background covering the border */
-th {
-  background-clip: padding-box;
 }
 </style>

@@ -1,16 +1,16 @@
 <template>
-  <div class="event-select-container p-4 relative">
+  <div class="event-select-container p-3 relative">
     <div class="flex items-start gap-6">
       <!-- イベント選択 -->
       <div class="w-32">
-        <label for="event-select" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="event-select" class="block text-xs font-medium text-gray-700 mb-1">
           イベント選択
         </label>
         <select
           id="event-select"
           v-model="localSelectedEventId"
           @change="handleEventChange"
-          class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          class="block w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs"
           :disabled="loading"
         >
           <option :value="null" disabled>イベントを選択してください</option>
@@ -22,16 +22,16 @@
 
       <!-- イベント名 -->
       <div class="flex-1 mr-72">
-        <div class="block text-sm font-medium text-gray-700 mb-2">イベント名</div>
+        <div class="block text-xs font-medium text-gray-700 mb-1">イベント名</div>
         <div
           v-if="selectedEvent && !loading"
-          class="px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+          class="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm"
         >
           {{ selectedEvent.eventName }}
         </div>
         <div
           v-else
-          class="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-500"
+          class="px-3 py-1 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-500"
         >
           イベントを選択してください
         </div>
@@ -54,7 +54,7 @@
     </div>
 
     <!-- 期間情報（イベント名の下に配置） -->
-    <div class="mt-4 ml-40">
+    <div class="mt-3 ml-40">
       <div class="flex items-center gap-2">
         <span v-if="selectedEvent && !loading" class="text-sm">
           {{ formatDate(selectedEvent.eventStart) }}
@@ -187,7 +187,7 @@ export default defineComponent({
         return '開始前'
       } else if (now >= startDate && now <= endDate) {
         const remainingMs = endDate.getTime() - now.getTime()
-        const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+        const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24))
         const remainingHours = Math.floor((remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
         const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
         return `開催中：残り${remainingDays}日 ${String(remainingHours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`
@@ -212,7 +212,7 @@ export default defineComponent({
         return 'text-blue-600'
       } else if (now >= startDate && now <= endDate) {
         const remainingMs = endDate.getTime() - now.getTime()
-        const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+        const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24))
 
         if (remainingDays < 7) {
           return 'text-red-600'

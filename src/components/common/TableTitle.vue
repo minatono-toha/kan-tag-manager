@@ -6,7 +6,7 @@
     @click="onClick"
   >
     <h2
-      class="text-lg font-bold mb-2 mt-4 cursor-help border-b-2 border-dotted border-gray-400 inline-block hover:text-blue-600 transition-colors select-none"
+      class="text-lg font-bold mb-1.5 mt-3 cursor-help border-b-2 border-dotted border-gray-400 inline-block hover:text-blue-600 transition-colors select-none"
     >
       {{ title }}
     </h2>
