@@ -60,8 +60,9 @@
         <tr
           v-for="ship in filteredShips"
           :key="ship.id"
-          :style="{ ...rowStyle, ...getRowBackgroundStyle(ship.orig), height: `${TABLE_STYLE.rowHeight}px`, boxSizing: 'border-box' }"
+          :style="{ ...rowStyle, ...rowBoxSizing }"
           class="hover:bg-gray-100 cursor-pointer"
+          :class="getRowClass(ship.orig)"
           @click="openModal(ship.orig)"
         >
           <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
@@ -193,6 +194,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import type { CSSProperties } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
@@ -425,34 +427,34 @@ watchDebounced(
 )
 
 // Get row background style based on tag flags
-const getRowBackgroundStyle = (orig: number) => {
-  // Access reactive tagManagementData directly from props (Vue unwraps refs)
+// Get row class based on tag flags
+const getRowClass = (orig: number) => {
   const tagData = props.tagManagementData.get(orig)
-
-  // If no tag data, return default
-  if (!tagData) return {}
+  if (!tagData) return ''
 
   // Assigned flag takes priority
   if (tagData.assigned) {
     if (props.theme === 'dark' || props.theme === 'gradient') {
-      return { backgroundColor: '#4b5563', color: '#f3f4f6' } // gray-600, gray-100 text
+      return 'row-assigned-dark'
     }
-    return { backgroundColor: '#e5e7eb' } // gray-200
+    return 'row-assigned-light'
   }
 
   // Preserve flag
   if (tagData.preserve) {
     if (props.theme === 'dark' || props.theme === 'gradient') {
-      return { backgroundColor: '#1e40af', color: '#dbeafe' } // blue-800, blue-100 text
+      return 'row-preserve-dark'
     }
-    return { backgroundColor: '#dbeafe' } // blue-100
+    return 'row-preserve-light'
   }
 
-  // Default (no special background)
-  return {}
+  return ''
 }
 
-const rowStyle = {
+// Static object for box-sizing
+const rowBoxSizing: CSSProperties = { boxSizing: 'border-box' }
+
+const rowStyle: CSSProperties = {
   height: `${TABLE_STYLE.rowHeight}px`,
   fontSize: TABLE_STYLE.fontSize,
 }
@@ -483,6 +485,24 @@ th, td {
   border-top: 0 !important;
   border-left: 0 !important;
   border-right: 1px solid #d1d5db !important;
+  border-right: 1px solid #d1d5db !important;
   border-bottom: 1px solid #d1d5db !important;
+}
+
+/* Optimization: Row Highlight Classes */
+.row-assigned-light {
+  background-color: #e5e7eb; /* gray-200 */
+}
+.row-assigned-dark {
+  background-color: #4b5563 !important; /* gray-600 */
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+.row-preserve-light {
+  background-color: #dbeafe; /* blue-100 */
+}
+.row-preserve-dark {
+  background-color: #1e40af !important; /* blue-800 */
+  color: #dbeafe !important; /* blue-100 */
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="event-select-container p-3 relative">
+  <div class="event-select-container p-3 relative min-h-[120px]">
     <div class="flex items-start gap-6">
       <!-- イベント選択 -->
       <div class="w-32">
@@ -38,18 +38,20 @@
       </div>
     </div>
 
-    <!-- ご意見・ご要望リンク（更新履歴の上） -->
-    <div class="absolute top-4 right-4 w-64 mb-1">
-      <div class="text-right mb-1">
-        <a
-          href="https://github.com/minatono-toha/kan_tag_manager/issues"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-xxs text-blue-600 hover:text-blue-800"
-        >
-          ご意見・ご要望はコチラ
-        </a>
-      </div>
+    <!-- ご意見・ご要望リンク（ラベルの高さに合わせる） -->
+    <div class="absolute top-3 right-4 w-64 text-right">
+      <a
+        href="https://github.com/minatono-toha/kan_tag_manager/issues"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xxs text-blue-600 hover:text-blue-800"
+      >
+        ご意見・ご要望はコチラ
+      </a>
+    </div>
+
+    <!-- 更新履歴（入力枠の高さに合わせる） -->
+    <div class="absolute top-[33px] right-4 w-64">
       <ChangelogDisplay />
     </div>
 
@@ -81,7 +83,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="mt-2 text-sm text-gray-500">読み込み中...</div>
+    <div v-if="loading" class="absolute bottom-2 right-4 text-xs text-gray-400">読み込み中...</div>
   </div>
 </template>
 
@@ -190,7 +192,7 @@ export default defineComponent({
         const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24))
         const remainingHours = Math.floor((remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
         const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
-        return `開催中：残り${remainingDays}日 ${String(remainingHours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`
+        return `開催中(残り${remainingDays}日 ${String(remainingHours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')})`
       } else {
         return '終了済'
       }

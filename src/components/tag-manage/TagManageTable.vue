@@ -74,8 +74,9 @@
         <tr
           v-for="ship in displayedShips"
           :key="ship.orig"
-          :style="{ ...rowStyle, ...getRowBackgroundStyle(ship.orig), height: `${TABLE_STYLE.rowHeight}px`, boxSizing: 'border-box' }"
+          :style="{ ...rowStyle, ...rowBoxSizing }"
           class="hover:bg-gray-100"
+          :class="getRowClass(ship.orig)"
         >
           <!-- 割当済 -->
           <td :style="cellStyle" class="border text-center cursor-pointer" @click="toggleAssigned(ship.orig)">
@@ -357,6 +358,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import type { CSSProperties } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
@@ -864,31 +866,33 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
-// Get row background style based on tag flags
-const getRowBackgroundStyle = (orig: number) => {
+// Get row class based on tag flags for better performance than inline styles
+const getRowClass = (orig: number) => {
   const tagData = getTagData(orig)
 
   // Assigned flag takes priority
   if (tagData.assigned) {
     if (props.theme === 'dark' || props.theme === 'gradient') {
-      return { backgroundColor: '#4b5563', color: '#f3f4f6' } // gray-600, gray-100 text
+      return 'row-assigned-dark'
     }
-    return { backgroundColor: '#e5e7eb' } // gray-200
+    return 'row-assigned-light'
   }
 
   // Preserve flag
   if (tagData.preserve) {
     if (props.theme === 'dark' || props.theme === 'gradient') {
-      return { backgroundColor: '#1e40af', color: '#dbeafe' } // blue-800, blue-100 text
+      return 'row-preserve-dark'
     }
-    return { backgroundColor: '#dbeafe' } // blue-100
+    return 'row-preserve-light'
   }
 
-  // Default (no special background)
-  return {}
+  return ''
 }
 
-const rowStyle = {
+// Static style objects
+const rowBoxSizing: CSSProperties = { boxSizing: 'border-box' }
+
+const rowStyle: CSSProperties = {
   height: `${TABLE_STYLE.rowHeight}px`,
   fontSize: TABLE_STYLE.fontSize,
 }
@@ -929,5 +933,22 @@ input:focus {
 
 input[type="checkbox"].pointer-events-none {
   pointer-events: none;
+}
+
+/* Optimization: Row Highlight Classes */
+.row-assigned-light {
+  background-color: #e5e7eb; /* gray-200 */
+}
+.row-assigned-dark {
+  background-color: #4b5563 !important; /* gray-600 */
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+.row-preserve-light {
+  background-color: #dbeafe; /* blue-100 */
+}
+.row-preserve-dark {
+  background-color: #1e40af !important; /* blue-800 */
+  color: #dbeafe !important; /* blue-100 */
 }
 </style>

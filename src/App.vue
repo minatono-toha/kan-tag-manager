@@ -17,6 +17,7 @@
           :filters="filters"
           :selectedFilterIds="selectedFilterIds"
           :isAllSelected="isAllSelected"
+          :theme="theme"
           @toggle-filter="toggleFilter"
           @toggle-all="toggleAllFilters"
         />

@@ -8,31 +8,29 @@
       <div class="text-xs text-gray-700 mb-1">更新履歴</div>
       <div v-if="loading" class="text-xs text-gray-500">読み込み中...</div>
       <div v-else-if="changelogs.length === 0" class="text-xs text-gray-500">履歴なし</div>
-      <div v-else class="space-y-1">
-        <div
-          v-for="log in displayedLogs"
-          :key="log.c_logId"
-          class="flex items-start gap-2 text-xs"
-        >
-          <span class="text-gray-600 whitespace-nowrap">{{ formatDate(log.c_logDate) }}</span>
-          <span class="text-gray-800 line-clamp-1">{{ log.c_logStr }}</span>
+      <div v-else>
+        <!-- Collapsed View (Fixed 2 lines, no scroll) -->
+        <div v-if="!isExpanded" class="space-y-1">
+          <div
+            v-for="log in displayedLogs"
+            :key="log.c_logId"
+            class="flex items-start gap-2 text-xs"
+          >
+            <span class="text-gray-600 whitespace-nowrap">{{ formatDate(log.c_logDate) }}</span>
+            <span class="text-gray-800 line-clamp-1">{{ log.c_logStr }}</span>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Expanded View (inline) -->
-    <div
-      v-if="isExpanded && changelogs.length > 2"
-      class="mt-3 pt-3 border-t-2 border-dotted border-gray-300"
-    >
-      <div class="max-h-[3.5rem] overflow-y-auto space-y-1">
-        <div
-          v-for="log in remainingLogs"
-          :key="log.c_logId"
-          class="flex items-start gap-2 text-xs"
-        >
-          <span class="text-gray-600 whitespace-nowrap">{{ formatDate(log.c_logDate) }}</span>
-          <span class="text-gray-800">{{ log.c_logStr }}</span>
+        <!-- Expanded View (Scrollable all lines) -->
+        <div v-else class="space-y-1 max-h-[7rem] overflow-y-auto">
+          <div
+            v-for="log in changelogs"
+            :key="log.c_logId"
+            class="flex items-start gap-2 text-xs"
+          >
+            <span class="text-gray-600 whitespace-nowrap">{{ formatDate(log.c_logDate) }}</span>
+            <span class="text-gray-800">{{ log.c_logStr }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -45,6 +43,16 @@ import { db } from '@/firebase'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import type { Changelog } from '@/types/interfaces'
 
+/*
+Scrolling unification plan:
+- [x] Split Feedback Link and Changelog into separate absolute/relative containers for better alignment.
+- [x] Align Changelog top edge with Event Selection input top edge (~33px).
+- [x] Remove internal separator in Changelog when expanded.
+- [ ] Refactor Changelog scrolling to scroll the entire list (items 1-N) when expanded, instead of separate scroll for items 3-N.
+  - Use a single `v-for` for all logs.
+  - Apply `max-height` and `overflow-y-auto` to the list container when expanded.
+  - Keep Title static.
+*/
 const changelogs = ref<Changelog[]>([])
 const loading = ref(true)
 const isExpanded = ref(false)
