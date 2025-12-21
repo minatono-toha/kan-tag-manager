@@ -36,7 +36,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '100px', minWidth: '100px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
             割当先
             <span
               @click="toggleTargetStageFilter($event)"
@@ -45,6 +45,22 @@
               ref="targetStageIconRef"
             >
               <svg v-if="targetStageFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+              </svg>
+            </span>
+          </th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-left align-top relative pb-6" :class="assignedTagFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
+            割当札
+            <span
+              @click="toggleAssignedTagFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="assignedTagIconRef"
+            >
+              <svg v-if="assignedTagFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -101,8 +117,12 @@
               :style="{ fontSize: TABLE_STYLE.fontSize }"
               @click.stop="openStageSelector($event, ship.orig)"
             >
-              {{ getTagData(ship.orig).targetStage || '-' }}
+              {{ getStageOnlyFromTargetStage(ship.orig) || '-' }}
             </div>
+          </td>
+          <!-- 割当札 -->
+          <td v-if="displayMode === 'detail'" :style="{ ...cellStyle, backgroundColor: getTagColorForShip(ship.orig) }" class="border text-center text-xs">
+            {{ getTagNameForShip(ship.orig) }}
           </td>
           <!-- コメント -->
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">
@@ -117,7 +137,7 @@
           </td>
         </tr>
         <tr v-if="displayedShips.length === 0">
-          <td :colspan="displayMode === 'detail' ? 4 : 2" :style="cellStyle" class="border text-center py-4 text-gray-500">
+          <td :colspan="displayMode === 'detail' ? 5 : 2" :style="cellStyle" class="border text-center py-4 text-gray-500">
             {{ emptyStateMessage }}
           </td>
         </tr>
@@ -259,6 +279,51 @@
       </div>
     </div>
 
+    <!-- Assigned Tag Filter Popup -->
+    <div
+      v-if="showAssignedTagFilter"
+      ref="assignedTagPopupRef"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50 max-h-80 overflow-y-auto"
+      :style="{ top: assignedTagFilterPosition.y + 'px', left: assignedTagFilterPosition.x + 'px' }"
+      @click.stop
+    >
+      <div class="font-bold mb-2">割当札で絞り込み</div>
+      <div class="space-y-1">
+        <label v-for="tag in uniqueAssignedTags" :key="tag" class="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            :value="tag"
+            v-model="tempAssignedTagFilter"
+            class="mr-2"
+          />
+          <span class="text-sm font-normal">{{ tag }}</span>
+        </label>
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            :value="''"
+            v-model="tempAssignedTagFilter"
+            class="mr-2"
+          />
+          <span class="text-sm font-normal">(空白)</span>
+        </label>
+        <div class="flex items-center justify-between mt-2">
+          <button
+            @click="clearAssignedTagFilter"
+            class="text-xs text-gray-500 hover:underline"
+          >
+            クリア
+          </button>
+          <button
+            @click="applyAssignedTagFilter"
+            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Comment Filter Popup -->
     <div
       v-if="showCommentFilter"
@@ -347,10 +412,31 @@
        <div
         v-for="stage in getStagesForArea(hoveredArea)"
         :key="stage"
-        @click="applyStageSelection(stage)"
-        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm"
+        @click="handleStageClick($event, stage)"
+        @mouseenter="handleStageHover($event, stage)"
+        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm flex justify-between items-center"
+        :class="{ 'bg-gray-100': hoveredStage === stage }"
       >
-        {{ stage }}
+        <span>{{ stage }}</span>
+        <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2">▶</span>
+      </div>
+    </div>
+
+    <!-- 3rd Level Menu: List of Tags for Hovered Stage -->
+    <div
+      v-if="showStageSelectorPopup && hoveredStage && getTagsForStage(hoveredStage).length > 0"
+      class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-[70] overflow-y-auto"
+      :style="{ top: tagMenuPosition.y + 'px', left: tagMenuPosition.x + 'px', maxHeight: '300px', width: '160px' }"
+      @click.stop
+    >
+      <div
+        v-for="tag in getTagsForStage(hoveredStage)"
+        :key="tag.tagId"
+        @click="applyTagSelection(hoveredStage, tag.tagName)"
+        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm"
+        :style="{ backgroundColor: tag.tagColor, color: '#000' }"
+      >
+        {{ tag.tagName }}
       </div>
     </div>
   </div>
@@ -371,6 +457,8 @@ const props = withDefaults(defineProps<{
   targetHeaderHeight?: number
   tagManagementData: Map<number, TagManagement>
   stageOptions: string[]
+  stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
+  tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
   updateTagManagement: (data: TagManagement) => Promise<void>
   displayMode?: 'detail' | 'checkOnly'
   theme?: 'light' | 'dark' | 'gradient'
@@ -403,27 +491,32 @@ const getTagData = (orig: number): TagManagement => {
 const assignedFilter = ref<boolean | null>(null)
 const preserveFilter = ref<boolean | null>(null)
 const targetStageFilter = ref<string[]>([])
+const assignedTagFilter = ref<string[]>([])
 const commentFilter = ref<string[]>([])
 
 // Filter popup states
 const showAssignedFilter = ref(false)
 const showPreserveFilter = ref(false)
 const showTargetStageFilter = ref(false)
+const showAssignedTagFilter = ref(false)
 const showCommentFilter = ref(false)
 
 const assignedFilterPosition = ref({ x: 0, y: 0 })
 const preserveFilterPosition = ref({ x: 0, y: 0 })
 const targetStageFilterPosition = ref({ x: 0, y: 0 })
+const assignedTagFilterPosition = ref({ x: 0, y: 0 })
 const commentFilterPosition = ref({ x: 0, y: 0 })
 
 const assignedIconRef = ref<HTMLElement | null>(null)
 const preserveIconRef = ref<HTMLElement | null>(null)
 const targetStageIconRef = ref<HTMLElement | null>(null)
+const assignedTagIconRef = ref<HTMLElement | null>(null)
 const commentIconRef = ref<HTMLElement | null>(null)
 
 const assignedPopupRef = ref<HTMLElement | null>(null)
 const preservePopupRef = ref<HTMLElement | null>(null)
 const targetStagePopupRef = ref<HTMLElement | null>(null)
+const assignedTagPopupRef = ref<HTMLElement | null>(null)
 const commentPopupRef = ref<HTMLElement | null>(null)
 
 // Stage Selector State
@@ -434,6 +527,8 @@ const subMenuRef = ref<HTMLElement | null>(null)
 const editingShipOrig = ref<number | null>(null)
 const hoveredArea = ref<string | null>(null)
 const subMenuPosition = ref({ x: 0, y: 0 })
+const hoveredStage = ref<string | null>(null)
+const tagMenuPosition = ref({ x: 0, y: 0 })
 
 const theadRef = ref<HTMLElement | null>(null)
 
@@ -470,6 +565,19 @@ const uniqueComments = computed(() => {
   })
   return Array.from(comments).sort()
 })
+
+// Get unique assigned tags from all source ships (for filter options)
+const uniqueAssignedTags = computed(() => {
+  const tags = new Set<string>()
+  props.sourceShips.forEach(ship => {
+    const tagName = getTagNameForShip(ship.orig)
+    if (tagName && tagName.trim()) {
+      tags.add(tagName)
+    }
+  })
+  return Array.from(tags).sort()
+})
+
 
 // Displayed ships (for the table UI)
 const displayedShips = computed(() => {
@@ -520,6 +628,14 @@ const filteredShipsForEmit = computed(() => {
     })
   }
 
+  // Apply assigned tag filter
+  if (assignedTagFilter.value.length > 0) {
+    result = result.filter(ship => {
+      const tagName = getTagNameForShip(ship.orig)
+      return assignedTagFilter.value.includes(tagName)
+    })
+  }
+
   return result
 })
 
@@ -528,6 +644,7 @@ watch(filteredShipsForEmit, (newFiltered) => {
   const isFiltering = assignedFilter.value !== null ||
                      preserveFilter.value !== null ||
                      targetStageFilter.value.length > 0 ||
+                     assignedTagFilter.value.length > 0 ||
                      commentFilter.value.length > 0
   emit('filter-change', newFiltered, isFiltering)
 }, { immediate: true })
@@ -578,12 +695,14 @@ const handleCommentChange = (orig: number, value: string) => {
 const tempAssignedFilter = ref<boolean | null>(null)
 const tempPreserveFilter = ref<boolean | null>(null)
 const tempTargetStageFilter = ref<string[]>([])
+const tempAssignedTagFilter = ref<string[]>([])
 const tempCommentFilter = ref<string[]>([])
 
 const closeAllPopups = () => {
   showAssignedFilter.value = false
   showPreserveFilter.value = false
   showTargetStageFilter.value = false
+  showAssignedTagFilter.value = false
   showCommentFilter.value = false
   showStageSelectorPopup.value = false
 }
@@ -693,6 +812,41 @@ const clearTargetStageFilter = () => {
   showTargetStageFilter.value = false
 }
 
+const toggleAssignedTagFilter = (event: MouseEvent) => {
+  event.stopPropagation()
+  const willOpen = !showAssignedTagFilter.value
+  if (willOpen) closeAllPopups()
+  showAssignedTagFilter.value = willOpen
+
+  if (showAssignedTagFilter.value) {
+    tempAssignedTagFilter.value = [...assignedTagFilter.value]
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    assignedTagFilterPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 5
+    }
+  }
+}
+
+const applyAssignedTagFilter = () => {
+    assignedTagFilter.value = [...tempAssignedTagFilter.value]
+    showAssignedTagFilter.value = false
+}
+
+const clearAssignedTagFilter = () => {
+  assignedTagFilter.value = []
+  tempAssignedTagFilter.value = []
+  showAssignedTagFilter.value = false
+}
+
+const getStageOnlyFromTargetStage = (orig: number): string => {
+  const data = getTagData(orig)
+  if (!data.targetStage) return ''
+
+  const parsed = parseTagFromTargetStage(data.targetStage)
+  return parsed ? parsed.stage : data.targetStage
+}
+
 const clearCommentFilter = () => {
   commentFilter.value = []
   tempCommentFilter.value = []
@@ -785,6 +939,53 @@ const handleAreaClick = (event: MouseEvent, area: string) => {
   handleAreaHover(event, area)
 }
 
+const getTagsForStage = (stage: string) => {
+    return props.stageTagMap[stage] || []
+}
+
+const applyTagSelection = (stage: string, tagName: string) => {
+    const value = `${stage} (${tagName})`
+    applyStageSelection(value)
+}
+
+// Extract tag info from targetStage string: "E-1-1 (TagName)" -> { stage: "E-1-1", tagName: "TagName" }
+const parseTagFromTargetStage = (targetStage: string) => {
+    if (!targetStage) return null
+    const match = targetStage.match(/^(.+?)\s*\((.+)\)$/)
+    if (match) {
+        return {
+            stage: match[1],
+            tagName: match[2]
+        }
+    }
+    return {
+        stage: targetStage,
+        tagName: null
+    }
+}
+
+// Get tag color for a ship
+const getTagColorForShip = (orig: number) => {
+  const data = getTagData(orig)
+  if (!data.targetStage) return 'transparent'
+
+  const parsed = parseTagFromTargetStage(data.targetStage)
+  if (parsed && parsed.tagName) {
+      const tags = Object.values(props.tagMap)
+      const tag = tags.find(t => t.tagName === parsed.tagName)
+      return tag ? tag.tagColor : 'transparent'
+  }
+  return 'transparent'
+}
+
+const getTagNameForShip = (orig: number) => {
+  const data = getTagData(orig)
+  if (!data.targetStage) return ''
+
+  const parsed = parseTagFromTargetStage(data.targetStage)
+  return parsed && parsed.tagName ? parsed.tagName : ''
+}
+
 const cancelCloseSubMenu = () => {
    // Logic to keep menu open if needed
 }
@@ -796,7 +997,39 @@ const applyStageSelection = (stage: string) => {
     showStageSelectorPopup.value = false
     editingShipOrig.value = null
     hoveredArea.value = null
+    hoveredStage.value = null
 }
+
+const handleStageHover = (event: MouseEvent, stage: string) => {
+    hoveredStage.value = stage
+
+    // Position 3rd level menu (Tag selection)
+    const target = event.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+
+    const top = rect.top
+    let left = rect.right
+
+    // Adjust if overflow
+    const viewportWidth = window.innerWidth
+    if (left + 140 > viewportWidth) {
+        left = rect.left - 140
+    }
+
+    tagMenuPosition.value = { x: left, y: top }
+}
+
+const handleStageClick = (event: MouseEvent, stage: string) => {
+    // If there are tags, just handle hover logic (expand sub-menu)
+    // If no tags, select the stage immediately
+    const tags = getTagsForStage(stage)
+    if (tags && tags.length > 0) {
+        handleStageHover(event, stage)
+    } else {
+        applyStageSelection(stage)
+    }
+}
+
 
 // Close popups when clicking outside
 const handleClickOutside = (event: MouseEvent) => {

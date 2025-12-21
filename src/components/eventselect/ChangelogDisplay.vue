@@ -1,10 +1,17 @@
 <template>
-  <div class="changelog-container bg-gray-100 border-2 border-dotted border-gray-400 px-3 py-2 relative z-[60]" ref="changelogRef">
-    <!-- Header (always visible) -->
+  <div
+    class="changelog-container bg-gray-100 border-2 border-dotted border-gray-400 px-3 py-2 relative z-[60] cursor-pointer"
+    ref="changelogRef"
+  >
+    <!-- Overlay for collapsed state (handles all clicks to expand) -->
     <div
-      @click="toggleExpand"
-      class="cursor-pointer"
-    >
+      v-if="!isExpanded"
+      class="absolute inset-0 z-10 cursor-pointer"
+      @click.stop="toggleExpand"
+    ></div>
+
+    <!-- Header (always visible) -->
+    <div @click="toggleExpand">
       <div class="text-xs text-gray-700 mb-1">更新履歴</div>
       <div v-if="loading" class="text-xs text-gray-500">読み込み中...</div>
       <div v-else-if="changelogs.length === 0" class="text-xs text-gray-500">履歴なし</div>
@@ -23,11 +30,7 @@
 
         <!-- Expanded View (Scrollable all lines) -->
         <div v-else class="space-y-1 max-h-[7rem] overflow-y-auto">
-          <div
-            v-for="log in changelogs"
-            :key="log.c_logId"
-            class="flex items-start gap-2 text-xs"
-          >
+          <div v-for="log in changelogs" :key="log.c_logId" class="flex items-start gap-2 text-xs">
             <span class="text-gray-600 whitespace-nowrap">{{ formatDate(log.c_logDate) }}</span>
             <span class="text-gray-800">{{ log.c_logStr }}</span>
           </div>
@@ -131,7 +134,6 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
-
 
 <style scoped>
 /* Force specific colors to ignore global theme settings */

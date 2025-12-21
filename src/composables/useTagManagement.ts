@@ -9,26 +9,74 @@ import {
   getAllTagManagementForEvent
 } from '@/utils/indexedDB'
 
+export interface TagDef {
+  tagId: number
+  tagName: string
+  tagColor: string
+}
+
 export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref<Ship[]>) {
   const tagManagementData = ref<Map<number, TagManagement>>(new Map())
   const stageOptions = ref<string[]>([])
+  const stageTagMap = ref<Record<string, TagDef[]>>({})
+  const tagMap = ref<Record<number, TagDef>>({})
   const loading = ref(false)
 
-  // Fetch stage options from eventmap collection
-  const fetchStageOptions = async (eventId: number) => {
+  // Fetch stage options and tags from eventmap and tags collections
+  const fetchData = async (eventId: number) => {
     if (!eventId) return
 
     try {
-      const q = query(collection(db, 'eventmap'), where('eventId', '==', eventId))
-      const snap = await getDocs(q)
+      loading.value = true
+
+      // 1. Fetch tags
+      const tagsQ = query(collection(db, 'tags'), where('eventId', '==', eventId))
+      const tagsSnap = await getDocs(tagsQ)
+      const tMap: Record<number, TagDef> = {}
+      tagsSnap.forEach((doc) => {
+        const data = doc.data()
+        if (typeof data.tagId === 'number') {
+          tMap[data.tagId] = {
+            tagId: data.tagId,
+            tagName: data.tagName,
+            tagColor: data.tagColor,
+          }
+        }
+      })
+      tagMap.value = tMap
+
+      // 2. Fetch eventmap (stages)
+      const mapQ = query(collection(db, 'eventmap'), where('eventId', '==', eventId))
+      const mapSnap = await getDocs(mapQ)
 
       const stages = new Set<string>()
-      snap.forEach((doc) => {
+      const sTagMap: Record<string, TagDef[]> = {}
+
+      mapSnap.forEach((doc) => {
         const data = doc.data()
         if (data.stage) {
           stages.add(data.stage)
+
+          // Collect tags for this stage
+          const tagsForStage: TagDef[] = []
+          ;[data.tagId1, data.tagId2, data.tagId3, data.tagId4].forEach(tagId => {
+            if (typeof tagId === 'number' && tMap[tagId]) {
+              tagsForStage.push(tMap[tagId])
+            }
+          })
+
+          // Deduplicate based on tagId
+          const uniqueTags = tagsForStage.filter((tag, index, self) =>
+            index === self.findIndex((t) => t.tagId === tag.tagId)
+          )
+
+          if (uniqueTags.length > 0) {
+             sTagMap[data.stage] = uniqueTags
+          }
         }
       })
+
+      stageTagMap.value = sTagMap
 
       // Sort stages (E-1, E-2-1, E-2-2, etc.)
       stageOptions.value = Array.from(stages).sort((a, b) => {
@@ -43,7 +91,9 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
         return 0
       })
     } catch (error) {
-      console.error('Error fetching stage options:', error)
+      console.error('Error fetching stage and tag options:', error)
+    } finally {
+        loading.value = false
     }
   }
 
@@ -116,10 +166,12 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
   // Watch for event changes
   watch(() => selectedEventId.value, async (newEventId) => {
     if (newEventId) {
-      await fetchStageOptions(newEventId)
+      await fetchData(newEventId)
       await loadTagManagementData(newEventId, ships.value)
     } else {
       stageOptions.value = []
+      stageTagMap.value = {}
+      tagMap.value = {}
       tagManagementData.value.clear()
     }
   })
@@ -127,6 +179,8 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
   // Watch for ship changes
   watch(() => ships.value, async (newShips) => {
     if (selectedEventId.value && newShips.length > 0) {
+      // If we already have data, we might not need to reload everything?
+      // loadTagManagementData handles merging default values for new ships, so it's safe.
       await loadTagManagementData(selectedEventId.value, newShips)
     }
   })
@@ -134,8 +188,10 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
   return {
     tagManagementData,
     stageOptions,
+    stageTagMap,
+    tagMap,
     loading,
-    fetchStageOptions,
+    fetchData,
     loadTagManagementData,
     updateTagManagement,
     getTagManagementForShip

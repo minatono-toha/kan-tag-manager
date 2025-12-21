@@ -60,6 +60,8 @@
               :targetHeaderHeight="attackTableHeaderHeight"
               :tagManagementData="tagManagementData"
               :stageOptions="stageOptions"
+              :stageTagMap="stageTagMap"
+              :tagMap="tagMap"
               :updateTagManagement="updateTagManagement"
               :displayMode="tagManageDisplayMode"
               :theme="theme"
@@ -144,6 +146,15 @@
       :selectedShipOrig="modalShips.length ? modalShips[0].orig : null"
       @close="closeModal"
     />
+
+    <!-- フッター -->
+    <footer class="bg-gray-50 border-t border-gray-300 py-4 px-6 text-center">
+      <div class="text-xs text-gray-500 space-y-1">
+        <p>本サイトは、ゲーム内イベントの攻略支援を目的とした非公式サイトです。</p>
+        <p>バナー等ゲーム内で使用されている画像は、著作権法第32条に基づき、説明・識別のために必要最小限の範囲で引用しています。</p>
+        <p>画像の著作権は、DMM GAMES様および原著作物の権利者に帰属します。</p>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -215,7 +226,7 @@ export default defineComponent({
 
     // Initialize tag management with uniqueOrigs (all ships) instead of filtered ships
     // This prevents reloading tag data every time filters change
-    const { tagManagementData, stageOptions, updateTagManagement } = useTagManagement(selectedEventId, uniqueOrigs)
+    const { tagManagementData, stageOptions, stageTagMap, tagMap, updateTagManagement } = useTagManagement(selectedEventId, uniqueOrigs)
 
     // Store filtered ships from tag management table
     const filteredShipsFromTagTable = ref<Ship[]>([])
@@ -388,6 +399,8 @@ export default defineComponent({
       scaleFactor,
       tagManagementData,
       stageOptions,
+      stageTagMap,
+      tagMap,
       updateTagManagement,
       filteredShipsFromTagTable,
       tagFilterActive,
