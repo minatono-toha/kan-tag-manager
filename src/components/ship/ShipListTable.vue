@@ -79,116 +79,45 @@
       </tbody>
     </table>
 
-    <!-- Name search popup -->
-    <div
-      v-if="showSearchInput"
+    <!-- Filter Popups using common component -->
+    <FilterPopup
+      :show="showSearchInput"
+      :position="searchPopupPosition"
+      type="input"
+      title="艦名で検索"
+      :modelValue="searchQuery"
+      placeholder="艦名を入力..."
+      @apply="(value) => { searchQuery = value as string; showSearchInput = false }"
+      @clear="() => { searchQuery = ''; showSearchInput = false }"
+      @close="showSearchInput = false"
       ref="searchPopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50"
-      :style="{ top: searchPopupPosition.y + 'px', left: searchPopupPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">艦名で検索</div>
-      <input
-        v-model="tempSearchQuery"
-        type="text"
-        placeholder="艦名を入力..."
-        class="w-full px-2 py-1 border border-gray-300 rounded mb-2"
-        autofocus
-        @keydown.enter="applySearch"
-      />
-      <div class="flex items-center justify-between mt-2">
-        <button
-          @click="clearSearch"
-          class="text-xs text-gray-500 hover:underline"
-        >
-          クリア
-        </button>
-        <button
-          @click="applySearch"
-          class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-        >
-          OK
-        </button>
-      </div>
-    </div>
+    />
 
-    <!-- Class search popup -->
-    <div
-      v-if="showClassSearchInput"
+    <FilterPopup
+      :show="showClassSearchInput"
+      :position="classSearchPopupPosition"
+      type="input"
+      title="艦型・艦番で検索"
+      :modelValue="classSearchQuery"
+      placeholder="艦型・艦番を入力..."
+      @apply="(value) => { classSearchQuery = value as string; showClassSearchInput = false }"
+      @clear="() => { classSearchQuery = ''; showClassSearchInput = false }"
+      @close="showClassSearchInput = false"
       ref="classSearchPopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50"
-      :style="{ top: classSearchPopupPosition.y + 'px', left: classSearchPopupPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">艦型・艦番で検索</div>
-      <input
-        v-model="tempClassSearchQuery"
-        type="text"
-        placeholder="艦型・艦番を入力..."
-        class="w-full px-2 py-1 border border-gray-300 rounded mb-2"
-        autofocus
-        @keydown.enter="applyClassSearch"
-      />
-      <div class="flex items-center justify-between mt-2">
-        <button
-          @click="clearClassSearch"
-          class="text-xs text-gray-500 hover:underline"
-        >
-          クリア
-        </button>
-        <button
-          @click="applyClassSearch"
-          class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-        >
-          OK
-        </button>
-      </div>
-    </div>
+    />
 
-    <!-- Speed filter popup -->
-    <div
-      v-if="showSpeedFilter"
+    <FilterPopup
+      :show="showSpeedFilter"
+      :position="speedFilterPosition"
+      type="radio"
+      title="速力で絞り込み"
+      :modelValue="speedFilterValue"
+      :options="['低', '高']"
+      @apply="(value) => { speedFilterValue = value as string; showSpeedFilter = false }"
+      @clear="() => { speedFilterValue = ''; showSpeedFilter = false }"
+      @close="showSpeedFilter = false"
       ref="speedPopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50"
-      :style="{ top: speedFilterPosition.y + 'px', left: speedFilterPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">速力で絞り込み</div>
-      <div class="space-y-2">
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="radio"
-            value="低"
-            v-model="tempSpeedFilterValue"
-            class="mr-2"
-          />
-          <span>低</span>
-        </label>
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="radio"
-            value="高"
-            v-model="tempSpeedFilterValue"
-            class="mr-2"
-          />
-          <span>高</span>
-        </label>
-        <div class="flex items-center justify-between mt-2">
-          <button
-            @click="clearSpeedFilter"
-            class="text-xs text-gray-500 hover:underline"
-          >
-            クリア
-          </button>
-          <button
-            @click="applySpeedFilter"
-            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    />
   </div>
 </template>
 
@@ -198,6 +127,7 @@ import type { CSSProperties } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
+import FilterPopup from '@/components/common/FilterPopup.vue'
 
 const props = withDefaults(defineProps<{
   ships: Ship[]
@@ -227,7 +157,17 @@ const searchPopupPosition = ref({ x: 0, y: 0 })
 const searchIconRef = ref<HTMLElement | null>(null)
 const searchPopupRef = ref<HTMLElement | null>(null)
 
-const tempSearchQuery = ref('')
+const showClassSearchInput = ref(false)
+const classSearchQuery = ref('')
+const classSearchPopupPosition = ref({ x: 0, y: 0 })
+const classSearchIconRef = ref<HTMLElement | null>(null)
+const classSearchPopupRef = ref<HTMLElement | null>(null)
+
+const showSpeedFilter = ref(false)
+const speedFilterValue = ref('')
+const speedFilterPosition = ref({ x: 0, y: 0 })
+const speedIconRef = ref<HTMLElement | null>(null)
+const speedPopupRef = ref<HTMLElement | null>(null)
 
 const closeAllPopups = () => {
   showSearchInput.value = false
@@ -236,14 +176,11 @@ const closeAllPopups = () => {
 }
 
 function toggleSearch(event: MouseEvent) {
-  event.stopPropagation()
   const willOpen = !showSearchInput.value
   if (willOpen) closeAllPopups()
   showSearchInput.value = willOpen
 
   if (showSearchInput.value) {
-    // Initialize temp value with current active value
-    tempSearchQuery.value = searchQuery.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     searchPopupPosition.value = {
       x: rect.left,
@@ -252,34 +189,12 @@ function toggleSearch(event: MouseEvent) {
   }
 }
 
-function applySearch() {
-  searchQuery.value = tempSearchQuery.value
-  showSearchInput.value = false
-}
-
-function clearSearch() {
-  searchQuery.value = ''
-  tempSearchQuery.value = ''
-  showSearchInput.value = false
-}
-
-const showClassSearchInput = ref(false)
-const classSearchQuery = ref('')
-const classSearchPopupPosition = ref({ x: 0, y: 0 })
-const classSearchIconRef = ref<HTMLElement | null>(null)
-const classSearchPopupRef = ref<HTMLElement | null>(null)
-
-const tempClassSearchQuery = ref('')
-
 function toggleClassSearch(event: MouseEvent) {
-  event.stopPropagation()
   const willOpen = !showClassSearchInput.value
   if (willOpen) closeAllPopups()
   showClassSearchInput.value = willOpen
 
   if (showClassSearchInput.value) {
-    // Initialize temp value with current active value
-    tempClassSearchQuery.value = classSearchQuery.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     classSearchPopupPosition.value = {
       x: rect.left,
@@ -288,32 +203,12 @@ function toggleClassSearch(event: MouseEvent) {
   }
 }
 
-function applyClassSearch() {
-  classSearchQuery.value = tempClassSearchQuery.value
-  showClassSearchInput.value = false
-}
-
-function clearClassSearch() {
-  classSearchQuery.value = ''
-  tempClassSearchQuery.value = ''
-  showClassSearchInput.value = false
-}
-
-const showSpeedFilter = ref(false)
-const speedFilterValue = ref('')
-const tempSpeedFilterValue = ref('')
-const speedFilterPosition = ref({ x: 0, y: 0 })
-const speedIconRef = ref<HTMLElement | null>(null)
-
 function toggleSpeedFilter(event: MouseEvent) {
-  event.stopPropagation()
   const willOpen = !showSpeedFilter.value
   if (willOpen) closeAllPopups()
   showSpeedFilter.value = willOpen
 
   if (showSpeedFilter.value) {
-    // Initialize temp value
-    tempSpeedFilterValue.value = speedFilterValue.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     speedFilterPosition.value = {
       x: rect.left,
@@ -322,19 +217,7 @@ function toggleSpeedFilter(event: MouseEvent) {
   }
 }
 
-function applySpeedFilter() {
-  speedFilterValue.value = tempSpeedFilterValue.value
-  showSpeedFilter.value = false
-}
-
-function clearSpeedFilter() {
-  speedFilterValue.value = ''
-  tempSpeedFilterValue.value = ''
-  showSpeedFilter.value = false
-}
-
 // Close popup when clicking outside
-const speedPopupRef = ref<HTMLElement | null>(null)
 
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
@@ -342,7 +225,7 @@ function handleClickOutside(event: MouseEvent) {
   // Handle Name Search Popup
   if (showSearchInput.value && searchPopupRef.value) {
     const clickedIcon = searchIconRef.value?.contains(target)
-    const clickedPopup = searchPopupRef.value.contains(target)
+    const clickedPopup = (searchPopupRef.value as any).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showSearchInput.value = false
     }
@@ -351,7 +234,7 @@ function handleClickOutside(event: MouseEvent) {
   // Handle Class Search Popup
   if (showClassSearchInput.value && classSearchPopupRef.value) {
     const clickedIcon = classSearchIconRef.value?.contains(target)
-    const clickedPopup = classSearchPopupRef.value.contains(target)
+    const clickedPopup = (classSearchPopupRef.value as any).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showClassSearchInput.value = false
     }
@@ -360,7 +243,7 @@ function handleClickOutside(event: MouseEvent) {
   // Handle Speed Filter Popup
   if (showSpeedFilter.value && speedPopupRef.value) {
     const clickedIcon = speedIconRef.value?.contains(target)
-    const clickedPopup = speedPopupRef.value.contains(target)
+    const clickedPopup = (speedPopupRef.value as any).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showSpeedFilter.value = false
     }

@@ -113,9 +113,9 @@
           <!-- 割当先 -->
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border text-center relative">
             <div
-              class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px]"
+              class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px] stage-trigger"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
-              @click.stop="openStageSelector($event, ship.orig)"
+              @click="openStageSelector($event, ship.orig)"
             >
               {{ getStageOnlyFromTargetStage(ship.orig) || '-' }}
             </div>
@@ -144,230 +144,72 @@
       </tbody>
     </table>
 
-    <!-- Assigned Filter Popup -->
-    <div
-      v-if="showAssignedFilter"
+    <!-- Filter Popups using common component -->
+    <FilterPopup
+      :show="showAssignedFilter"
+      :position="assignedFilterPosition"
+      type="radio"
+      title="割当済で絞り込み"
+      :modelValue="assignedFilter"
+      @apply="(value) => { assignedFilter = value as boolean | null; showAssignedFilter = false }"
+      @clear="() => { assignedFilter = null; showAssignedFilter = false }"
+      @close="showAssignedFilter = false"
       ref="assignedPopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50"
-      :style="{ top: assignedFilterPosition.y + 'px', left: assignedFilterPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">割当済で絞り込み</div>
-      <div class="space-y-2">
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="radio"
-            :value="true"
-            v-model="tempAssignedFilter"
-            class="mr-2"
-          />
-          <span>選択済</span>
-        </label>
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="radio"
-            :value="false"
-            v-model="tempAssignedFilter"
-            class="mr-2"
-          />
-          <span>未選択</span>
-        </label>
-        <div class="flex items-center justify-between mt-2">
-          <button
-            @click="clearAssignedFilter"
-            class="text-xs text-gray-500 hover:underline"
-          >
-            クリア
-          </button>
-          <button
-            @click="applyAssignedFilter"
-            class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    />
 
-    <!-- Preserve Filter Popup -->
-    <div
-      v-if="showPreserveFilter"
+    <FilterPopup
+      :show="showPreserveFilter"
+      :position="preserveFilterPosition"
+      type="radio"
+      title="温存で絞り込み"
+      :modelValue="preserveFilter"
+      @apply="(value) => { preserveFilter = value as boolean | null; showPreserveFilter = false }"
+      @clear="() => { preserveFilter = null; showPreserveFilter = false }"
+      @close="showPreserveFilter = false"
       ref="preservePopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50"
-      :style="{ top: preserveFilterPosition.y + 'px', left: preserveFilterPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">温存で絞り込み</div>
-      <div class="space-y-2">
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="radio"
-            :value="true"
-            v-model="tempPreserveFilter"
-            class="mr-2"
-          />
-          <span>選択済</span>
-        </label>
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="radio"
-            :value="false"
-            v-model="tempPreserveFilter"
-            class="mr-2"
-          />
-          <span>未選択</span>
-        </label>
-        <div class="flex items-center justify-between mt-2">
-          <button
-            @click="clearPreserveFilter"
-            class="text-xs text-gray-500 hover:underline"
-          >
-            クリア
-          </button>
-          <button
-            @click="applyPreserveFilter"
-            class="px-2 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    />
 
-    <!-- Target Stage Filter Popup -->
-    <div
-      v-if="showTargetStageFilter"
+    <FilterPopup
+      :show="showTargetStageFilter"
+      :position="targetStageFilterPosition"
+      type="checkbox"
+      title="割当先で絞り込み"
+      :modelValue="targetStageFilter"
+      :options="uniqueTargetStages"
+      :includeEmpty="true"
+      @apply="(value) => { targetStageFilter = value as string[]; showTargetStageFilter = false }"
+      @clear="() => { targetStageFilter = []; showTargetStageFilter = false }"
+      @close="showTargetStageFilter = false"
       ref="targetStagePopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50 max-h-80 overflow-y-auto"
-      :style="{ top: targetStageFilterPosition.y + 'px', left: targetStageFilterPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">割当先で絞り込み</div>
-      <div class="space-y-1">
-        <label v-for="stage in uniqueTargetStages" :key="stage" class="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            :value="stage"
-            v-model="tempTargetStageFilter"
-            class="mr-2"
-          />
-          <span class="text-sm font-normal">{{ stage }}</span>
-        </label>
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            :value="''"
-            v-model="tempTargetStageFilter"
-            class="mr-2"
-          />
-          <span class="text-sm font-normal">(空白)</span>
-        </label>
-        <div class="flex items-center justify-between mt-2">
-          <button
-            @click="clearTargetStageFilter"
-            class="text-xs text-gray-500 hover:underline"
-          >
-            クリア
-          </button>
-          <button
-            @click="applyTargetStageFilter"
-            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    />
 
-    <!-- Assigned Tag Filter Popup -->
-    <div
-      v-if="showAssignedTagFilter"
+    <FilterPopup
+      :show="showAssignedTagFilter"
+      :position="assignedTagFilterPosition"
+      type="checkbox"
+      title="割当札で絞り込み"
+      :modelValue="assignedTagFilter"
+      :options="uniqueAssignedTags"
+      :includeEmpty="true"
+      @apply="(value) => { assignedTagFilter = value as string[]; showAssignedTagFilter = false }"
+      @clear="() => { assignedTagFilter = []; showAssignedTagFilter = false }"
+      @close="showAssignedTagFilter = false"
       ref="assignedTagPopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50 max-h-80 overflow-y-auto"
-      :style="{ top: assignedTagFilterPosition.y + 'px', left: assignedTagFilterPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">割当札で絞り込み</div>
-      <div class="space-y-1">
-        <label v-for="tag in uniqueAssignedTags" :key="tag" class="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            :value="tag"
-            v-model="tempAssignedTagFilter"
-            class="mr-2"
-          />
-          <span class="text-sm font-normal">{{ tag }}</span>
-        </label>
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            :value="''"
-            v-model="tempAssignedTagFilter"
-            class="mr-2"
-          />
-          <span class="text-sm font-normal">(空白)</span>
-        </label>
-        <div class="flex items-center justify-between mt-2">
-          <button
-            @click="clearAssignedTagFilter"
-            class="text-xs text-gray-500 hover:underline"
-          >
-            クリア
-          </button>
-          <button
-            @click="applyAssignedTagFilter"
-            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    />
 
-    <!-- Comment Filter Popup -->
-    <div
-      v-if="showCommentFilter"
+    <FilterPopup
+      :show="showCommentFilter"
+      :position="commentFilterPosition"
+      type="checkbox"
+      title="コメントで絞り込み"
+      :modelValue="commentFilter"
+      :options="uniqueComments"
+      :includeEmpty="true"
+      @apply="(value) => { commentFilter = value as string[]; showCommentFilter = false }"
+      @clear="() => { commentFilter = []; showCommentFilter = false }"
+      @close="showCommentFilter = false"
       ref="commentPopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-50 max-h-80 overflow-y-auto"
-      :style="{ top: commentFilterPosition.y + 'px', left: commentFilterPosition.x + 'px' }"
-      @click.stop
-    >
-      <div class="font-bold mb-2">コメントで絞り込み</div>
-      <div class="space-y-1">
-        <label v-for="comment in uniqueComments" :key="comment" class="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            :value="comment"
-            v-model="tempCommentFilter"
-            class="mr-2"
-          />
-          <span class="text-sm font-normal">{{ comment }}</span>
-        </label>
-        <label class="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            :value="''"
-            v-model="tempCommentFilter"
-            class="mr-2"
-          />
-          <span class="text-sm font-normal">(空白)</span>
-        </label>
-        <div class="flex items-center justify-between mt-2">
-          <button
-            @click="clearCommentFilter"
-            class="text-xs text-gray-500 hover:underline"
-          >
-            クリア
-          </button>
-          <button
-            @click="applyCommentFilter"
-            class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    />
 
     <!-- Stage Selection Popup (Cascading Style) -->
     <!-- Main Menu: List of Areas -->
@@ -448,6 +290,7 @@ import type { CSSProperties } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
+import FilterPopup from '@/components/common/FilterPopup.vue'
 
 const props = withDefaults(defineProps<{
   ships: Ship[]
@@ -692,12 +535,6 @@ const handleCommentChange = (orig: number, value: string) => {
   debouncedUpdate(updated)
 }
 
-const tempAssignedFilter = ref<boolean | null>(null)
-const tempPreserveFilter = ref<boolean | null>(null)
-const tempTargetStageFilter = ref<string[]>([])
-const tempAssignedTagFilter = ref<string[]>([])
-const tempCommentFilter = ref<string[]>([])
-
 const closeAllPopups = () => {
   showAssignedFilter.value = false
   showPreserveFilter.value = false
@@ -709,14 +546,11 @@ const closeAllPopups = () => {
 
 // Filter popup controls
 const toggleAssignedFilter = (event: MouseEvent) => {
-  event.stopPropagation()
   const willOpen = !showAssignedFilter.value
   if (willOpen) closeAllPopups()
   showAssignedFilter.value = willOpen
 
   if (showAssignedFilter.value) {
-    // Initialize temp value
-    tempAssignedFilter.value = assignedFilter.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     assignedFilterPosition.value = {
       x: rect.left,
@@ -726,14 +560,11 @@ const toggleAssignedFilter = (event: MouseEvent) => {
 }
 
 const togglePreserveFilter = (event: MouseEvent) => {
-  event.stopPropagation()
   const willOpen = !showPreserveFilter.value
   if (willOpen) closeAllPopups()
   showPreserveFilter.value = willOpen
 
   if (showPreserveFilter.value) {
-    // Initialize temp value
-    tempPreserveFilter.value = preserveFilter.value
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     preserveFilterPosition.value = {
       x: rect.left,
@@ -742,24 +573,12 @@ const togglePreserveFilter = (event: MouseEvent) => {
   }
 }
 
-const applyAssignedFilter = () => {
-  assignedFilter.value = tempAssignedFilter.value
-  showAssignedFilter.value = false
-}
-
-const applyPreserveFilter = () => {
-  preserveFilter.value = tempPreserveFilter.value
-  showPreserveFilter.value = false
-}
-
 const toggleTargetStageFilter = (event: MouseEvent) => {
-  event.stopPropagation()
   const willOpen = !showTargetStageFilter.value
   if (willOpen) closeAllPopups()
   showTargetStageFilter.value = willOpen
 
   if (showTargetStageFilter.value) {
-    tempTargetStageFilter.value = [...targetStageFilter.value]
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     targetStageFilterPosition.value = {
       x: rect.left,
@@ -768,58 +587,12 @@ const toggleTargetStageFilter = (event: MouseEvent) => {
   }
 }
 
-const toggleCommentFilter = (event: MouseEvent) => {
-  event.stopPropagation()
-  const willOpen = !showCommentFilter.value
-  if (willOpen) closeAllPopups()
-  showCommentFilter.value = willOpen
-
-  if (showCommentFilter.value) {
-    tempCommentFilter.value = [...commentFilter.value]
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    commentFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
-}
-
-const applyTargetStageFilter = () => {
-    targetStageFilter.value = [...tempTargetStageFilter.value]
-    showTargetStageFilter.value = false
-}
-
-const applyCommentFilter = () => {
-    commentFilter.value = [...tempCommentFilter.value]
-    showCommentFilter.value = false
-}
-
-const clearAssignedFilter = () => {
-  assignedFilter.value = null
-  tempAssignedFilter.value = null
-  showAssignedFilter.value = false
-}
-
-const clearPreserveFilter = () => {
-  preserveFilter.value = null
-  tempPreserveFilter.value = null
-  showPreserveFilter.value = false
-}
-
-const clearTargetStageFilter = () => {
-  targetStageFilter.value = []
-  tempTargetStageFilter.value = []
-  showTargetStageFilter.value = false
-}
-
 const toggleAssignedTagFilter = (event: MouseEvent) => {
-  event.stopPropagation()
   const willOpen = !showAssignedTagFilter.value
   if (willOpen) closeAllPopups()
   showAssignedTagFilter.value = willOpen
 
   if (showAssignedTagFilter.value) {
-    tempAssignedTagFilter.value = [...assignedTagFilter.value]
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     assignedTagFilterPosition.value = {
       x: rect.left,
@@ -828,15 +601,18 @@ const toggleAssignedTagFilter = (event: MouseEvent) => {
   }
 }
 
-const applyAssignedTagFilter = () => {
-    assignedTagFilter.value = [...tempAssignedTagFilter.value]
-    showAssignedTagFilter.value = false
-}
+const toggleCommentFilter = (event: MouseEvent) => {
+  const willOpen = !showCommentFilter.value
+  if (willOpen) closeAllPopups()
+  showCommentFilter.value = willOpen
 
-const clearAssignedTagFilter = () => {
-  assignedTagFilter.value = []
-  tempAssignedTagFilter.value = []
-  showAssignedTagFilter.value = false
+  if (showCommentFilter.value) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    commentFilterPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 5
+    }
+  }
 }
 
 const getStageOnlyFromTargetStage = (orig: number): string => {
@@ -849,7 +625,6 @@ const getStageOnlyFromTargetStage = (orig: number): string => {
 
 const clearCommentFilter = () => {
   commentFilter.value = []
-  tempCommentFilter.value = []
   showCommentFilter.value = false
 }
 
@@ -1038,7 +813,7 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Assigned Filter Popup
   if (showAssignedFilter.value && assignedPopupRef.value) {
     const clickedIcon = assignedIconRef.value?.contains(target)
-    const clickedPopup = assignedPopupRef.value.contains(target)
+    const clickedPopup = (assignedPopupRef.value as any).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showAssignedFilter.value = false
     }
@@ -1047,7 +822,7 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Preserve Filter Popup
   if (showPreserveFilter.value && preservePopupRef.value) {
     const clickedIcon = preserveIconRef.value?.contains(target)
-    const clickedPopup = preservePopupRef.value.contains(target)
+    const clickedPopup = (preservePopupRef.value as any).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showPreserveFilter.value = false
     }
@@ -1056,16 +831,25 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Target Stage Filter Popup
   if (showTargetStageFilter.value && targetStagePopupRef.value) {
     const clickedIcon = targetStageIconRef.value?.contains(target)
-    const clickedPopup = targetStagePopupRef.value.contains(target)
+    const clickedPopup = (targetStagePopupRef.value as any).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showTargetStageFilter.value = false
+    }
+  }
+
+  // Handle Assigned Tag Filter Popup
+  if (showAssignedTagFilter.value && assignedTagPopupRef.value) {
+    const clickedIcon = assignedTagIconRef.value?.contains(target)
+    const clickedPopup = (assignedTagPopupRef.value as any).popupRef?.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showAssignedTagFilter.value = false
     }
   }
 
   // Handle Comment Filter Popup
   if (showCommentFilter.value && commentPopupRef.value) {
     const clickedIcon = commentIconRef.value?.contains(target)
-    const clickedPopup = commentPopupRef.value.contains(target)
+    const clickedPopup = (commentPopupRef.value as any).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showCommentFilter.value = false
     }
@@ -1073,6 +857,7 @@ const handleClickOutside = (event: MouseEvent) => {
 
   // Handle Stage Selector Popup
   if (showStageSelectorPopup.value) {
+     const clickedTrigger = target.closest('.stage-trigger')
      let clickedInsideMain = false
      if (stageSelectorPopupRef.value) {
         clickedInsideMain = stageSelectorPopupRef.value.contains(target)
@@ -1083,7 +868,7 @@ const handleClickOutside = (event: MouseEvent) => {
         clickedInsideSub = subMenuRef.value.contains(target)
      }
 
-     if (!clickedInsideMain && !clickedInsideSub) {
+     if (!clickedTrigger && !clickedInsideMain && !clickedInsideSub) {
       showStageSelectorPopup.value = false
       editingShipOrig.value = null
       hoveredArea.value = null
