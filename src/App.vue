@@ -95,6 +95,8 @@
               :theme="theme"
               @select="openModal"
               @filter-change="handleSafeShipFilterChange"
+              @increment-ship="incrementShipCount"
+              @decrement-ship="decrementShipCount"
             />
           </div>
         </div>
@@ -160,7 +162,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUnmounted, computed } from 'vue'
-import { Ship } from '@/types/interfaces'
+import { Ship, ExpandedShip } from '@/types/interfaces'
 import ShipFilterTabs from './components/ship/ShipFilterTabs.vue'
 import TableTitle from './components/common/TableTitle.vue'
 import ShipListTable from './components/ship/ShipListTable.vue'
@@ -188,10 +190,11 @@ export default defineComponent({
     const { theme, handleThemeChange } = useTheme()
     const {
       allShips,
-      uniqueOrigs, // Add this
+      uniqueOrigs,
       filters,
       selectedFilterIds,
       ships,
+      expandedShips,
       shipsToDisplay,
       fetchShips,
       fetchFilters,
@@ -200,7 +203,10 @@ export default defineComponent({
       isAllSelected,
       handleShipFilterChange,
       filteredShipsFromSearch,
-      isSearchActive
+      isSearchActive,
+      loadShipOwnership,
+      incrementShipCount,
+      decrementShipCount
     } = useShips()
 
     const modalShips = ref<Ship[]>([])
@@ -213,7 +219,7 @@ export default defineComponent({
     const shipListContainerRef = ref<HTMLElement | null>(null)
     const attackContainerRef = ref<HTMLElement | null>(null)
 
-    const sortedShipsFromAttackTable = ref<Ship[]>([])
+    const sortedShipsFromAttackTable = ref<ExpandedShip[]>([])
     const selectedEventId = ref<number | null>(null)
     const loading = ref(false)
     const attackTableHeaderHeight = ref<number | undefined>(undefined)
@@ -224,21 +230,20 @@ export default defineComponent({
     // Dynamic scaling
     const scaleFactor = ref(1)
 
-    // Initialize tag management with uniqueOrigs (all ships) instead of filtered ships
-    // This prevents reloading tag data every time filters change
-    const { tagManagementData, stageOptions, stageTagMap, tagMap, updateTagManagement } = useTagManagement(selectedEventId, uniqueOrigs)
+    // Initialize tag management with expandedShips
+    const { tagManagementData, stageOptions, stageTagMap, tagMap, updateTagManagement } = useTagManagement(selectedEventId, expandedShips)
 
     // Store filtered ships from tag management table
-    const filteredShipsFromTagTable = ref<Ship[]>([])
+    const filteredShipsFromTagTable = ref<ExpandedShip[]>([])
     const tagFilterActive = ref(false)
 
-    const handleTagFilterChange = (filteredShips: Ship[], isFiltering: boolean) => {
+    const handleTagFilterChange = (filteredShips: ExpandedShip[], isFiltering: boolean) => {
       filteredShipsFromTagTable.value = filteredShips
       tagFilterActive.value = isFiltering
     }
 
     // Loop prevention: Only update if IDs change or length changes
-    const handleSafeShipFilterChange = (filtered: Ship[], isActive: boolean) => {
+    const handleSafeShipFilterChange = (filtered: ExpandedShip[], isActive: boolean) => {
       // If active state changes, update immediately
       if (isSearchActive.value !== isActive) {
         handleShipFilterChange(filtered, isActive)
@@ -287,7 +292,7 @@ export default defineComponent({
       loading.value = isLoading
     }
 
-    const handleSortedShipsUpdate = (updated: Ship[]) => {
+    const handleSortedShipsUpdate = (updated: ExpandedShip[]) => {
       sortedShipsFromAttackTable.value = updated
     }
 
@@ -345,9 +350,10 @@ export default defineComponent({
       scaleFactor.value = Math.max(0.7, Math.min(1, currentWidth / baseWidth))
     }
 
-    onMounted(() => {
-      fetchShips()
-      fetchFilters()
+    onMounted(async () => {
+      await fetchShips()
+      await fetchFilters()
+      await loadShipOwnership()
 
       // Add resize event listener for zoom changes
       window.addEventListener('resize', handleResize)
@@ -410,6 +416,8 @@ export default defineComponent({
       handleSafeShipFilterChange,
       tagManageDisplayMode,
       handleTagManageDisplayModeChange,
+      incrementShipCount,
+      decrementShipCount,
       finalShips: computed(() => {
         // If sorting is active (via AttackTable), use the sorted list.
         if (sortedShipsFromAttackTable.value.length > 0) {

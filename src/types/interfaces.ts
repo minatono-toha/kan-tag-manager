@@ -50,24 +50,38 @@ export interface Event {
 }
 
 // 拡張型
-export interface ShipWithSpAttack extends Ship {
+export interface ShipWithSpAttack extends ExpandedShip {
   spAttackData: Record<string, number>
 }
 
-// 札管理データ
+// 艦船所持数データ (グローバル、イベント非依存)
+export interface ShipOwnership {
+  id?: string // `${orig}`
+  orig: number // 艦ID
+  count: number // 所持数 (0-30)
+}
+
+// 札管理データ (イベントごと、艦インスタンスごと)
 export interface TagManagement {
-  id?: string
+  id?: string // `${eventId}_${orig}_${shipIndex}`
   eventId: number
-  orig: number  // Ship ID
-  assigned: boolean  // 割り当て済み
-  preserve: boolean  // 温存
-  targetStage: string  // 割当先
-  comment: string  // コメント
+  orig: number // Ship ID
+  shipIndex: number // 何隻目か (0-29)
+  assigned: boolean // 割り当て済み
+  preserve: boolean // 温存
+  targetStage: string // 割当先
+  comment: string // コメント
+}
+
+// 展開された艦船データ（所持数に応じて複数インスタンス化）
+export interface ExpandedShip extends Ship {
+  shipIndex: number // 何隻目か (0-29)
+  ownershipCount: number // この艦の総所持数
 }
 
 // 更新履歴データ
 export interface Changelog {
-  c_logId: number  // ログID（ソート用）
-  c_logDate: any  // Firestore Timestamp
-  c_logStr: string  // ログメッセージ
+  c_logId: number // ログID（ソート用）
+  c_logDate: any // Firestore Timestamp
+  c_logStr: string // ログメッセージ
 }

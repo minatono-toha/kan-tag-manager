@@ -126,7 +126,7 @@
         <tbody>
           <tr
             v-for="ship in sortedShips"
-            :key="ship.orig"
+            :key="`${ship.orig}_${ship.shipIndex}`"
             :style="{ ...rowStyle, height: `${TABLE_STYLE.rowHeight}px`, boxSizing: 'border-box' }"
             class="hover:bg-gray-100"
           >
@@ -194,14 +194,14 @@
 <script lang="ts">
 import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick, toRefs } from 'vue'
 import { TABLE_STYLE } from '@/constants/tableStyle'
-import type { Ship, Event } from '@/types/interfaces'
+import type { Event, ExpandedShip } from '@/types/interfaces'
 import { useAttackData } from '@/composables/useAttackData'
 
 export default defineComponent({
   name: 'AttackTable',
   props: {
     filteredUniqueOrigs: {
-      type: Array as () => Ship[],
+      type: Array as () => ExpandedShip[],
       required: true,
     },
     selectedEventId: {

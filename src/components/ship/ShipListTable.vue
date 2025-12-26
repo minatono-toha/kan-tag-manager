@@ -59,15 +59,36 @@
       <tbody>
         <tr
           v-for="ship in filteredShips"
-          :key="ship.id"
+          :key="`${ship.orig}_${ship.shipIndex}`"
           :style="{ ...rowStyle, ...rowBoxSizing }"
-          class="hover:bg-gray-100 cursor-pointer"
-          :class="getRowClass(ship.orig)"
-          @click="openModal(ship.orig)"
+          class="hover:bg-gray-100"
+          :class="getRowClass(ship.orig, ship.shipIndex)"
         >
           <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
           <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.shipType }}</td>
-          <td :style="cellStyle" class="border">{{ ship.name }}</td>
+          <td :style="cellStyle" class="border">
+            <div class="flex items-center gap-2">
+              <!-- Increment/Decrement buttons -->
+              <div class="flex flex-row gap-1" @click.stop>
+                <button
+                  @click="incrementShip(ship.orig)"
+                  class="w-5 h-5 flex items-center justify-center text-base font-bold text-gray-500 hover:text-gray-700 leading-none"
+                  title="所持数+1"
+                >+</button>
+                <button
+                  @click="decrementShip(ship.orig)"
+                  class="w-5 h-5 flex items-center justify-center text-base font-bold text-gray-500 hover:text-gray-700 leading-none"
+                  title="所持数-1"
+                >-</button>
+              </div>
+              <!-- Ship name with ownership indicators -->
+              <div class="flex-1 cursor-pointer" @click="openModal(ship.orig)">
+                <span :class="{ 'line-through text-gray-400': ship.ownershipCount === 0 }">{{ ship.name }}</span>
+                <span v-if="ship.ownershipCount === 0" class="text-gray-400 text-xs ml-1">(未着任)</span>
+                <span v-else-if="ship.shipIndex > 0" class="text-gray-400 text-xs ml-1">({{ ship.shipIndex + 1 }}隻目)</span>
+              </div>
+            </div>
+          </td>
           <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.class }}</td>
           <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.speed }}</td>
         </tr>
@@ -125,30 +146,42 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import type { CSSProperties } from 'vue'
 import { watchDebounced } from '@vueuse/core'
-import type { Ship, TagManagement } from '@/types/interfaces'
+import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import FilterPopup from '@/components/common/FilterPopup.vue'
 
 const props = withDefaults(defineProps<{
-  ships: Ship[]
+  ships: ExpandedShip[]
   loading?: boolean
   targetHeaderHeight?: number
   hasFiltersSelected: boolean
   displayMode: 'detail' | 'nameOnly'
   selectedEventId: number | null
-  tagManagementData: Map<number, TagManagement>
+  tagManagementData: Map<string, TagManagement>
   theme?: 'light' | 'dark' | 'gradient'
+  incrementShipCount?: (orig: number) => Promise<void>
+  decrementShipCount?: (orig: number) => Promise<void>
 }>(), {
   theme: 'light' // Default if not provided (though App always provides it)
 })
 
 const emit = defineEmits<{
   (e: 'select', orig: number): void
-  (e: 'filter-change', filteredShips: Ship[], isFiltering: boolean): void
+  (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean): void
+  (e: 'increment-ship', orig: number): void
+  (e: 'decrement-ship', orig: number): void
 }>()
 
 function openModal(orig: number) {
   emit('select', orig)
+}
+
+function incrementShip(orig: number) {
+  emit('increment-ship', orig)
+}
+
+function decrementShip(orig: number) {
+  emit('decrement-ship', orig)
 }
 
 const showSearchInput = ref(false)
@@ -309,10 +342,10 @@ watchDebounced(
   { debounce: 150, maxWait: 300 }
 )
 
-// Get row background style based on tag flags
 // Get row class based on tag flags
-const getRowClass = (orig: number) => {
-  const tagData = props.tagManagementData.get(orig)
+const getRowClass = (orig: number, shipIndex: number) => {
+  const key = `${orig}_${shipIndex}`
+  const tagData = props.tagManagementData.get(key)
   if (!tagData) return ''
 
   // Assigned flag takes priority

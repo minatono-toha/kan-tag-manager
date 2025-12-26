@@ -1,10 +1,10 @@
 import { ref, computed, watch } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs, query, where } from 'firebase/firestore'
-import type { Ship, ShipWithSpAttack, Event } from '@/types/interfaces'
+import type { ShipWithSpAttack, Event, ExpandedShip } from '@/types/interfaces'
 import type { Ref } from 'vue'
 
-export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqueOrigs: Ref<Ship[]>) {
+export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqueOrigs: Ref<ExpandedShip[]>) {
   const eventMaps = ref<Event[]>([])
   const tagMap = ref<Record<number, { tagName: string; tagColor: string }>>({})
   const shipsWithSpAttack = ref<ShipWithSpAttack[]>([])

@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 import type { Ref } from 'vue'
-import type { Ship, TagManagement } from '@/types/interfaces'
+import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { db } from '@/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import {
@@ -15,8 +15,10 @@ export interface TagDef {
   tagColor: string
 }
 
-export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref<Ship[]>) {
-  const tagManagementData = ref<Map<number, TagManagement>>(new Map())
+export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref<ExpandedShip[]>) {
+  // Changed from Map<number, TagManagement> to Map<string, TagManagement>
+  // Key format: `${orig}_${shipIndex}`
+  const tagManagementData = ref<Map<string, TagManagement>>(new Map())
   const stageOptions = ref<string[]>([])
   const stageTagMap = ref<Record<string, TagDef[]>>({})
   const tagMap = ref<Record<number, TagDef>>({})
@@ -98,7 +100,7 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
   }
 
   // Load tag management data from IndexedDB
-  const loadTagManagementData = async (eventId: number, shipList: Ship[]) => {
+  const loadTagManagementData = async (eventId: number, shipList: ExpandedShip[]) => {
     if (!eventId || shipList.length === 0) {
       tagManagementData.value.clear()
       return
@@ -107,19 +109,22 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
     loading.value = true
     try {
       const allData = await getAllTagManagementForEvent(eventId)
-      const dataMap = new Map<number, TagManagement>()
+      const dataMap = new Map<string, TagManagement>()
 
-      // Create map from loaded data
+      // Create map from loaded data (key: `${orig}_${shipIndex}`)
       allData.forEach((item) => {
-        dataMap.set(item.orig, item)
+        const key = `${item.orig}_${item.shipIndex}`
+        dataMap.set(key, item)
       })
 
       // For ships without data, create default entries
       shipList.forEach((ship) => {
-        if (!dataMap.has(ship.orig)) {
-          dataMap.set(ship.orig, {
+        const key = `${ship.orig}_${ship.shipIndex}`
+        if (!dataMap.has(key)) {
+          dataMap.set(key, {
             eventId,
             orig: ship.orig,
+            shipIndex: ship.shipIndex,
             assigned: false,
             preserve: false,
             targetStage: '',
@@ -141,21 +146,24 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
     try {
       await saveTagManagement(data)
       // Update local map
-      tagManagementData.value.set(data.orig, data)
+      const key = `${data.orig}_${data.shipIndex}`
+      tagManagementData.value.set(key, data)
     } catch (error) {
       console.error('Error saving tag management data:', error)
     }
   }
 
-  // Get tag management data for a specific ship (with default values)
-  const getTagManagementForShip = (orig: number): TagManagement => {
-    const existing = tagManagementData.value.get(orig)
+  // Get tag management data for a specific ship instance (with default values)
+  const getTagManagementForShip = (orig: number, shipIndex: number): TagManagement => {
+    const key = `${orig}_${shipIndex}`
+    const existing = tagManagementData.value.get(key)
     if (existing) return existing
 
     // Return default values
     return {
       eventId: selectedEventId.value || 0,
       orig,
+      shipIndex,
       assigned: false,
       preserve: false,
       targetStage: '',
@@ -179,8 +187,6 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
   // Watch for ship changes
   watch(() => ships.value, async (newShips) => {
     if (selectedEventId.value && newShips.length > 0) {
-      // If we already have data, we might not need to reload everything?
-      // loadTagManagementData handles merging default values for new ships, so it's safe.
       await loadTagManagementData(selectedEventId.value, newShips)
     }
   })

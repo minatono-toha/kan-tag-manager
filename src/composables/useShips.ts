@@ -1,7 +1,11 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
-import type { Ship } from '@/types/interfaces'
+import type { Ship, ExpandedShip } from '@/types/interfaces'
+import {
+  getAllShipOwnership,
+  saveShipOwnership
+} from '@/utils/indexedDB'
 
 export function useShips() {
   const allShips = ref<Ship[]>([])
@@ -9,8 +13,11 @@ export function useShips() {
   const filters = ref<{ id: number; label: string }[]>([])
   const selectedFilterIds = ref<number[]>([])
 
+  // Ship ownership data (orig -> count)
+  const shipOwnershipMap = ref<Map<number, number>>(new Map())
+
   // Search state
-  const filteredShipsFromSearch = ref<Ship[]>([])
+  const filteredShipsFromSearch = ref<ExpandedShip[]>([])
   const isSearchActive = ref(false)
 
   const fetchShips = async () => {
@@ -47,6 +54,81 @@ export function useShips() {
     })
   }
 
+  // Load ship ownership data from IndexedDB
+  const loadShipOwnership = async () => {
+    try {
+      const allOwnership = await getAllShipOwnership()
+      const ownershipMap = new Map<number, number>()
+      allOwnership.forEach((ownership) => {
+        ownershipMap.set(ownership.orig, ownership.count)
+      })
+      shipOwnershipMap.value = ownershipMap
+    } catch (error) {
+      console.error('Error loading ship ownership:', error)
+    }
+  }
+
+  // Increment ship count (max 30)
+  const incrementShipCount = async (orig: number) => {
+    const currentCount = shipOwnershipMap.value.get(orig) || 0
+    if (currentCount >= 30) return  // Max limit
+
+    const newCount = currentCount + 1
+    await saveShipOwnership({ orig, count: newCount })
+    shipOwnershipMap.value.set(orig, newCount)
+  }
+
+  // Decrement ship count (min 0)
+  const decrementShipCount = async (orig: number) => {
+    const currentCount = shipOwnershipMap.value.get(orig) || 0
+    if (currentCount <= 0) return  // Min limit
+
+    const newCount = currentCount - 1
+    await saveShipOwnership({ orig, count: newCount })
+    shipOwnershipMap.value.set(orig, newCount)
+  }
+
+  // Get ownership count for a ship
+  // Default to 1 if no data is found (as per user request)
+  const getOwnershipCount = (orig: number): number => {
+    if (!shipOwnershipMap.value.has(orig)) {
+      return 1
+    }
+    return shipOwnershipMap.value.get(orig) || 0
+  }
+
+  // Expand ships based on ownership count
+  // If count = 0, show as unowned (1 row)
+  // If count = 1, show as single ship (1 row, index 0)
+  // If count = 2+, show multiple rows (index 0, 1, 2, ...)
+  const expandShips = (ships: Ship[]): ExpandedShip[] => {
+    const expanded: ExpandedShip[] = []
+
+    for (const ship of ships) {
+      const count = getOwnershipCount(ship.orig)
+
+      if (count === 0) {
+        // Show unowned ship
+        expanded.push({
+          ...ship,
+          shipIndex: 0,
+          ownershipCount: 0
+        })
+      } else {
+        // Show owned ships (1 or more)
+        for (let i = 0; i < count; i++) {
+          expanded.push({
+            ...ship,
+            shipIndex: i,
+            ownershipCount: count
+          })
+        }
+      }
+    }
+
+    return expanded
+  }
+
   const ships = computed(() => {
     if (selectedFilterIds.value.length === 0) return []
     return uniqueOrigs.value
@@ -58,12 +140,17 @@ export function useShips() {
       })
   })
 
+  // Expanded ships for display
+  const expandedShips = computed(() => {
+    return expandShips(ships.value)
+  })
+
   const shipsToDisplay = computed(() => {
     if (!isSearchActive.value || filteredShipsFromSearch.value.length === 0) {
-      return ships.value
+      return expandedShips.value
     }
     const searchedOrigs = new Set(filteredShipsFromSearch.value.map(s => s.orig))
-    return ships.value.filter(ship => searchedOrigs.has(ship.orig))
+    return expandedShips.value.filter(ship => searchedOrigs.has(ship.orig))
   })
 
   const toggleFilter = (id: number) => {
@@ -81,10 +168,15 @@ export function useShips() {
     return selectedFilterIds.value.length === filters.value.length && filters.value.length > 0
   })
 
-  const handleShipFilterChange = (filtered: Ship[], isActive: boolean) => {
+  const handleShipFilterChange = (filtered: ExpandedShip[], isActive: boolean) => {
     filteredShipsFromSearch.value = filtered
     isSearchActive.value = isActive
   }
+
+  // Watch for changes in allShips and reload ownership
+  watch(allShips, async () => {
+    await loadShipOwnership()
+  })
 
   return {
     allShips,
@@ -92,6 +184,7 @@ export function useShips() {
     filters,
     selectedFilterIds,
     ships,
+    expandedShips,
     shipsToDisplay,
     fetchShips,
     fetchFilters,
@@ -100,6 +193,11 @@ export function useShips() {
     isAllSelected,
     handleShipFilterChange,
     filteredShipsFromSearch,
-    isSearchActive
+    isSearchActive,
+    loadShipOwnership,
+    incrementShipCount,
+    decrementShipCount,
+    getOwnershipCount,
+    shipOwnershipMap
   }
 }

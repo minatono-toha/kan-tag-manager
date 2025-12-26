@@ -89,24 +89,24 @@
       <tbody>
         <tr
           v-for="ship in displayedShips"
-          :key="ship.orig"
+          :key="`${ship.orig}_${ship.shipIndex}`"
           :style="{ ...rowStyle, ...rowBoxSizing }"
           class="hover:bg-gray-100"
-          :class="getRowClass(ship.orig)"
+          :class="getRowClass(ship.orig, ship.shipIndex)"
         >
           <!-- 割当済 -->
-          <td :style="cellStyle" class="border text-center cursor-pointer" @click="toggleAssigned(ship.orig)">
+          <td :style="cellStyle" class="border text-center cursor-pointer" @click="toggleAssigned(ship.orig, ship.shipIndex)">
             <input
               type="checkbox"
-              :checked="getTagData(ship.orig).assigned"
+              :checked="getTagData(ship.orig, ship.shipIndex).assigned"
               class="pointer-events-none"
             />
           </td>
           <!-- 温存 -->
-          <td :style="cellStyle" class="border text-center cursor-pointer" @click="togglePreserve(ship.orig)">
+          <td :style="cellStyle" class="border text-center cursor-pointer" @click="togglePreserve(ship.orig, ship.shipIndex)">
             <input
               type="checkbox"
-              :checked="getTagData(ship.orig).preserve"
+              :checked="getTagData(ship.orig, ship.shipIndex).preserve"
               class="pointer-events-none"
             />
           </td>
@@ -115,21 +115,21 @@
             <div
               class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px] stage-trigger"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
-              @click="openStageSelector($event, ship.orig)"
+              @click="openStageSelector($event, ship.orig, ship.shipIndex)"
             >
-              {{ getStageOnlyFromTargetStage(ship.orig) || '-' }}
+              {{ getStageOnlyFromTargetStage(ship.orig, ship.shipIndex) || '-' }}
             </div>
           </td>
           <!-- 割当札 -->
-          <td v-if="displayMode === 'detail'" :style="{ ...cellStyle, backgroundColor: getTagColorForShip(ship.orig) }" class="border text-center text-xs">
-            {{ getTagNameForShip(ship.orig) }}
+          <td v-if="displayMode === 'detail'" :style="{ ...cellStyle, backgroundColor: getTagColorForShip(ship.orig, ship.shipIndex) }" class="border text-center text-xs">
+            {{ getTagNameForShip(ship.orig, ship.shipIndex) }}
           </td>
           <!-- コメント -->
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">
             <input
               type="text"
-              :value="getTagData(ship.orig).comment"
-              @input="handleCommentChange(ship.orig, ($event.target as HTMLInputElement).value)"
+              :value="getTagData(ship.orig, ship.shipIndex).comment"
+              @input="handleCommentChange(ship.orig, ship.shipIndex, ($event.target as HTMLInputElement).value)"
               class="w-full px-1 py-0 text-sm border-0 bg-transparent"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
               placeholder=""
@@ -288,17 +288,17 @@
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import type { Ship, TagManagement } from '@/types/interfaces'
+import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import FilterPopup from '@/components/common/FilterPopup.vue'
 
 const props = withDefaults(defineProps<{
-  ships: Ship[]
-  sourceShips: Ship[]
+  ships: ExpandedShip[]
+  sourceShips: ExpandedShip[]
   selectedEventId: number | null
   loading?: boolean
   targetHeaderHeight?: number
-  tagManagementData: Map<number, TagManagement>
+  tagManagementData: Map<string, TagManagement>
   stageOptions: string[]
   stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
   tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
@@ -311,18 +311,20 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  (e: 'filter-change', filteredShips: Ship[], isFiltering: boolean): void
+  (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean): void
 }>()
 
 // Helper function to get tag data from the shared tagManagementData
-const getTagData = (orig: number): TagManagement => {
-  const existing = props.tagManagementData.get(orig)
+const getTagData = (orig: number, shipIndex: number): TagManagement => {
+  const key = `${orig}_${shipIndex}`
+  const existing = props.tagManagementData.get(key)
   if (existing) return existing
 
   // Return default values
   return {
     eventId: props.selectedEventId || 0,
     orig,
+    shipIndex,
     assigned: false,
     preserve: false,
     targetStage: '',
@@ -368,6 +370,7 @@ const stageSelectorPosition = ref({ x: 0, y: 0 })
 const stageSelectorPopupRef = ref<HTMLElement | null>(null)
 const subMenuRef = ref<HTMLElement | null>(null)
 const editingShipOrig = ref<number | null>(null)
+const editingShipIndex = ref<number>(0)
 const hoveredArea = ref<string | null>(null)
 const subMenuPosition = ref({ x: 0, y: 0 })
 const hoveredStage = ref<string | null>(null)
@@ -389,7 +392,7 @@ const emptyStateMessage = computed(() => {
 const uniqueTargetStages = computed(() => {
   const stages = new Set<string>()
   props.sourceShips.forEach(ship => {
-    const data = getTagData(ship.orig)
+    const data = getTagData(ship.orig, ship.shipIndex)
     if (data.targetStage && data.targetStage.trim()) {
       stages.add(data.targetStage)
     }
@@ -401,7 +404,7 @@ const uniqueTargetStages = computed(() => {
 const uniqueComments = computed(() => {
   const comments = new Set<string>()
   props.sourceShips.forEach(ship => {
-    const data = getTagData(ship.orig)
+    const data = getTagData(ship.orig, ship.shipIndex)
     if (data.comment && data.comment.trim()) {
       comments.add(data.comment)
     }
@@ -413,7 +416,7 @@ const uniqueComments = computed(() => {
 const uniqueAssignedTags = computed(() => {
   const tags = new Set<string>()
   props.sourceShips.forEach(ship => {
-    const tagName = getTagNameForShip(ship.orig)
+    const tagName = getTagNameForShip(ship.orig, ship.shipIndex)
     if (tagName && tagName.trim()) {
       tags.add(tagName)
     }
@@ -445,18 +448,18 @@ const filteredShipsForEmit = computed(() => {
 
   // Apply assigned filter
   if (assignedFilter.value !== null) {
-    result = result.filter(ship => getTagData(ship.orig).assigned === assignedFilter.value)
+    result = result.filter(ship => getTagData(ship.orig, ship.shipIndex).assigned === assignedFilter.value)
   }
 
   // Apply preserve filter
   if (preserveFilter.value !== null) {
-    result = result.filter(ship => getTagData(ship.orig).preserve === preserveFilter.value)
+    result = result.filter(ship => getTagData(ship.orig, ship.shipIndex).preserve === preserveFilter.value)
   }
 
   // Apply target stage filter
   if (targetStageFilter.value.length > 0) {
     result = result.filter(ship => {
-      const data = getTagData(ship.orig)
+      const data = getTagData(ship.orig, ship.shipIndex)
       const stage = data.targetStage || ''
       return targetStageFilter.value.includes(stage)
     })
@@ -465,7 +468,7 @@ const filteredShipsForEmit = computed(() => {
   // Apply comment filter
   if (commentFilter.value.length > 0) {
     result = result.filter(ship => {
-      const data = getTagData(ship.orig)
+      const data = getTagData(ship.orig, ship.shipIndex)
       const comment = data.comment || ''
       return commentFilter.value.includes(comment)
     })
@@ -474,7 +477,7 @@ const filteredShipsForEmit = computed(() => {
   // Apply assigned tag filter
   if (assignedTagFilter.value.length > 0) {
     result = result.filter(ship => {
-      const tagName = getTagNameForShip(ship.orig)
+      const tagName = getTagNameForShip(ship.orig, ship.shipIndex)
       return assignedTagFilter.value.includes(tagName)
     })
   }
@@ -498,8 +501,8 @@ const debouncedUpdate = useDebounceFn((data: TagManagement) => {
 }, 500)
 
 // Toggle assigned checkbox by clicking the cell
-const toggleAssigned = (orig: number) => {
-  const current = getTagData(orig)
+const toggleAssigned = (orig: number, shipIndex: number) => {
+  const current = getTagData(orig, shipIndex)
   const updated: TagManagement = {
     ...current,
     assigned: !current.assigned
@@ -508,8 +511,8 @@ const toggleAssigned = (orig: number) => {
 }
 
 // Toggle preserve checkbox by clicking the cell
-const togglePreserve = (orig: number) => {
-  const current = getTagData(orig)
+const togglePreserve = (orig: number, shipIndex: number) => {
+  const current = getTagData(orig, shipIndex)
   const updated: TagManagement = {
     ...current,
     preserve: !current.preserve
@@ -517,8 +520,8 @@ const togglePreserve = (orig: number) => {
   debouncedUpdate(updated)
 }
 
-const handleTargetStageChange = (orig: number, value: string) => {
-  const current = getTagData(orig)
+const handleTargetStageChange = (orig: number, shipIndex: number, value: string) => {
+  const current = getTagData(orig, shipIndex)
   const updated: TagManagement = {
     ...current,
     targetStage: value
@@ -526,8 +529,8 @@ const handleTargetStageChange = (orig: number, value: string) => {
   debouncedUpdate(updated)
 }
 
-const handleCommentChange = (orig: number, value: string) => {
-  const current = getTagData(orig)
+const handleCommentChange = (orig: number, shipIndex: number, value: string) => {
+  const current = getTagData(orig, shipIndex)
   const updated: TagManagement = {
     ...current,
     comment: value
@@ -615,18 +618,15 @@ const toggleCommentFilter = (event: MouseEvent) => {
   }
 }
 
-const getStageOnlyFromTargetStage = (orig: number): string => {
-  const data = getTagData(orig)
+const getStageOnlyFromTargetStage = (orig: number, shipIndex: number): string => {
+  const data = getTagData(orig, shipIndex)
   if (!data.targetStage) return ''
 
   const parsed = parseTagFromTargetStage(data.targetStage)
   return parsed ? parsed.stage : data.targetStage
 }
 
-const clearCommentFilter = () => {
-  commentFilter.value = []
-  showCommentFilter.value = false
-}
+
 
 // Stage Selector Logic
 const uniqueAreas = computed(() => {
@@ -656,12 +656,13 @@ const getStagesForArea = (area: string) => {
   return props.stageOptions.filter(stage => stage.startsWith(area))
 }
 
-const openStageSelector = (event: MouseEvent, orig: number) => {
+const openStageSelector = (event: MouseEvent, orig: number, shipIndex: number) => {
   const willOpen = true
   closeAllPopups()
 
   if (willOpen) {
     editingShipOrig.value = orig
+    editingShipIndex.value = shipIndex
     showStageSelectorPopup.value = true
     hoveredArea.value = null
 
@@ -740,8 +741,8 @@ const parseTagFromTargetStage = (targetStage: string) => {
 }
 
 // Get tag color for a ship
-const getTagColorForShip = (orig: number) => {
-  const data = getTagData(orig)
+const getTagColorForShip = (orig: number, shipIndex: number) => {
+  const data = getTagData(orig, shipIndex)
   if (!data.targetStage) return 'transparent'
 
   const parsed = parseTagFromTargetStage(data.targetStage)
@@ -753,8 +754,8 @@ const getTagColorForShip = (orig: number) => {
   return 'transparent'
 }
 
-const getTagNameForShip = (orig: number) => {
-  const data = getTagData(orig)
+const getTagNameForShip = (orig: number, shipIndex: number) => {
+  const data = getTagData(orig, shipIndex)
   if (!data.targetStage) return ''
 
   const parsed = parseTagFromTargetStage(data.targetStage)
@@ -767,7 +768,7 @@ const cancelCloseSubMenu = () => {
 
 const applyStageSelection = (stage: string) => {
     if (editingShipOrig.value !== null) {
-        handleTargetStageChange(editingShipOrig.value, stage)
+        handleTargetStageChange(editingShipOrig.value, editingShipIndex.value, stage)
     }
     showStageSelectorPopup.value = false
     editingShipOrig.value = null
@@ -885,8 +886,8 @@ onUnmounted(() => {
 })
 
 // Get row class based on tag flags for better performance than inline styles
-const getRowClass = (orig: number) => {
-  const tagData = getTagData(orig)
+const getRowClass = (orig: number, shipIndex: number) => {
+  const tagData = getTagData(orig, shipIndex)
 
   // Assigned flag takes priority
   if (tagData.assigned) {
