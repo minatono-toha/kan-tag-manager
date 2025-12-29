@@ -89,3 +89,11 @@ export interface Changelog {
   c_logDate: any // Firestore Timestamp
   c_logStr: string // ログメッセージ
 }
+
+// 艦船改修段階の上書き保存データ
+export interface ShipVariantOverride {
+  id?: string // `${orig}_${shipIndex}`
+  orig: number
+  shipIndex: number
+  variantId: number // Selected Ship.id
+}

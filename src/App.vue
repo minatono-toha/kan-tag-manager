@@ -94,6 +94,8 @@
               :tagManagementData="tagManagementData"
               :theme="theme"
               :all-ships="allShips"
+              :variant-map="shipVariantMap"
+              @update-variant="updateShipVariant"
               @select="openModal"
               @filter-change="handleSafeShipFilterChange"
               @increment-ship="incrementShipCount"
@@ -207,7 +209,9 @@ export default defineComponent({
       isSearchActive,
       loadShipOwnership,
       incrementShipCount,
-      decrementShipCount
+      decrementShipCount,
+      shipVariantMap,
+      updateShipVariant
     } = useShips()
 
     const modalShips = ref<Ship[]>([])
@@ -420,6 +424,8 @@ export default defineComponent({
       handleTagManageDisplayModeChange,
       incrementShipCount,
       decrementShipCount,
+      shipVariantMap,
+      updateShipVariant,
       finalShips: computed(() => {
         // If sorting is active (via AttackTable), use the sorted list.
         if (sortedShipsFromAttackTable.value.length > 0) {

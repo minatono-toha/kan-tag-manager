@@ -4,8 +4,8 @@
     <table v-else class="w-full text-sm border-collapse border border-gray-300">
       <thead class="bg-gray-100 sticky top-0 z-50">
         <tr>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">艦種</th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">艦種</th>
           <th :style="{ ...cellStyle, ...headerStyle, width: '210px', minWidth: '210px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦名</div>
             <span
@@ -22,7 +22,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '165px', minWidth: '165px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '165px', minWidth: '165px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦型・艦番</div>
             <span
               @click="toggleClassSearch($event)"
@@ -38,7 +38,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="props.displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '55px', minWidth: '55px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '55px', minWidth: '55px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-gray-300' : 'bg-gray-100'">
             <div>速力</div>
             <span
               @click="toggleSpeedFilter($event)"
@@ -60,12 +60,21 @@
         <tr
           v-for="ship in filteredShips"
           :key="`${ship.orig}_${ship.shipIndex}`"
+          v-memo="[
+            ship.orig,
+            ship.shipIndex,
+            ship.ownershipCount,
+            getDisplayShip(ship).id,
+            displayMode,
+            theme,
+            getRowClass(ship.orig, ship.shipIndex)
+          ]"
           :style="{ ...rowStyle, ...rowBoxSizing }"
           class="hover:bg-gray-100"
           :class="getRowClass(ship.orig, ship.shipIndex)"
         >
-          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
-          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.shipType }}</td>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.shipType }}</td>
           <td :style="cellStyle" class="border">
             <div class="flex items-center gap-2">
               <!-- Increment/Decrement buttons -->
@@ -100,11 +109,11 @@
               </div>
             </div>
           </td>
-          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.class }}</td>
-          <td v-if="props.displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.speed }}</td>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.class }}</td>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.speed }}</td>
         </tr>
         <tr v-if="filteredShips.length === 0">
-          <td :colspan="props.displayMode === 'detail' ? 5 : 1" :style="cellStyle" class="border text-center py-4 text-gray-500">
+          <td :colspan="displayMode === 'detail' ? 5 : 1" :style="cellStyle" class="border text-center py-4 text-gray-500">
             {{ emptyStateMessage }}
           </td>
         </tr>
@@ -187,11 +196,10 @@ const props = withDefaults(defineProps<{
   selectedEventId: number | null
   tagManagementData: Map<string, TagManagement>
   theme?: 'light' | 'dark' | 'gradient'
-  incrementShipCount?: (orig: number) => Promise<void>
-  decrementShipCount?: (orig: number) => Promise<void>
   allShips?: Ship[]
+  variantMap: Map<string, number>
 }>(), {
-  theme: 'light', // Default if not provided (though App always provides it)
+  theme: 'light',
   allShips: () => []
 })
 
@@ -200,6 +208,7 @@ const emit = defineEmits<{
   (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean): void
   (e: 'increment-ship', orig: number): void
   (e: 'decrement-ship', orig: number): void
+  (e: 'update-variant', orig: number, shipIndex: number, variantId: number): void
 }>()
 
 function openModal(orig: number) {
@@ -286,31 +295,33 @@ const showVariantPopup = ref(false)
 const variantPopupPosition = ref({ x: 0, y: 0 })
 const variantPopupRef = ref<HTMLElement | null>(null)
 const currentVariants = ref<Ship[]>([])
-const currentTargetKey = ref<string>('')
-
-// Map to store temporary display overrides: "orig_shipIndex" -> Ship
-const displayOverrides = ref<Map<string, Ship>>(new Map())
+const currentTarget = ref<{ orig: number; shipIndex: number } | null>(null)
 
 const getDisplayShip = (ship: ExpandedShip): Ship => {
   const key = `${ship.orig}_${ship.shipIndex}`
-  return displayOverrides.value.get(key) || ship
+  const variantId = props.variantMap.get(key)
+  if (variantId) {
+    const variant = props.allShips.find(s => s.id === variantId)
+    if (variant) return variant
+  }
+  return ship
 }
 
 const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
-  const willOpen = !showVariantPopup.value || currentTargetKey.value !== `${ship.orig}_${ship.shipIndex}`
+  const isSameTarget = currentTarget.value?.orig === ship.orig && currentTarget.value?.shipIndex === ship.shipIndex
+  const willOpen = !showVariantPopup.value || !isSameTarget
 
   if (willOpen) {
     closeAllPopups()
 
     // Set target
-    currentTargetKey.value = `${ship.orig}_${ship.shipIndex}`
+    currentTarget.value = { orig: ship.orig, shipIndex: ship.shipIndex }
 
     // Find variants
     const variants = props.allShips.filter(s => s.orig === ship.orig)
       .sort((a, b) => a.updateLevel - b.updateLevel)
 
     if (variants.length === 0) {
-      // Fallback if allShips not provided or found
       currentVariants.value = [ship]
     } else {
       currentVariants.value = variants
@@ -319,11 +330,11 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
     // Position
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     variantPopupPosition.value = {
-      x: rect.right + 5, // Position to the right of the button
+      x: rect.right + 5,
       y: rect.top
     }
 
-    // Adjust if off screen (simple check)
+    // Adjust if off screen
     if (variantPopupPosition.value.x + 150 > window.innerWidth) {
         variantPopupPosition.value.x = rect.left - 150
     }
@@ -331,16 +342,16 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
     showVariantPopup.value = true
   } else {
     showVariantPopup.value = false
-    currentTargetKey.value = ''
+    currentTarget.value = null
   }
 }
 
 const selectVariant = (variant: Ship) => {
-  if (currentTargetKey.value) {
-    displayOverrides.value.set(currentTargetKey.value, variant)
+  if (currentTarget.value) {
+    emit('update-variant', currentTarget.value.orig, currentTarget.value.shipIndex, variant.id)
   }
   showVariantPopup.value = false
-  currentTargetKey.value = ''
+  currentTarget.value = null
 }
 
 // Close popup when clicking outside
@@ -348,7 +359,6 @@ const selectVariant = (variant: Ship) => {
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
 
-  // Handle Name Search Popup
   if (showSearchInput.value && searchPopupRef.value) {
     const clickedIcon = searchIconRef.value?.contains(target)
     const clickedPopup = (searchPopupRef.value as any).popupRef?.contains(target)
@@ -357,7 +367,6 @@ function handleClickOutside(event: MouseEvent) {
     }
   }
 
-  // Handle Class Search Popup
   if (showClassSearchInput.value && classSearchPopupRef.value) {
     const clickedIcon = classSearchIconRef.value?.contains(target)
     const clickedPopup = (classSearchPopupRef.value as any).popupRef?.contains(target)
@@ -366,7 +375,6 @@ function handleClickOutside(event: MouseEvent) {
     }
   }
 
-  // Handle Speed Filter Popup
   if (showSpeedFilter.value && speedPopupRef.value) {
     const clickedIcon = speedIconRef.value?.contains(target)
     const clickedPopup = (speedPopupRef.value as any).popupRef?.contains(target)
@@ -375,22 +383,8 @@ function handleClickOutside(event: MouseEvent) {
     }
   }
 
-  // Handle Variant Popup
   if (showVariantPopup.value && variantPopupRef.value) {
      if (!variantPopupRef.value.contains(target)) {
-        // Also check if we clicked on a toggle button?
-        // Actually the toggle logic handles self-clicks (willOpen check).
-        // But if we click outside, we need to close.
-        // We need to ensure we don't close if we just clicked the toggle button that opened it.
-        // But checking !contains(popup) is usually enough if the toggle button is outside.
-        // Wait, if I click the SAME toggle button, the toggle logic runs.
-        // If I click ANYWHERE else, this runs.
-        // So we should be careful not to double-close or interfere.
-        // Simple approach: close if not in popup. The toggle button click will be handled by its own handler?
-        // No, document click happens after.
-        // So if I click the toggle button, it might toggle ON, then document click toggles OFF.
-        // We should stop propagation on the toggle button click? Use @click.stop on the button.
-        // The button has @click.stop.
         showVariantPopup.value = false
      }
   }
@@ -412,24 +406,18 @@ const emptyStateMessage = computed(() => {
 })
 
 const filteredShips = computed(() => {
-  // Single-pass filter for better performance
   const hasNameFilter = searchQuery.value.trim()
   const hasClassFilter = classSearchQuery.value.trim()
   const hasSpeedFilter = speedFilterValue.value
 
-  // If no filters active, return original array
   if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter) {
     return props.ships
   }
 
-  // Prepare filter values once
   const nameQuery = hasNameFilter ? searchQuery.value.toLowerCase() : ''
   const classQuery = hasClassFilter ? classSearchQuery.value.toLowerCase() : ''
 
-  // Single pass through the array
   return props.ships.filter(ship => {
-    // Apply name filter
-    // Apply name filter
     if (hasNameFilter) {
       const nameMatch = ship.name.toLowerCase().includes(nameQuery)
       const kanaMatch = ship.read_kana?.toLowerCase().includes(nameQuery) ?? false
@@ -441,11 +429,9 @@ const filteredShips = computed(() => {
         return false
       }
     }
-    // Apply class filter
     if (hasClassFilter && !ship.class.toLowerCase().includes(classQuery)) {
       return false
     }
-    // Apply speed filter
     if (hasSpeedFilter && ship.speed !== speedFilterValue.value) {
       return false
     }
@@ -453,8 +439,6 @@ const filteredShips = computed(() => {
   })
 })
 
-// Debounced watch to reduce parent update frequency
-// Debounced watch to reduce parent update frequency
 watchDebounced(
   filteredShips,
   (newFilteredShips) => {
@@ -464,13 +448,11 @@ watchDebounced(
   { debounce: 150, maxWait: 300 }
 )
 
-// Get row class based on tag flags
 const getRowClass = (orig: number, shipIndex: number) => {
   const key = `${orig}_${shipIndex}`
   const tagData = props.tagManagementData.get(key)
   if (!tagData) return ''
 
-  // Assigned flag takes priority
   if (tagData.assigned) {
     if (props.theme === 'dark' || props.theme === 'gradient') {
       return 'row-assigned-dark'
@@ -478,7 +460,6 @@ const getRowClass = (orig: number, shipIndex: number) => {
     return 'row-assigned-light'
   }
 
-  // Preserve flag
   if (tagData.preserve) {
     if (props.theme === 'dark' || props.theme === 'gradient') {
       return 'row-preserve-dark'
@@ -489,7 +470,6 @@ const getRowClass = (orig: number, shipIndex: number) => {
   return ''
 }
 
-// Static object for box-sizing
 const rowBoxSizing: CSSProperties = { boxSizing: 'border-box' }
 
 const rowStyle: CSSProperties = {
@@ -509,7 +489,6 @@ const headerStyle = computed(() => ({
 </script>
 
 <style scoped>
-/* Fix properties for Firefox sticky header compatibility */
 table {
   border-collapse: separate !important;
   border-spacing: 0;
@@ -527,20 +506,19 @@ th, td {
   border-bottom: 1px solid #d1d5db !important;
 }
 
-/* Optimization: Row Highlight Classes */
 .row-assigned-light {
-  background-color: #e5e7eb; /* gray-200 */
+  background-color: #e5e7eb;
 }
 .row-assigned-dark {
-  background-color: #4b5563 !important; /* gray-600 */
-  color: #f3f4f6 !important; /* gray-100 */
+  background-color: #4b5563 !important;
+  color: #f3f4f6 !important;
 }
 
 .row-preserve-light {
-  background-color: #dbeafe; /* blue-100 */
+  background-color: #dbeafe;
 }
 .row-preserve-dark {
-  background-color: #1e40af !important; /* blue-800 */
-  color: #dbeafe !important; /* blue-100 */
+  background-color: #1e40af !important;
+  color: #dbeafe !important;
 }
 </style>

@@ -90,6 +90,18 @@
         <tr
           v-for="ship in displayedShips"
           :key="`${ship.orig}_${ship.shipIndex}`"
+          v-memo="[
+            ship.orig,
+            ship.shipIndex,
+            ship.ownershipCount,
+            getTagData(ship.orig, ship.shipIndex).assigned,
+            getTagData(ship.orig, ship.shipIndex).preserve,
+            getTagData(ship.orig, ship.shipIndex).targetStage,
+            getTagData(ship.orig, ship.shipIndex).comment,
+            displayMode,
+            theme,
+            getRowClass(ship.orig, ship.shipIndex)
+          ]"
           :style="{ ...rowStyle, ...rowBoxSizing }"
           class="hover:bg-gray-100"
           :class="getRowClass(ship.orig, ship.shipIndex)"
@@ -287,7 +299,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { CSSProperties } from 'vue'
-import { useDebounceFn } from '@vueuse/core'
 import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import FilterPopup from '@/components/common/FilterPopup.vue'
@@ -495,11 +506,6 @@ watch(filteredShipsForEmit, (newFiltered) => {
   emit('filter-change', newFiltered, isFiltering)
 }, { immediate: true })
 
-// Debounced update function
-const debouncedUpdate = useDebounceFn((data: TagManagement) => {
-  props.updateTagManagement(data)
-}, 500)
-
 // Toggle assigned checkbox by clicking the cell
 const toggleAssigned = (orig: number, shipIndex: number) => {
   const current = getTagData(orig, shipIndex)
@@ -507,7 +513,7 @@ const toggleAssigned = (orig: number, shipIndex: number) => {
     ...current,
     assigned: !current.assigned
   }
-  debouncedUpdate(updated)
+  props.updateTagManagement(updated)
 }
 
 // Toggle preserve checkbox by clicking the cell
@@ -517,7 +523,7 @@ const togglePreserve = (orig: number, shipIndex: number) => {
     ...current,
     preserve: !current.preserve
   }
-  debouncedUpdate(updated)
+  props.updateTagManagement(updated)
 }
 
 const handleTargetStageChange = (orig: number, shipIndex: number, value: string) => {
@@ -526,7 +532,7 @@ const handleTargetStageChange = (orig: number, shipIndex: number, value: string)
     ...current,
     targetStage: value
   }
-  debouncedUpdate(updated)
+  props.updateTagManagement(updated)
 }
 
 const handleCommentChange = (orig: number, shipIndex: number, value: string) => {
@@ -535,7 +541,7 @@ const handleCommentChange = (orig: number, shipIndex: number, value: string) => 
     ...current,
     comment: value
   }
-  debouncedUpdate(updated)
+  props.updateTagManagement(updated)
 }
 
 const closeAllPopups = () => {

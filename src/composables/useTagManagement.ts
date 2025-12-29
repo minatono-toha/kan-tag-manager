@@ -1,11 +1,11 @@
 import { ref, watch } from 'vue'
 import type { Ref } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { db } from '@/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import {
   saveTagManagement,
-  getTagManagement,
   getAllTagManagementForEvent
 } from '@/utils/indexedDB'
 
@@ -16,7 +16,6 @@ export interface TagDef {
 }
 
 export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref<ExpandedShip[]>) {
-  // Changed from Map<number, TagManagement> to Map<string, TagManagement>
   // Key format: `${orig}_${shipIndex}`
   const tagManagementData = ref<Map<string, TagManagement>>(new Map())
   const stageOptions = ref<string[]>([])
@@ -141,16 +140,26 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
     }
   }
 
-  // Update tag management data in IndexedDB
-  const updateTagManagement = async (data: TagManagement) => {
+  // Database save: Debounced to avoid excessive writes
+  const dbSaveDebounced = useDebounceFn(async (data: TagManagement) => {
     try {
       await saveTagManagement(data)
-      // Update local map
-      const key = `${data.orig}_${data.shipIndex}`
-      tagManagementData.value.set(key, data)
     } catch (error) {
-      console.error('Error saving tag management data:', error)
+      console.error('Error saving tag management data to IndexedDB:', error)
     }
+  }, 1000)
+
+  // Update tag management data (Immediate UI feedback + debounced DB save)
+  const updateTagManagement = async (data: TagManagement) => {
+    // 1. Update local state immediately for instant UI feedback
+    const key = `${data.orig}_${data.shipIndex}`
+    // Create a new map reference to trigger reactivity if using ref(Map)
+    const newMap = new Map(tagManagementData.value)
+    newMap.set(key, data)
+    tagManagementData.value = newMap
+
+    // 2. Queue background save to IndexedDB
+    dbSaveDebounced(data)
   }
 
   // Get tag management data for a specific ship instance (with default values)

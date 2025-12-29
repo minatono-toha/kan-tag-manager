@@ -1,10 +1,12 @@
 import { ref, computed, watch } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
-import type { Ship, ExpandedShip } from '@/types/interfaces'
+import type { Ship, ExpandedShip, ShipVariantOverride } from '@/types/interfaces'
 import {
   getAllShipOwnership,
-  saveShipOwnership
+  saveShipOwnership,
+  getAllShipVariantOverrides,
+  saveShipVariantOverride
 } from '@/utils/indexedDB'
 
 export function useShips() {
@@ -15,6 +17,9 @@ export function useShips() {
 
   // Ship ownership data (orig -> count)
   const shipOwnershipMap = ref<Map<number, number>>(new Map())
+
+  // Ship variant overrides (orig_shipIndex -> variantId)
+  const shipVariantMap = ref<Map<string, number>>(new Map())
 
   // Search state
   const filteredShipsFromSearch = ref<ExpandedShip[]>([])
@@ -68,6 +73,20 @@ export function useShips() {
     }
   }
 
+  // Load ship variant overrides
+  const loadShipVariants = async () => {
+    try {
+      const allVariants = await getAllShipVariantOverrides()
+      const variantMap = new Map<string, number>()
+      allVariants.forEach((v) => {
+        variantMap.set(`${v.orig}_${v.shipIndex}`, v.variantId)
+      })
+      shipVariantMap.value = variantMap
+    } catch (error) {
+      console.error('Error loading ship variants:', error)
+    }
+  }
+
   // Increment ship count (max 30)
   const incrementShipCount = async (orig: number) => {
     const currentCount = shipOwnershipMap.value.get(orig) || 0
@@ -86,6 +105,13 @@ export function useShips() {
     const newCount = currentCount - 1
     await saveShipOwnership({ orig, count: newCount })
     shipOwnershipMap.value.set(orig, newCount)
+  }
+
+  // Update ship variant
+  const updateShipVariant = async (orig: number, shipIndex: number, variantId: number) => {
+    const key = `${orig}_${shipIndex}`
+    await saveShipVariantOverride({ orig, shipIndex, variantId })
+    shipVariantMap.value.set(key, variantId)
   }
 
   // Get ownership count for a ship
@@ -173,9 +199,10 @@ export function useShips() {
     isSearchActive.value = isActive
   }
 
-  // Watch for changes in allShips and reload ownership
+  // Watch for changes in allShips and reload ownership/variants
   watch(allShips, async () => {
     await loadShipOwnership()
+    await loadShipVariants()
   })
 
   return {
@@ -198,6 +225,8 @@ export function useShips() {
     incrementShipCount,
     decrementShipCount,
     getOwnershipCount,
-    shipOwnershipMap
+    shipOwnershipMap,
+    shipVariantMap,
+    updateShipVariant
   }
 }
