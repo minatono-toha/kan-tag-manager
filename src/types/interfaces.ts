@@ -13,6 +13,10 @@ export interface Ship {
   filtertype_en: string
   updateLevel: number
   wiki_url?: string
+  read_kana?: string
+  read_kata?: string
+  read_romaji1?: string
+  read_romaji2?: string
 }
 
 export interface EventInfo {

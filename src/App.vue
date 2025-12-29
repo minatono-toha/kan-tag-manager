@@ -1,7 +1,7 @@
 <template>
   <div class="app-container" :class="`theme-${theme}`">
     <!-- イベント選択 & タブ (固定ヘッダー) -->
-    <div class="sticky top-0 bg-white z-20 shadow-md border-b">
+    <div class="sticky top-0 bg-white z-[100] shadow-md border-b">
       <div class="px-1 pt-0.5 pb-0.5">
         <EventSelect
           :selectedEventId="selectedEventId"
@@ -93,6 +93,7 @@
               :selectedEventId="selectedEventId"
               :tagManagementData="tagManagementData"
               :theme="theme"
+              :all-ships="allShips"
               @select="openModal"
               @filter-change="handleSafeShipFilterChange"
               @increment-ship="incrementShipCount"
@@ -370,6 +371,7 @@ export default defineComponent({
       isAllSelected,
       toggleFilter,
       toggleAllFilters,
+      allShips,
       ships,
       modalShips,
       modalVisible,
@@ -441,7 +443,7 @@ export default defineComponent({
 
 .main-content {
   display: flex;
-  gap: 10px;
+  gap: 20px;
   flex-wrap: nowrap; /* Prevent wrapping - always horizontal */
 }
 
@@ -458,7 +460,7 @@ export default defineComponent({
 }
 
 .list-container.flex-1 {
-  min-width: 560px; /* Detail mode minimum (60 + 120 + 160 + 165 + 55) */
+  min-width: 610px; /* Detail mode minimum (60 + 120 + 200 + 165 + 55) */
 }
 
 .attack-container {
