@@ -141,10 +141,9 @@ const handleBannerClick = (event: MouseEvent, ship: Ship) => {
     // Prevent the link from navigating when clicking the image
     event.preventDefault()
   } else {
-    // Clicking the frame (outside the image) - select variant and close modal
+    // Clicking the frame (outside the image) - select variant
     event.preventDefault()
     emit('select-variant', ship.orig, ship.id)
-    closeModal()
   }
 }
 
@@ -154,9 +153,8 @@ const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
   const isBannerClick = target.closest('.ship-banner') !== null
 
   if (!isBannerClick) {
-    // Clicked on the ship info area - update the variant in the ship list table and close modal
+    // Clicked on the ship info area - update the variant in the ship list table
     emit('select-variant', ship.orig, ship.id)
-    closeModal()
   }
 }
 
