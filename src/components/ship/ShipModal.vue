@@ -1,18 +1,22 @@
 <template>
   <div v-if="modalVisible" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
-      <h2>{{ selectedShip?.name }} 詳細</h2>
+      <div class="mb-4 text-left">
+        <span @click="showOnlySelected = !showOnlySelected" class="cursor-pointer text-sm text-blue-600 hover:underline select-none">
+          {{ showOnlySelected ? 'すべての改装段階を表示' : '選択された改装段階を表示' }}
+        </span>
+      </div>
 
       <!-- 艦船ごとの詳細情報を表示 -->
       <ul class="ship-list">
-        <li v-for="ship in filteredShips" :key="ship.id" class="ship-item">
+        <li v-for="ship in displayShips" :key="ship.id" class="ship-item" :class="{ 'selected-variant': ship.id === currentVariantId }" @click="handleShipItemClick(ship, $event)">
           <a
             v-if="ship.wiki_url"
             :href="ship.wiki_url"
             target="_blank"
             rel="noopener noreferrer"
             class="ship-banner-link"
-            @click="handleBannerClick($event)"
+            @click="handleBannerClick($event, ship)"
           >
             <div class="ship-banner">
               <ShipCard
@@ -52,6 +56,20 @@
         </li>
       </ul>
 
+      <!-- Tag Management Section -->
+      <div v-if="selectedEventId && filteredShips.length > 0" class="mt-4">
+        <ModalTagManagement
+          :ship="filteredShips[0]"
+          :shipIndex="modalShipIndex"
+          :selectedEventId="selectedEventId"
+          :tagManagementData="tagManagementData"
+          :stageOptions="stageOptions"
+          :stageTagMap="stageTagMap"
+          :tagMap="tagMap"
+          :updateTagManagement="updateTagManagement"
+        />
+      </div>
+
       <button @click="closeModal">閉じる</button>
     </div>
 
@@ -65,17 +83,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { Ship } from '@/types/interfaces'
+import { ref, watch, computed } from 'vue'
+import type { Ship, TagManagement } from '@/types/interfaces'
 import ShipCard from './ShipCard.vue'
+import ModalTagManagement from './ModalTagManagement.vue'
 
 const props = defineProps<{
   ships: Ship[]
   modalVisible: boolean
   selectedShipOrig: number | null
+  modalShipIndex: number
+  currentVariantId: number | null
+  selectedEventId: number | null
+  tagManagementData: Map<string, TagManagement>
+  stageOptions: string[]
+  stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
+  tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
+  updateTagManagement: (data: TagManagement) => Promise<void>
 }>()
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'select-variant'])
 
 const selectedShip = ref<Ship | null>(null)
 const filteredShips = ref<Ship[]>([])
@@ -83,6 +110,14 @@ const filteredShips = ref<Ship[]>([])
 // 子モーダル用
 const cardModalVisible = ref(false)
 const cardBannerId = ref<number | null>(null)
+const showOnlySelected = ref(true)
+
+const displayShips = computed(() => {
+  if (showOnlySelected.value && props.currentVariantId !== null) {
+    return filteredShips.value.filter(s => s.id === props.currentVariantId)
+  }
+  return filteredShips.value
+})
 
 const openCardModal = (bannerId: number) => {
   cardBannerId.value = bannerId
@@ -99,14 +134,30 @@ const handleCardOpen = (bannerId: number) => {
   openCardModal(bannerId)
 }
 
-const handleBannerClick = (event: MouseEvent) => {
+const handleBannerClick = (event: MouseEvent, ship: Ship) => {
   // Check if the click target is the image (which would have triggered handleCardOpen)
   const target = event.target as HTMLElement
   if (target.tagName === 'IMG') {
     // Prevent the link from navigating when clicking the image
     event.preventDefault()
+  } else {
+    // Clicking the frame (outside the image) - select variant and close modal
+    event.preventDefault()
+    emit('select-variant', ship.orig, ship.id)
+    closeModal()
   }
-  // If clicking outside the image (the frame), allow the link to navigate normally
+}
+
+const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
+  // Check if the click originated from the banner area (image or link)
+  const target = event.target as HTMLElement
+  const isBannerClick = target.closest('.ship-banner') !== null
+
+  if (!isBannerClick) {
+    // Clicked on the ship info area - update the variant in the ship list table and close modal
+    emit('select-variant', ship.orig, ship.id)
+    closeModal()
+  }
 }
 
 const baseUrl = import.meta.env.BASE_URL
@@ -177,9 +228,16 @@ const closeModal = () => {
   gap: 15px;
   align-items: flex-start;
   padding: 10px;
-  border: 1px solid #ccc;
+  border: 2px solid #ccc;
   border-radius: 8px;
   background-color: #f9f9f9;
+  transition: all 0.2s ease;
+}
+
+.ship-item.selected-variant {
+  border-color: #4a90e2;
+  box-shadow: 0 0 8px rgba(74, 144, 226, 0.3);
+  background-color: #f0f7ff;
 }
 
 .ship-info {

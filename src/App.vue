@@ -149,7 +149,16 @@
       :ships="modalShips"
       :modalVisible="modalVisible"
       :selectedShipOrig="modalShips.length ? modalShips[0].orig : null"
+      :modalShipIndex="modalShipIndex"
+      :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].orig}_${modalShipIndex}`) || modalShips[0].orig) : null"
+      :selectedEventId="selectedEventId"
+      :tagManagementData="tagManagementData"
+      :stageOptions="stageOptions"
+      :stageTagMap="stageTagMap"
+      :tagMap="tagMap"
+      :updateTagManagement="updateTagManagement"
       @close="closeModal"
+      @select-variant="handleVariantSelectFromModal"
     />
 
     <!-- フッター -->
@@ -216,6 +225,7 @@ export default defineComponent({
 
     const modalShips = ref<Ship[]>([])
     const modalVisible = ref(false)
+    const modalShipIndex = ref<number>(0)
     const scrollRef = ref<HTMLElement | null>(null)
     const scrollPositions = ref<{ [key: string]: number }>({})
 
@@ -327,8 +337,9 @@ export default defineComponent({
       }
     }
 
-    const openModal = (orig: number) => {
+    const openModal = (orig: number, shipIndex: number) => {
       modalVisible.value = true
+      modalShipIndex.value = shipIndex
       modalShips.value = allShips.value
         .filter((ship) => ship.orig === orig)
         .sort((a, b) => a.updateLevel - b.updateLevel)
@@ -337,6 +348,22 @@ export default defineComponent({
     const closeModal = () => {
       modalVisible.value = false
       modalShips.value = []
+      modalShipIndex.value = 0
+    }
+
+    const handleVariantSelectFromModal = (orig: number, variantId: number) => {
+      // Use the shipIndex of the ship that was clicked to open the modal
+      const clickedShipIndex = modalShipIndex.value
+
+      // Verify the ship instance exists
+      const targetShip = expandedShips.value.find(
+        (ship) => ship.orig === orig && ship.shipIndex === clickedShipIndex
+      )
+
+      if (targetShip) {
+        // Update the variant for the clicked ship instance
+        updateShipVariant(orig, clickedShipIndex, variantId)
+      }
     }
 
     const onScroll = () => {
@@ -379,6 +406,7 @@ export default defineComponent({
       ships,
       modalShips,
       modalVisible,
+      modalShipIndex,
       openModal,
       closeModal,
       scrollRef,
@@ -426,6 +454,7 @@ export default defineComponent({
       decrementShipCount,
       shipVariantMap,
       updateShipVariant,
+      handleVariantSelectFromModal,
       finalShips: computed(() => {
         // If sorting is active (via AttackTable), use the sorted list.
         if (sortedShipsFromAttackTable.value.length > 0) {

@@ -93,7 +93,7 @@
               <!-- Ship name with ownership indicators -->
               <div class="flex-1 flex items-center justify-between">
                  <!-- Name Display -->
-                 <div class="cursor-pointer flex-grow" @click.stop="openModal(ship.orig)">
+                 <div class="cursor-pointer flex-grow" @click.stop="openModal(ship.orig, ship.shipIndex)">
                     <span :class="{ 'line-through text-gray-400': ship.ownershipCount === 0 }">
                       {{ getDisplayShip(ship).name }}
                     </span>
@@ -204,15 +204,15 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  (e: 'select', orig: number): void
+  (e: 'select', orig: number, shipIndex: number): void
   (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean): void
   (e: 'increment-ship', orig: number): void
   (e: 'decrement-ship', orig: number): void
   (e: 'update-variant', orig: number, shipIndex: number, variantId: number): void
 }>()
 
-function openModal(orig: number) {
-  emit('select', orig)
+function openModal(orig: number, shipIndex: number) {
+  emit('select', orig, shipIndex)
 }
 
 function incrementShip(orig: number) {
