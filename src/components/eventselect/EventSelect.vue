@@ -41,7 +41,7 @@
     <!-- ご意見・ご要望リンク（ラベルの高さに合わせる） -->
     <div class="absolute top-3 right-4 w-64 text-right">
       <a
-        href="https://github.com/minatono-toha/kan_tag_manager/issues"
+        href="https://tally.so/r/2EaBrD"
         target="_blank"
         rel="noopener noreferrer"
         class="text-xxs text-blue-600 hover:text-blue-800"
