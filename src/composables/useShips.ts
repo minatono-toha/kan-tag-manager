@@ -89,7 +89,7 @@ export function useShips() {
 
   // Increment ship count (max 30)
   const incrementShipCount = async (orig: number) => {
-    const currentCount = shipOwnershipMap.value.get(orig) || 0
+    const currentCount = getOwnershipCount(orig)
     if (currentCount >= 30) return  // Max limit
 
     const newCount = currentCount + 1
@@ -99,7 +99,7 @@ export function useShips() {
 
   // Decrement ship count (min 0)
   const decrementShipCount = async (orig: number) => {
-    const currentCount = shipOwnershipMap.value.get(orig) || 0
+    const currentCount = getOwnershipCount(orig)
     if (currentCount <= 0) return  // Min limit
 
     const newCount = currentCount - 1

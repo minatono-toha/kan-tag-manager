@@ -97,7 +97,7 @@
                     <span :class="{ 'line-through text-gray-400': ship.ownershipCount === 0 }">
                       {{ getDisplayShip(ship).name }}
                     </span>
-                    <span v-if="ship.ownershipCount === 0" class="text-gray-400 text-xs ml-1">(未着任)</span>
+                    <span v-if="ship.ownershipCount === 0" class="text-gray-400 text-xs ml-1">(0隻:未着任)</span>
                     <span v-else-if="ship.shipIndex > 0" class="text-gray-400 text-xs ml-1">({{ ship.shipIndex + 1 }}隻目)</span>
                  </div>
                  <!-- Variant Selector Toggle -->
@@ -166,12 +166,16 @@
       class="fixed z-[100] bg-white border border-gray-300 shadow-lg rounded p-2 text-sm max-h-60 overflow-y-auto"
       :style="{ top: `${variantPopupPosition.y}px`, left: `${variantPopupPosition.x}px` }"
       ref="variantPopupRef"
+      @click.stop
     >
       <div
         v-for="variant in currentVariants"
         :key="variant.id"
-        class="cursor-pointer hover:bg-gray-100 p-1 rounded whitespace-nowrap"
+        class="cursor-pointer hover:bg-gray-100 p-1 rounded whitespace-nowrap focus:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        tabindex="0"
         @click="selectVariant(variant)"
+        @keydown.enter="selectVariant(variant)"
+        @keydown.space.prevent="selectVariant(variant)"
       >
         {{ variant.name }}
       </div>
@@ -180,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import type { Ship, ExpandedShip, TagManagement } from '@/types/interfaces'
@@ -396,6 +400,47 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeydown)
+})
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (showVariantPopup.value && variantPopupRef.value) {
+    if (event.key === 'Escape') {
+      showVariantPopup.value = false
+    } else if (event.key === 'Tab') {
+      const focusable = Array.from(variantPopupRef.value.querySelectorAll('[tabindex="0"]')) as HTMLElement[]
+      if (focusable.length === 0) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey) {
+        if (document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        }
+      } else {
+        if (document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+  }
+}
+
+watch(showVariantPopup, (newShow) => {
+  if (newShow) {
+    document.addEventListener('keydown', handleKeydown)
+    setTimeout(() => {
+      if (variantPopupRef.value) {
+        const first = variantPopupRef.value.querySelector('[tabindex="0"]') as HTMLElement
+        first?.focus()
+      }
+    }, 0)
+  } else {
+    document.removeEventListener('keydown', handleKeydown)
+  }
 })
 
 const emptyStateMessage = computed(() => {

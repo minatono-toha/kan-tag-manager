@@ -484,10 +484,10 @@ export default defineComponent({
 
 /* Set minimum widths for each container to prevent overlap */
 .tag-manage-container {
-  min-width: 390px; /* 80 + 60 + 100 + 150 columns */
+  min-width: 410px; /* 60 + 60 + 60 + 80 + 150 = 410px */
 }
 .tag-manage-container.check-only {
-  min-width: 140px; /* 60 + 60 + padding */
+  min-width: 120px; /* 60 + 60 = 120px */
 }
 
 .list-container {

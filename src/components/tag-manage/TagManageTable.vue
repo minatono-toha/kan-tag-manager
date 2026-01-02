@@ -1,7 +1,11 @@
 <template>
   <div>
       <div v-if="loading" class="p-4">読み込み中...</div>
-      <table v-else class="w-full text-sm border-collapse border border-gray-300">
+      <table
+        v-else
+        class="text-sm border-collapse border border-gray-300"
+        :style="{ tableLayout: 'fixed', width: displayMode === 'detail' ? '410px' : '120px' }"
+      >
       <thead class="bg-gray-100 sticky top-0 z-50" ref="theadRef">
         <tr>
           <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="assignedFilter !== null ? 'bg-gray-300' : 'bg-gray-100'">
@@ -52,7 +56,7 @@
               </svg>
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '80px', minWidth: '80px' }" class="border text-left align-top relative pb-6" :class="assignedTagFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px' }" class="border text-left align-top relative pb-6" :class="assignedTagFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
             割当札
             <span
               @click="toggleAssignedTagFilter($event)"
@@ -108,19 +112,51 @@
         >
           <!-- 割当済 -->
           <td :style="cellStyle" class="border text-center cursor-pointer" @click="toggleAssigned(ship.orig, ship.shipIndex)">
-            <input
-              type="checkbox"
-              :checked="getTagData(ship.orig, ship.shipIndex).assigned"
-              class="pointer-events-none"
-            />
+            <div
+              class="inline-flex items-center justify-center w-4 h-4 border border-black rounded-sm transition-colors mx-auto"
+              :class="[
+                getTagData(ship.orig, ship.shipIndex).assigned
+                  ? 'bg-blue-500'
+                  : 'bg-white'
+              ]"
+            >
+              <svg
+                v-if="getTagData(ship.orig, ship.shipIndex).assigned"
+                class="w-3 h-3 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
           </td>
           <!-- 温存 -->
-          <td :style="cellStyle" class="border text-center cursor-pointer" @click="togglePreserve(ship.orig, ship.shipIndex)">
-            <input
-              type="checkbox"
-              :checked="getTagData(ship.orig, ship.shipIndex).preserve"
-              class="pointer-events-none"
-            />
+          <td
+            :style="cellStyle"
+            class="border text-center cursor-pointer"
+            @mouseenter="getTagData(ship.orig, ship.shipIndex).assigned && handleMouseEnterWarning($event, '割当済の艦は温存できません')"
+            @mouseleave="handleMouseLeaveWarning"
+            @click="!getTagData(ship.orig, ship.shipIndex).assigned && togglePreserve(ship.orig, ship.shipIndex)"
+          >
+            <div
+              class="inline-flex items-center justify-center w-4 h-4 border border-black rounded-sm transition-colors mx-auto"
+              :class="[
+                getTagData(ship.orig, ship.shipIndex).assigned
+                  ? 'bg-gray-300'
+                  : (getTagData(ship.orig, ship.shipIndex).preserve ? 'bg-blue-500' : 'bg-white')
+              ]"
+            >
+              <svg
+                v-if="getTagData(ship.orig, ship.shipIndex).preserve"
+                class="w-3 h-3 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
           </td>
           <!-- 割当先 -->
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border text-center relative">
@@ -223,6 +259,17 @@
       ref="commentPopupRef"
     />
 
+    <!-- Custom Tooltip UI -->
+    <Teleport to="body">
+      <div
+        v-if="tooltipState.show"
+        class="fixed z-[9999] px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg pointer-events-none whitespace-nowrap -translate-x-1/2 -translate-y-full mb-2 border border-gray-600"
+        :style="{ top: tooltipState.y + 'px', left: tooltipState.x + 'px' }"
+      >
+        {{ tooltipState.content }}
+      </div>
+    </Teleport>
+
     <!-- Stage Selection Popup (Cascading Style) -->
     <!-- Main Menu: List of Areas -->
     <div
@@ -235,9 +282,12 @@
       <div
         v-for="area in uniqueAreas"
         :key="area"
-        class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center relative group hover:bg-gray-100"
+        class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center relative group hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+        tabindex="0"
         @mouseenter="handleAreaHover($event, area)"
         @click="handleAreaClick($event, area)"
+        @keydown.enter="handleAreaClick($event, area)"
+        @keydown.space.prevent="handleAreaClick($event, area)"
         :class="{ 'bg-gray-100': hoveredArea === area }"
       >
         <span>{{ area }}</span>
@@ -247,7 +297,10 @@
        <div class="border-t my-1"></div>
        <div
           @click="applyStageSelection('')"
-          class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-gray-500 text-xs"
+          @keydown.enter="applyStageSelection('')"
+          @keydown.space.prevent="applyStageSelection('')"
+          class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-gray-500 text-xs focus:bg-gray-100 focus:outline-none"
+          tabindex="0"
           @mouseenter="hoveredArea = null"
        >
           選択解除
@@ -267,8 +320,11 @@
         v-for="stage in getStagesForArea(hoveredArea)"
         :key="stage"
         @click="handleStageClick($event, stage)"
+        @keydown.enter="handleStageClick($event, stage)"
+        @keydown.space.prevent="handleStageClick($event, stage)"
         @mouseenter="handleStageHover($event, stage)"
-        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm flex justify-between items-center"
+        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm flex justify-between items-center focus:bg-gray-100 focus:outline-none"
+        tabindex="0"
         :class="{ 'bg-gray-100': hoveredStage === stage }"
       >
         <span>{{ stage }}</span>
@@ -279,6 +335,7 @@
     <!-- 3rd Level Menu: List of Tags for Hovered Stage -->
     <div
       v-if="showStageSelectorPopup && hoveredStage && getTagsForStage(hoveredStage).length > 0"
+      ref="tagMenuRef"
       class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-[70] overflow-y-auto"
       :style="{ top: tagMenuPosition.y + 'px', left: tagMenuPosition.x + 'px', maxHeight: '300px', width: '160px' }"
       @click.stop
@@ -287,12 +344,37 @@
         v-for="tag in getTagsForStage(hoveredStage)"
         :key="tag.tagId"
         @click="applyTagSelection(hoveredStage, tag.tagName)"
-        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm"
+        @keydown.enter="applyTagSelection(hoveredStage, tag.tagName)"
+        @keydown.space.prevent="applyTagSelection(hoveredStage, tag.tagName)"
+        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm focus:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        tabindex="0"
         :style="{ backgroundColor: tag.tagColor, color: '#000' }"
       >
         {{ tag.tagName }}
       </div>
     </div>
+
+    <!-- Validation Alert -->
+    <BaseDialog
+      v-model:show="showValidationAlert"
+      type="alert"
+      message="先に割当先と割当札を選択してください"
+    />
+
+    <!-- Confirmation Dialog -->
+    <BaseDialog
+      v-model:show="showConfirmDialog"
+      type="confirm"
+      :message="confirmMessage"
+      @confirm="handleConfirmStageChange"
+    />
+
+    <BaseDialog
+      v-model:show="showUnassignConfirm"
+      type="confirm"
+      :message="unassignConfirmMessage"
+      @confirm="handleConfirmUnassign"
+    />
   </div>
 </template>
 
@@ -302,6 +384,7 @@ import type { CSSProperties } from 'vue'
 import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import FilterPopup from '@/components/common/FilterPopup.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -375,17 +458,54 @@ const targetStagePopupRef = ref<HTMLElement | null>(null)
 const assignedTagPopupRef = ref<HTMLElement | null>(null)
 const commentPopupRef = ref<HTMLElement | null>(null)
 
+// Validation Alert State
+const showValidationAlert = ref(false)
+
+// Confirmation Dialog State
+const showConfirmDialog = ref(false)
+const pendingStageSelection = ref<{ stage: string } | null>(null)
+const confirmMessage = "すでに制御札割当済の艦の情報を変更しようとしています\n実行してよろしいですか"
+
+// Unassign Confirmation State
+const showUnassignConfirm = ref(false)
+const pendingUnassign = ref<{ orig: number; shipIndex: number } | null>(null)
+const unassignConfirmMessage = "割当済チェックを外しますか"
+
+// Custom Tooltip State
+const tooltipState = ref({
+  show: false,
+  content: '',
+  x: 0,
+  y: 0
+})
+
+const handleMouseEnterWarning = (e: MouseEvent, content: string) => {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  tooltipState.value = {
+    show: true,
+    content,
+    x: rect.left + rect.width / 2,
+    y: rect.top - 5 // Position just above the cell
+  }
+}
+
+const handleMouseLeaveWarning = () => {
+  tooltipState.value.show = false
+}
+
 // Stage Selector State
 const showStageSelectorPopup = ref(false)
 const stageSelectorPosition = ref({ x: 0, y: 0 })
 const stageSelectorPopupRef = ref<HTMLElement | null>(null)
 const subMenuRef = ref<HTMLElement | null>(null)
+const tagMenuRef = ref<HTMLElement | null>(null)
 const editingShipOrig = ref<number | null>(null)
 const editingShipIndex = ref<number>(0)
 const hoveredArea = ref<string | null>(null)
 const subMenuPosition = ref({ x: 0, y: 0 })
 const hoveredStage = ref<string | null>(null)
 const tagMenuPosition = ref({ x: 0, y: 0 })
+const activeStageCell = ref<HTMLElement | null>(null)
 
 const theadRef = ref<HTMLElement | null>(null)
 
@@ -509,11 +629,39 @@ watch(filteredShipsForEmit, (newFiltered) => {
 // Toggle assigned checkbox by clicking the cell
 const toggleAssigned = (orig: number, shipIndex: number) => {
   const current = getTagData(orig, shipIndex)
+
+  // If already assigned, shoe confirmation dialog to unassign
+  if (current.assigned) {
+    pendingUnassign.value = { orig, shipIndex }
+    showUnassignConfirm.value = true
+    return
+  }
+
+  // Validation: If trying to set assigned to true, check if targetStage is empty
+  if (!current.assigned && !current.targetStage) {
+    showValidationAlert.value = true
+    return
+  }
+
   const updated: TagManagement = {
     ...current,
     assigned: !current.assigned
   }
   props.updateTagManagement(updated)
+}
+
+const handleConfirmUnassign = () => {
+  if (pendingUnassign.value) {
+    const { orig, shipIndex } = pendingUnassign.value
+    const current = getTagData(orig, shipIndex)
+    const updated: TagManagement = {
+      ...current,
+      assigned: false
+    }
+    props.updateTagManagement(updated)
+    pendingUnassign.value = null
+  }
+  showUnassignConfirm.value = false
 }
 
 // Toggle preserve checkbox by clicking the cell
@@ -671,6 +819,8 @@ const openStageSelector = (event: MouseEvent, orig: number, shipIndex: number) =
     editingShipIndex.value = shipIndex
     showStageSelectorPopup.value = true
     hoveredArea.value = null
+    hoveredStage.value = null
+    activeStageCell.value = event.currentTarget as HTMLElement
 
     // Improve positioning to prevent overflow
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
@@ -694,7 +844,7 @@ const openStageSelector = (event: MouseEvent, orig: number, shipIndex: number) =
   }
 }
 
-const handleAreaHover = (event: MouseEvent, area: string) => {
+const handleAreaHover = (event: MouseEvent | KeyboardEvent, area: string) => {
   hoveredArea.value = area
 
   // Calculate sub-menu position based on the hovered item
@@ -716,7 +866,7 @@ const handleAreaHover = (event: MouseEvent, area: string) => {
   subMenuPosition.value = { x: left, y: top }
 }
 
-const handleAreaClick = (event: MouseEvent, area: string) => {
+const handleAreaClick = (event: MouseEvent | KeyboardEvent, area: string) => {
   // Mobile support: click behaves like hover
   handleAreaHover(event, area)
 }
@@ -773,16 +923,43 @@ const cancelCloseSubMenu = () => {
 }
 
 const applyStageSelection = (stage: string) => {
-    if (editingShipOrig.value !== null) {
-        handleTargetStageChange(editingShipOrig.value, editingShipIndex.value, stage)
+  if (editingShipOrig.value !== null) {
+    const current = getTagData(editingShipOrig.value, editingShipIndex.value)
+
+    // If ship is assigned and value is different, show confirmation
+    if (current.assigned && current.targetStage !== stage) {
+      pendingStageSelection.value = { stage }
+      showConfirmDialog.value = true
+      return
     }
-    showStageSelectorPopup.value = false
-    editingShipOrig.value = null
-    hoveredArea.value = null
-    hoveredStage.value = null
+
+    executeStageSelection(stage)
+  }
 }
 
-const handleStageHover = (event: MouseEvent, stage: string) => {
+const executeStageSelection = (stage: string) => {
+  if (editingShipOrig.value !== null) {
+    handleTargetStageChange(editingShipOrig.value, editingShipIndex.value, stage)
+  }
+  closeStageSelector()
+}
+
+const closeStageSelector = () => {
+  showStageSelectorPopup.value = false
+  editingShipOrig.value = null
+  editingShipIndex.value = 0
+  hoveredArea.value = null
+  hoveredStage.value = null
+  activeStageCell.value = null
+}
+
+const handleConfirmStageChange = () => {
+  if (pendingStageSelection.value) {
+    executeStageSelection(pendingStageSelection.value.stage)
+  }
+}
+
+const handleStageHover = (event: MouseEvent | KeyboardEvent, stage: string) => {
     hoveredStage.value = stage
 
     // Position 3rd level menu (Tag selection)
@@ -801,7 +978,7 @@ const handleStageHover = (event: MouseEvent, stage: string) => {
     tagMenuPosition.value = { x: left, y: top }
 }
 
-const handleStageClick = (event: MouseEvent, stage: string) => {
+const handleStageClick = (event: MouseEvent | KeyboardEvent, stage: string) => {
     // If there are tags, just handle hover logic (expand sub-menu)
     // If no tags, select the stage immediately
     const tags = getTagsForStage(stage)
@@ -864,21 +1041,13 @@ const handleClickOutside = (event: MouseEvent) => {
 
   // Handle Stage Selector Popup
   if (showStageSelectorPopup.value) {
-     const clickedTrigger = target.closest('.stage-trigger')
-     let clickedInsideMain = false
-     if (stageSelectorPopupRef.value) {
-        clickedInsideMain = stageSelectorPopupRef.value.contains(target)
-     }
+     const clickedInsideMain = stageSelectorPopupRef.value?.contains(target)
+     const clickedInsideSub = subMenuRef.value?.contains(target)
+     const clickedInsideTag = tagMenuRef.value?.contains(target)
+     const clickedTargetTrigger = target.closest('.stage-trigger') === activeStageCell.value
 
-     let clickedInsideSub = false
-     if (subMenuRef.value) {
-        clickedInsideSub = subMenuRef.value.contains(target)
-     }
-
-     if (!clickedTrigger && !clickedInsideMain && !clickedInsideSub) {
-      showStageSelectorPopup.value = false
-      editingShipOrig.value = null
-      hoveredArea.value = null
+     if (!clickedInsideMain && !clickedInsideSub && !clickedInsideTag && !clickedTargetTrigger) {
+      closeStageSelector()
     }
   }
 }
@@ -889,6 +1058,58 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleStageSelectorKeydown)
+})
+
+const handleStageSelectorKeydown = (event: KeyboardEvent) => {
+  if (!showStageSelectorPopup.value) return
+
+  if (event.key === 'Escape') {
+    closeStageSelector()
+  } else if (event.key === 'Tab') {
+    // Gather all focusable elements across all open menus
+    const focusable: HTMLElement[] = []
+    if (stageSelectorPopupRef.value) {
+      focusable.push(...Array.from(stageSelectorPopupRef.value.querySelectorAll('[tabindex="0"]')) as HTMLElement[])
+    }
+    if (subMenuRef.value) {
+      focusable.push(...Array.from(subMenuRef.value.querySelectorAll('[tabindex="0"]')) as HTMLElement[])
+    }
+    if (tagMenuRef.value) {
+      focusable.push(...Array.from(tagMenuRef.value.querySelectorAll('[tabindex="0"]')) as HTMLElement[])
+    }
+
+    if (focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+
+    if (event.shiftKey) {
+      if (document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      }
+    } else {
+      if (document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+  }
+}
+
+watch(showStageSelectorPopup, (newShow) => {
+  if (newShow) {
+    document.addEventListener('keydown', handleStageSelectorKeydown)
+    setTimeout(() => {
+      if (stageSelectorPopupRef.value) {
+        const first = stageSelectorPopupRef.value.querySelector('[tabindex="0"]') as HTMLElement
+        first?.focus()
+      }
+    }, 0)
+  } else {
+    document.removeEventListener('keydown', handleStageSelectorKeydown)
+  }
 })
 
 // Get row class based on tag flags for better performance than inline styles

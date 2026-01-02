@@ -6,10 +6,10 @@
       <!-- Status Summary Box (Below Title) -->
       <div class="px-3 py-1 bg-gray-500 border border-dotted border-gray-400 rounded-lg text-white text-[14px] leading-relaxed inline-block self-start min-w-[220px]">
         <div class="grid grid-cols-[auto,1fr] gap-x-1 items-center">
-          <div class="whitespace-nowrap text-[12px]">出撃(予定)海域：</div>
+          <div class="whitespace-nowrap text-[12px]">出撃{{ tagData.assigned ? '' : '(予定)' }}海域：</div>
           <div>{{ parseTagFromTargetStage(tagData.targetStage)?.stage || '-' }}</div>
 
-          <div class="whitespace-nowrap text-[12px]">割当(予定)札：</div>
+          <div class="whitespace-nowrap text-[12px]">割当{{ tagData.assigned ? '' : '(予定)' }}札：</div>
           <div class="flex items-center gap-1">
             <span
               v-if="assignedTagName"
@@ -46,9 +46,13 @@
             <!-- 温存 -->
             <div class="flex items-center">
               <span
-                @click="togglePreserve"
-                class="cursor-pointer select-none text-sm font-medium whitespace-nowrap"
-                :class="tagData.preserve ? 'text-blue-600' : 'text-gray-300'"
+                @click="!tagData.assigned && togglePreserve()"
+                @mouseenter="tagData.assigned && handleMouseEnterWarning($event, '割当済の艦は温存できません')"
+                @mouseleave="handleMouseLeaveWarning"
+                class="select-none text-sm font-medium whitespace-nowrap cursor-pointer"
+                :class="[
+                  (tagData.preserve && !tagData.assigned) ? 'text-blue-600' : 'text-gray-300'
+                ]"
               >
                 温存
               </span>
@@ -58,7 +62,7 @@
 
         <!-- 割当先 (Stage Buttons) with Box -->
         <div class="relative pt-3">
-          <span class="absolute top-0 left-0 text-[10px] text-gray-400 leading-none">クリックで選択</span>
+          <span class="absolute top-0 left-0 text-[10px] text-gray-400 leading-none">クリックで割当先・割当札を選択</span>
           <div class="flex flex-col border border-dotted border-gray-300 rounded p-2">
             <div class="flex flex-wrap gap-1">
               <button
@@ -135,12 +139,46 @@
         />
       </div>
     </div>
+
+    <!-- Validation Alert -->
+    <BaseDialog
+      v-model:show="showValidationAlert"
+      type="alert"
+      message="先に割当先と割当札を選択してください"
+    />
+
+    <!-- Confirmation Dialog -->
+    <BaseDialog
+      v-model:show="showConfirmDialog"
+      type="confirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+    />
+
+    <BaseDialog
+      v-model:show="showUnassignConfirm"
+      type="confirm"
+      :message="unassignConfirmMessage"
+      @confirm="handleConfirmUnassign"
+    />
+
+    <!-- Custom Tooltip UI -->
+    <Teleport to="body">
+      <div
+        v-if="tooltipState.show"
+        class="fixed z-[9999] px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg pointer-events-none whitespace-nowrap -translate-x-1/2 -translate-y-full mb-2 border border-gray-600"
+        :style="{ top: tooltipState.y + 'px', left: tooltipState.x + 'px' }"
+      >
+        {{ tooltipState.content }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Ship, TagManagement } from '@/types/interfaces'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 
 const props = defineProps<{
   ship: Ship
@@ -172,13 +210,67 @@ const tagData = computed(() => {
   }
 })
 
+const showValidationAlert = ref(false)
+
+// Confirmation Dialog State
+const showConfirmDialog = ref(false)
+const pendingAction = ref<(() => void) | null>(null)
+const confirmMessage = "すでに制御札割当済の艦の情報を変更しようとしています\n実行してよろしいですか"
+
+// Unassign Confirmation State
+const showUnassignConfirm = ref(false)
+const unassignConfirmMessage = "割当済チェックを外しますか"
+
+// Custom Tooltip State
+const tooltipState = ref({
+  show: false,
+  content: '',
+  x: 0,
+  y: 0
+})
+
+const handleMouseEnterWarning = (e: MouseEvent, content: string) => {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  tooltipState.value = {
+    show: true,
+    content,
+    x: rect.left + rect.width / 2,
+    y: rect.top - 5 // Position just above the element
+  }
+}
+
+const handleMouseLeaveWarning = () => {
+  tooltipState.value.show = false
+}
+
 // Toggle functions
 const toggleAssigned = () => {
+  // If already assigned, show confirmation dialog to unassign
+  if (tagData.value.assigned) {
+    showUnassignConfirm.value = true
+    return
+  }
+
+  // Validation: If trying to set assigned to true, check if targetStage is empty
+  if (!tagData.value.assigned && !tagData.value.targetStage) {
+    showValidationAlert.value = true
+    return
+  }
+
   const updated: TagManagement = {
     ...tagData.value,
     assigned: !tagData.value.assigned
   }
   props.updateTagManagement(updated)
+}
+
+const handleConfirmUnassign = () => {
+  const updated: TagManagement = {
+    ...tagData.value,
+    assigned: false
+  }
+  props.updateTagManagement(updated)
+  showUnassignConfirm.value = false
 }
 
 const togglePreserve = () => {
@@ -233,6 +325,7 @@ const stagesForSelectedArea = computed(() => {
 const handleAreaClick = (event: MouseEvent, area: string) => {
   selectedArea.value = area
   showStagePopup.value = true
+  hoveredStage.value = null
 
   const rect = (event.target as HTMLElement).getBoundingClientRect()
   stagePopupPosition.value = {
@@ -267,6 +360,15 @@ const getTagsForStage = (stage: string) => {
 }
 
 const applyStageSelection = (stage: string) => {
+  if (tagData.value.assigned && tagData.value.targetStage !== stage) {
+    pendingAction.value = () => executeStageSelection(stage)
+    showConfirmDialog.value = true
+    return
+  }
+  executeStageSelection(stage)
+}
+
+const executeStageSelection = (stage: string) => {
   const updated: TagManagement = {
     ...tagData.value,
     targetStage: stage
@@ -275,9 +377,20 @@ const applyStageSelection = (stage: string) => {
   showStagePopup.value = false
   selectedArea.value = null
   hoveredStage.value = null
+  pendingAction.value = null
 }
 
 const applyTagSelection = (stage: string, tagName: string) => {
+  const value = `${stage} (${tagName})`
+  if (tagData.value.assigned && tagData.value.targetStage !== value) {
+    pendingAction.value = () => executeTagSelection(stage, tagName)
+    showConfirmDialog.value = true
+    return
+  }
+  executeTagSelection(stage, tagName)
+}
+
+const executeTagSelection = (stage: string, tagName: string) => {
   const value = `${stage} (${tagName})`
   const updated: TagManagement = {
     ...tagData.value,
@@ -287,14 +400,31 @@ const applyTagSelection = (stage: string, tagName: string) => {
   showStagePopup.value = false
   selectedArea.value = null
   hoveredStage.value = null
+  pendingAction.value = null
 }
 
 const clearStage = () => {
+  if (tagData.value.assigned && tagData.value.targetStage) {
+    pendingAction.value = () => executeClearStage()
+    showConfirmDialog.value = true
+    return
+  }
+  executeClearStage()
+}
+
+const executeClearStage = () => {
   const updated: TagManagement = {
     ...tagData.value,
     targetStage: ''
   }
   props.updateTagManagement(updated)
+  pendingAction.value = null
+}
+
+const handleConfirm = () => {
+  if (pendingAction.value) {
+    pendingAction.value()
+  }
 }
 
 // Parse tag from targetStage

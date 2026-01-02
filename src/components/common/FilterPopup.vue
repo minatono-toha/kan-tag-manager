@@ -163,7 +163,7 @@ watch(() => props.modelValue, (newVal) => {
   tempValue.value = newVal
 }, { deep: true })
 
-// Watch for show changes to reset temp value
+// Watch for show changes to handle focus and listeners
 watch(() => props.show, (newShow) => {
   if (newShow) {
     // Initialize temp value when popup opens
@@ -174,8 +174,54 @@ watch(() => props.show, (newShow) => {
     } else {
       tempValue.value = props.modelValue
     }
+
+    // Add keydown listener
+    document.addEventListener('keydown', handleKeydown)
+
+    // Autofocus first focusable element
+    setTimeout(() => {
+      const focusable = getFocusableElements()
+      if (focusable.length > 0) {
+        focusable[0].focus()
+      }
+    }, 0)
+  } else {
+    document.removeEventListener('keydown', handleKeydown)
   }
 })
+
+const getFocusableElements = (): HTMLElement[] => {
+  if (!popupRef.value) return []
+  return Array.from(
+    popupRef.value.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+  ) as HTMLElement[]
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (!props.show) return
+
+  if (event.key === 'Escape') {
+    emit('close')
+  } else if (event.key === 'Tab') {
+    const focusable = getFocusableElements()
+    if (focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+
+    if (event.shiftKey) {
+      if (document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      }
+    } else {
+      if (document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+  }
+}
 
 const handleApply = () => {
   emit('apply', tempValue.value)
