@@ -77,9 +77,15 @@
             <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
               <button
                 @click="handleDisplayModeChange(shipListDisplayMode === 'detail' ? 'nameOnly' : 'detail')"
-                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
               >
                 {{ shipListDisplayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
+              </button>
+              <button
+                @click="showUnownedShips = !showUnownedShips"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                {{ showUnownedShips ? '未所持艦を表示しない' : '未所持艦を表示する' }}
               </button>
             </div>
           </div>
@@ -90,7 +96,8 @@
               :targetHeaderHeight="attackTableHeaderHeight"
               :hasFiltersSelected="selectedFilterIds.length > 0"
               :displayMode="shipListDisplayMode"
-              :selectedEventId="selectedEventId"
+               :show-unowned-ships="showUnownedShips"
+               :selectedEventId="selectedEventId"
               :tagManagementData="tagManagementData"
               :theme="theme"
               :all-ships="allShips"
@@ -239,6 +246,7 @@ export default defineComponent({
     const loading = ref(false)
     const attackTableHeaderHeight = ref<number | undefined>(undefined)
     const shipListDisplayMode = ref<'detail' | 'nameOnly'>('detail')
+    const showUnownedShips = ref(true)
     const attackSortByMode = ref<string>('area')
     const attackIsAllExpanded = ref<boolean>(false)
 
@@ -428,6 +436,7 @@ export default defineComponent({
       handleDisplayModeChange,
       attackSortByMode,
       attackIsAllExpanded,
+      showUnownedShips,
       handleToggleSortMode,
       handleToggleAllStages,
       attackTableRef,

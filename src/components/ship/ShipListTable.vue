@@ -230,6 +230,7 @@ const props = withDefaults(defineProps<{
   theme?: 'light' | 'dark' | 'gradient'
   allShips?: Ship[]
   variantMap: Map<string, number>
+  showUnownedShips: boolean
 }>(), {
   theme: 'light',
   allShips: () => []
@@ -523,8 +524,9 @@ const filteredShips = computed(() => {
   const hasClassFilter = classSearchQuery.value.trim()
   const hasSpeedFilter = speedFilterValue.value
   const hasShipTypeFilter = shipTypeFilter.value.length > 0
+  const hasUnownedFilter = !props.showUnownedShips
 
-  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter) {
+  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter && !hasUnownedFilter) {
     return props.ships
   }
 
@@ -532,6 +534,10 @@ const filteredShips = computed(() => {
   const classQuery = hasClassFilter ? classSearchQuery.value.toLowerCase() : ''
 
   return props.ships.filter(ship => {
+    if (hasUnownedFilter && ship.ownershipCount === 0) {
+      return false
+    }
+
     const displayShip = getDisplayShip(ship)
 
     if (hasNameFilter) {
@@ -561,7 +567,7 @@ const filteredShips = computed(() => {
 watchDebounced(
   filteredShips,
   (newFilteredShips) => {
-    const isFiltering = !!(searchQuery.value.trim() || classSearchQuery.value.trim() || speedFilterValue.value || shipTypeFilter.value.length > 0)
+    const isFiltering = !!(searchQuery.value.trim() || classSearchQuery.value.trim() || speedFilterValue.value || shipTypeFilter.value.length > 0 || !props.showUnownedShips)
     emit('filter-change', newFilteredShips, isFiltering)
   },
   { debounce: 150, maxWait: 300 }
