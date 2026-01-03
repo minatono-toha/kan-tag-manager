@@ -5,7 +5,22 @@
       <thead class="bg-gray-100 sticky top-0 z-50">
         <tr>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">艦種</th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="shipTypeFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
+            <div>艦種</div>
+            <span
+              @click="toggleShipTypeFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="shipTypeIconRef"
+            >
+              <svg v-if="shipTypeFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+              </svg>
+            </span>
+          </th>
           <th :style="{ ...cellStyle, ...headerStyle, width: '210px', minWidth: '210px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦名</div>
             <span
@@ -74,7 +89,7 @@
           :class="getRowClass(ship.orig, ship.shipIndex)"
         >
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.shipType }}</td>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ getDisplayShip(ship).shipType }}</td>
           <td :style="cellStyle" class="border">
             <div class="flex items-center gap-2">
               <!-- Increment/Decrement buttons -->
@@ -158,6 +173,19 @@
       @clear="() => { speedFilterValue = ''; showSpeedFilter = false }"
       @close="showSpeedFilter = false"
       ref="speedPopupRef"
+    />
+
+    <FilterPopup
+      :show="showShipTypeFilter"
+      :position="shipTypeFilterPosition"
+      type="checkbox"
+      title="艦種で絞り込み"
+      :modelValue="shipTypeFilter"
+      :options="uniqueShipTypes"
+      @apply="(value) => { shipTypeFilter = value as string[]; showShipTypeFilter = false }"
+      @clear="() => { shipTypeFilter = []; showShipTypeFilter = false }"
+      @close="showShipTypeFilter = false"
+      ref="shipTypePopupRef"
     />
 
     <!-- Variant Selection Popup -->
@@ -245,10 +273,17 @@ const speedFilterPosition = ref({ x: 0, y: 0 })
 const speedIconRef = ref<HTMLElement | null>(null)
 const speedPopupRef = ref<HTMLElement | null>(null)
 
+const showShipTypeFilter = ref(false)
+const shipTypeFilter = ref<string[]>([])
+const shipTypeFilterPosition = ref({ x: 0, y: 0 })
+const shipTypeIconRef = ref<HTMLElement | null>(null)
+const shipTypePopupRef = ref<HTMLElement | null>(null)
+
 const closeAllPopups = () => {
   showSearchInput.value = false
   showClassSearchInput.value = false
   showSpeedFilter.value = false
+  showShipTypeFilter.value = false
   showVariantPopup.value = false
 }
 
@@ -288,6 +323,20 @@ function toggleSpeedFilter(event: MouseEvent) {
   if (showSpeedFilter.value) {
     const rect = (event.target as HTMLElement).getBoundingClientRect()
     speedFilterPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 5
+    }
+  }
+}
+
+function toggleShipTypeFilter(event: MouseEvent) {
+  const willOpen = !showShipTypeFilter.value
+  if (willOpen) closeAllPopups()
+  showShipTypeFilter.value = willOpen
+
+  if (showShipTypeFilter.value) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    shipTypeFilterPosition.value = {
       x: rect.left,
       y: rect.bottom + 5
     }
@@ -387,6 +436,14 @@ function handleClickOutside(event: MouseEvent) {
     }
   }
 
+  if (showShipTypeFilter.value && shipTypePopupRef.value) {
+    const clickedIcon = shipTypeIconRef.value?.contains(target)
+    const clickedPopup = (shipTypePopupRef.value as any).popupRef?.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showShipTypeFilter.value = false
+    }
+  }
+
   if (showVariantPopup.value && variantPopupRef.value) {
      if (!variantPopupRef.value.contains(target)) {
         showVariantPopup.value = false
@@ -450,12 +507,24 @@ const emptyStateMessage = computed(() => {
   return '該当なし'
 })
 
+const uniqueShipTypes = computed(() => {
+  const types = new Set<string>()
+  props.ships.forEach(ship => {
+    const displayShip = getDisplayShip(ship)
+    if (displayShip.shipType) {
+      types.add(displayShip.shipType)
+    }
+  })
+  return Array.from(types).sort()
+})
+
 const filteredShips = computed(() => {
   const hasNameFilter = searchQuery.value.trim()
   const hasClassFilter = classSearchQuery.value.trim()
   const hasSpeedFilter = speedFilterValue.value
+  const hasShipTypeFilter = shipTypeFilter.value.length > 0
 
-  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter) {
+  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter) {
     return props.ships
   }
 
@@ -463,21 +532,26 @@ const filteredShips = computed(() => {
   const classQuery = hasClassFilter ? classSearchQuery.value.toLowerCase() : ''
 
   return props.ships.filter(ship => {
+    const displayShip = getDisplayShip(ship)
+
     if (hasNameFilter) {
-      const nameMatch = ship.name.toLowerCase().includes(nameQuery)
-      const kanaMatch = ship.read_kana?.toLowerCase().includes(nameQuery) ?? false
-      const kataMatch = ship.read_kata?.toLowerCase().includes(nameQuery) ?? false
-      const romaji1Match = ship.read_romaji1?.toLowerCase().includes(nameQuery) ?? false
-      const romaji2Match = ship.read_romaji2?.toLowerCase().includes(nameQuery) ?? false
+      const nameMatch = displayShip.name.toLowerCase().includes(nameQuery)
+      const kanaMatch = displayShip.read_kana?.toLowerCase().includes(nameQuery) ?? false
+      const kataMatch = displayShip.read_kata?.toLowerCase().includes(nameQuery) ?? false
+      const romaji1Match = displayShip.read_romaji1?.toLowerCase().includes(nameQuery) ?? false
+      const romaji2Match = displayShip.read_romaji2?.toLowerCase().includes(nameQuery) ?? false
 
       if (!nameMatch && !kanaMatch && !kataMatch && !romaji1Match && !romaji2Match) {
         return false
       }
     }
-    if (hasClassFilter && !ship.class.toLowerCase().includes(classQuery)) {
+    if (hasClassFilter && !displayShip.class.toLowerCase().includes(classQuery)) {
       return false
     }
-    if (hasSpeedFilter && ship.speed !== speedFilterValue.value) {
+    if (hasSpeedFilter && displayShip.speed !== speedFilterValue.value) {
+      return false
+    }
+    if (hasShipTypeFilter && !shipTypeFilter.value.includes(displayShip.shipType)) {
       return false
     }
     return true
@@ -487,7 +561,7 @@ const filteredShips = computed(() => {
 watchDebounced(
   filteredShips,
   (newFilteredShips) => {
-    const isFiltering = !!(searchQuery.value.trim() || classSearchQuery.value.trim() || speedFilterValue.value)
+    const isFiltering = !!(searchQuery.value.trim() || classSearchQuery.value.trim() || speedFilterValue.value || shipTypeFilter.value.length > 0)
     emit('filter-change', newFilteredShips, isFiltering)
   },
   { debounce: 150, maxWait: 300 }
