@@ -167,7 +167,7 @@
     </div>
 
     <!-- Dataset Tabs (Bottom Fixed) -->
-    <DatasetTabs class="flex-none z-[100]" />
+    <DatasetTabs class="flex-none z-[100]" :theme="theme" />
 
     <!-- モーダル -->
     <ShipModal

@@ -78,6 +78,8 @@
                   @click="triggerCsvImport"
                   class="px-2 py-1 bg-gray-300 text-gray-800 border border-gray-400 rounded hover:bg-gray-400 text-xs flex items-center gap-1 shadow-sm transition-colors whitespace-nowrap"
                   :disabled="loading"
+                  @mouseenter="handleMouseEnter($event, '艦名のみ、改行区切りのUTF-8形式のCSVを取り込みます')"
+                  @mouseleave="handleMouseLeave"
                 >
                   <span>csvから取り込み(艦船のみ)</span>
                 </button>
@@ -108,6 +110,15 @@
         :excluded="importResult.excluded"
         @close="closeResultModal"
       />
+    <Teleport to="body">
+      <div
+        v-if="tooltipState.show"
+        class="fixed z-[9999] px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg pointer-events-none whitespace-nowrap -translate-x-1/2 -translate-y-full mb-2 border border-gray-600"
+        :style="{ top: tooltipState.y + 'px', left: tooltipState.x + 'px' }"
+      >
+        {{ tooltipState.content }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -139,8 +150,30 @@ export default defineComponent({
 
     const loading = ref(false)
     const codeText = ref('')
-    const isExpanded = ref(false)
     const fileInput = ref<HTMLInputElement | null>(null)
+    const isExpanded = ref(false)
+
+    // Custom Tooltip State
+    const tooltipState = ref({
+      show: false,
+      content: '',
+      x: 0,
+      y: 0
+    })
+
+    const handleMouseEnter = (e: MouseEvent, content: string) => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      tooltipState.value = {
+        show: true,
+        content,
+        x: rect.left + rect.width / 2,
+        y: rect.top - 5 // Position just above the element
+      }
+    }
+
+    const handleMouseLeave = () => {
+      tooltipState.value.show = false
+    }
 
     // CSV Import State
     const showDestinationModal = ref(false)
@@ -312,7 +345,10 @@ export default defineComponent({
       importResult,
       handleDestinationSelect,
       closeDestinationModal,
-      closeResultModal
+      closeResultModal,
+      tooltipState,
+      handleMouseEnter,
+      handleMouseLeave
     }
   }
 })

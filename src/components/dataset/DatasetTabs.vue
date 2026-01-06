@@ -44,18 +44,21 @@
       :visible="showNameModal"
       @close="showNameModal = false"
       @confirm="handleCreateDataset"
+      :theme="theme"
     />
 
     <DatasetDeleteModal
       :visible="showDeleteModal"
       @close="showDeleteModal = false"
       @confirm="handleDeleteDataset"
+      :theme="theme"
     />
 
     <DatasetSwitchModal
       :visible="showSwitchModal"
       @close="showSwitchModal = false"
       @confirm="handleSwitchDataset"
+      :theme="theme"
     />
   </div>
 </template>
@@ -70,6 +73,12 @@ import DatasetSwitchModal from './DatasetSwitchModal.vue'
 export default defineComponent({
   name: 'DatasetTabs',
   components: { DatasetNameModal, DatasetDeleteModal, DatasetSwitchModal },
+  props: {
+    theme: {
+      type: String,
+      default: 'light'
+    }
+  },
   setup() {
     const datasetStore = useDatasetStore()
     const showNameModal = ref(false)
