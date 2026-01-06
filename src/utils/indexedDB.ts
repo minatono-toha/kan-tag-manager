@@ -77,7 +77,7 @@ export async function initDB(): Promise<IDBPDatabase> {
     },
     blocking() {
       console.warn('IndexedDB upgrade blocking another tab.')
-      db.close() // Close connection to allow upgrade
+      dbPromise?.then(db => db.close()) // Close connection to allow upgrade
       dbPromise = null
     },
     terminated() {

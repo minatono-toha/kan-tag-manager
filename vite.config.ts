@@ -12,5 +12,5 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  base: '/kan-tag-manager/', // GitHub Pages 用
+  base: './', // GitHub Pages 用 (相対パスに変更)
 })
