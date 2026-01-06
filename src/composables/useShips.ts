@@ -9,21 +9,24 @@ import {
   saveShipVariantOverride
 } from '@/utils/indexedDB'
 
+// --- Singleton State ---
+const allShips = ref<Ship[]>([])
+const uniqueOrigs = ref<Ship[]>([])
+const filters = ref<{ id: number; label: string }[]>([])
+const selectedFilterIds = ref<number[]>([])
+
+// Ship ownership data (orig -> count)
+const shipOwnershipMap = ref<Map<number, number>>(new Map())
+
+// Ship variant overrides (orig_shipIndex -> variantId)
+const shipVariantMap = ref<Map<string, number>>(new Map())
+
+// Search state
+const filteredShipsFromSearch = ref<ExpandedShip[]>([])
+const isSearchActive = ref(false)
+// -----------------------
+
 export function useShips() {
-  const allShips = ref<Ship[]>([])
-  const uniqueOrigs = ref<Ship[]>([])
-  const filters = ref<{ id: number; label: string }[]>([])
-  const selectedFilterIds = ref<number[]>([])
-
-  // Ship ownership data (orig -> count)
-  const shipOwnershipMap = ref<Map<number, number>>(new Map())
-
-  // Ship variant overrides (orig_shipIndex -> variantId)
-  const shipVariantMap = ref<Map<string, number>>(new Map())
-
-  // Search state
-  const filteredShipsFromSearch = ref<ExpandedShip[]>([])
-  const isSearchActive = ref(false)
 
   const fetchShips = async () => {
     const snap = await getDocs(collection(db, 'shiplist'))

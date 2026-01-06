@@ -38,17 +38,7 @@
       </div>
     </div>
 
-    <!-- ご意見・ご要望リンク（ラベルの高さに合わせる） -->
-    <div class="absolute top-3 right-4 w-64 text-right">
-      <a
-        href="https://tally.so/r/2EaBrD"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="text-xxs text-blue-600 hover:text-blue-800"
-      >
-        ご意見・ご要望はコチラ
-      </a>
-    </div>
+
 
     <!-- 更新履歴（入力枠の高さに合わせる） -->
     <div class="absolute top-[33px] right-4 w-64">

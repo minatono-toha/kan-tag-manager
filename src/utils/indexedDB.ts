@@ -1,18 +1,38 @@
-import { openDB, type IDBPDatabase } from 'idb'
+import { openDB, type IDBPDatabase, deleteDB } from 'idb'
 import type { TagManagement, ShipOwnership, ShipVariantOverride } from '@/types/interfaces'
 
-const DB_NAME = 'KanTagManagerDB'
+const DEFAULT_DB_NAME = 'KanTagManagerDB'
 const TAG_STORE_NAME = 'tagManagement'
 const OWNERSHIP_STORE_NAME = 'shipOwnership'
 const VARIANT_STORE_NAME = 'shipVariant'
-const DB_VERSION = 4 // Bumped to 4 for robust store creation and idb migration
+const METADATA_STORE_NAME = 'externalMetadata'
+const DB_VERSION = 5 // Bumped to 5 for metadata store
 
 let dbPromise: Promise<IDBPDatabase> | null = null
+
+// Get current active database name from localStorage
+export function getActiveDBName(): string {
+  return localStorage.getItem('kan-tag-active-db') || DEFAULT_DB_NAME
+}
+
+export function setActiveDBName(name: string) {
+  localStorage.setItem('kan-tag-active-db', name)
+}
+
+export async function resetDBConnection() {
+  if (dbPromise) {
+    const db = await dbPromise
+    db.close()
+    dbPromise = null
+  }
+}
 
 export async function initDB(): Promise<IDBPDatabase> {
   if (dbPromise) return dbPromise
 
-  dbPromise = openDB(DB_NAME, DB_VERSION, {
+  const dbName = getActiveDBName()
+
+  dbPromise = openDB(dbName, DB_VERSION, {
     upgrade(db, oldVersion, newVersion, transaction) {
       console.log(`IndexedDB upgrade: v${oldVersion} -> v${newVersion}`)
 
@@ -44,6 +64,11 @@ export async function initDB(): Promise<IDBPDatabase> {
         variantStore.createIndex('orig', 'orig', { unique: false })
       }
 
+      if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
+        const metadataStore = db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'id' })
+        metadataStore.createIndex('orig', 'orig', { unique: false })
+      }
+
       console.log('IndexedDB initialization complete.')
     },
     blocked() {
@@ -52,6 +77,8 @@ export async function initDB(): Promise<IDBPDatabase> {
     },
     blocking() {
       console.warn('IndexedDB upgrade blocking another tab.')
+      db.close() // Close connection to allow upgrade
+      dbPromise = null
     },
     terminated() {
       console.error('IndexedDB connection terminated unexpectedly.')
@@ -60,6 +87,10 @@ export async function initDB(): Promise<IDBPDatabase> {
   })
 
   return dbPromise
+}
+
+export async function deleteDatabase(dbName: string): Promise<void> {
+  await deleteDB(dbName)
 }
 
 // ===== Ship Ownership Functions =====
@@ -135,6 +166,12 @@ export async function getAllTagManagementForEvent(eventId: number): Promise<TagM
   return await db.getAllFromIndex(TAG_STORE_NAME, 'eventId', eventId)
 }
 
+export async function getAllTagManagement(): Promise<TagManagement[]> {
+  const db = await initDB()
+  return await db.getAll(TAG_STORE_NAME)
+}
+
+
 export async function deleteTagManagement(
   eventId: number,
   orig: number,
@@ -163,4 +200,38 @@ export async function saveShipVariantOverride(data: ShipVariantOverride): Promis
 export async function getAllShipVariantOverrides(): Promise<ShipVariantOverride[]> {
   const db = await initDB()
   return await db.getAll(VARIANT_STORE_NAME)
+}
+
+// ===== External Metadata Functions =====
+
+export interface ExternalShipMetadata {
+  id?: string // `${orig}_${shipIndex}`
+  orig: number
+  shipIndex: number
+  // JSON fields to preserve
+  lv: number
+  st: number[]
+  exp: number[]
+  ex: number
+  sp: number[]
+  // Any other unknown fields
+  [key: string]: any
+}
+
+function generateMetadataKey(orig: number, shipIndex: number): string {
+    return `${orig}_${shipIndex}`
+}
+
+export async function saveShipMetadata(data: ExternalShipMetadata): Promise<void> {
+    const db = await initDB()
+    const dataWithId = {
+        ...data,
+        id: generateMetadataKey(data.orig, data.shipIndex)
+    }
+    await db.put(METADATA_STORE_NAME, dataWithId)
+}
+
+export async function getAllShipMetadata(): Promise<ExternalShipMetadata[]> {
+    const db = await initDB()
+    return await db.getAll(METADATA_STORE_NAME)
 }

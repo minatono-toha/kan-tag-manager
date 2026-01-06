@@ -1,7 +1,14 @@
 <template>
-  <div class="app-container" :class="`theme-${theme}`">
-    <!-- イベント選択 & タブ (固定ヘッダー) -->
-    <div class="sticky top-0 bg-white z-[100] shadow-md border-b">
+  <div class="app-container h-screen flex flex-col overflow-hidden" :class="`theme-${theme}`">
+    <!-- 固定ヘッダーエリア -->
+    <div class="flex-none bg-white z-[100] shadow-md border-b">
+      <!-- Dataset Control Bar (Top) -->
+      <DatasetControlBar
+         :selectedEventId="selectedEventId || 0"
+         :all-ships="allShips"
+      />
+
+      <!-- イベント選択 -->
       <div class="px-1 pt-0.5 pb-0.5">
         <EventSelect
           :selectedEventId="selectedEventId"
@@ -27,12 +34,12 @@
 
     <!-- メインコンテンツ：ここにスクロール管理を集約 -->
     <div
-      class="main-scroll-container overflow-y-auto overflow-x-auto h-[calc(100vh-200px)] px-1 pb-1"
+      class="main-scroll-container flex-1 overflow-y-auto overflow-x-auto px-1 pb-1"
       ref="scrollRef"
       @scroll="onScroll"
       :style="{ fontSize: `${scaleFactor * 100}%` }"
     >
-      <div class="main-content flex gap-10">
+      <div class="main-content flex gap-10 min-h-[calc(100%-60px)]">
         <!-- 札管理（左側） -->
         <div
           class="tag-manage-container flex-none flex flex-col"
@@ -148,7 +155,19 @@
           </div>
         </div>
       </div>
+
+       <!-- フッター (スクロールエリア内へ移動) -->
+      <footer class="bg-gray-50 border-t border-gray-300 py-4 px-6 text-center mt-10">
+        <div class="text-xs text-gray-500 space-y-1">
+          <p>本サイトは、ゲーム内イベントの攻略支援を目的とした非公式サイトです。</p>
+          <p>バナー等ゲーム内で使用されている画像は、著作権法第32条に基づき、説明・識別のために必要最小限の範囲で引用しています。</p>
+          <p>画像の著作権は、DMM GAMES様および原著作物の権利者に帰属します。</p>
+        </div>
+      </footer>
     </div>
+
+    <!-- Dataset Tabs (Bottom Fixed) -->
+    <DatasetTabs class="flex-none z-[100]" />
 
     <!-- モーダル -->
     <ShipModal
@@ -167,15 +186,6 @@
       @close="closeModal"
       @select-variant="handleVariantSelectFromModal"
     />
-
-    <!-- フッター -->
-    <footer class="bg-gray-50 border-t border-gray-300 py-4 px-6 text-center">
-      <div class="text-xs text-gray-500 space-y-1">
-        <p>本サイトは、ゲーム内イベントの攻略支援を目的とした非公式サイトです。</p>
-        <p>バナー等ゲーム内で使用されている画像は、著作権法第32条に基づき、説明・識別のために必要最小限の範囲で引用しています。</p>
-        <p>画像の著作権は、DMM GAMES様および原著作物の権利者に帰属します。</p>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -190,6 +200,8 @@ import AttackTable from './components/attack/AttackTable.vue'
 import TagManageTable from './components/tag-manage/TagManageTable.vue'
 import EventSelect from './components/eventselect/EventSelect.vue'
 import ThemeSelector from './components/theme/ThemeSelector.vue'
+import DatasetTabs from './components/dataset/DatasetTabs.vue'
+import DatasetControlBar from './components/dataset/DatasetControlBar.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
@@ -203,7 +215,9 @@ export default defineComponent({
     AttackTable,
     TagManageTable,
     EventSelect,
-    ThemeSelector
+    ThemeSelector,
+    DatasetTabs,
+    DatasetControlBar
   },
   setup() {
     const { theme, handleThemeChange } = useTheme()
