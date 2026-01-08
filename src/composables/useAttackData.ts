@@ -52,18 +52,18 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
     try {
       await fetchEventMaps()
       await fetchTags()
-      const snap = await getDocs(collection(db, 'maintable'))
+      const q = query(collection(db, 'maintable'), where('eventId', '==', selectedEventId.value))
+      const snap = await getDocs(q)
       const results: Record<number, Record<string, number>> = {}
       snap.forEach((doc) => {
         const data = doc.data()
-        if (data.eventId === selectedEventId.value) {
-          const orig: number = data.orig
-          results[orig] = {}
-          for (const map of eventMaps.value) {
-            const mapKey = `mapId_${map.mapId}`
-            if (typeof data[mapKey] === 'number') {
-              results[orig][mapKey] = data[mapKey]
-            }
+        // No need to check eventId here as query already filtered it
+        const orig: number = data.orig
+        results[orig] = {}
+        for (const map of eventMaps.value) {
+          const mapKey = `mapId_${map.mapId}`
+          if (typeof data[mapKey] === 'number') {
+            results[orig][mapKey] = data[mapKey]
           }
         }
       })

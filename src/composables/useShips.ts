@@ -1,7 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
-import type { Ship, ExpandedShip, ShipVariantOverride } from '@/types/interfaces'
+import type { Ship, ExpandedShip } from '@/types/interfaces'
 import {
   getAllShipOwnership,
   saveShipOwnership,
@@ -28,7 +28,9 @@ const isSearchActive = ref(false)
 
 export function useShips() {
 
-  const fetchShips = async () => {
+  const fetchShips = async (force = false) => {
+    if (!force && allShips.value.length > 0) return
+
     const snap = await getDocs(collection(db, 'shiplist'))
     allShips.value = snap.docs.map((doc) => {
       const ship = doc.data() as Ship
@@ -37,7 +39,9 @@ export function useShips() {
     getUniqueOrigs()
   }
 
-  const fetchFilters = async () => {
+  const fetchFilters = async (force = false) => {
+    if (!force && filters.value.length > 0) return
+
     const snap = await getDocs(collection(db, 'filter'))
     filters.value = snap.docs
       .map((doc) => {

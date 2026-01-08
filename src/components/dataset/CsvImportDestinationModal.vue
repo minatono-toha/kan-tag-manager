@@ -1,13 +1,19 @@
 <template>
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl p-6 w-[400px]">
-      <h3 class="text-lg font-bold text-gray-800 mb-4">出力先を選択</h3>
-      <p class="text-sm text-gray-600 mb-6">
-        CSVから取り込んだ艦船データをどこに出力しますか？
-        <br>
-        <span class="text-xs text-red-500">※「上書き」を選択すると、現在のタブの所持数データがCSVの内容で置き換わります。</span>
-      </p>
+  <BaseShipModal
+    :visible="true"
+    width="md"
+    title="出力先を選択"
+    :z-index="1000"
+    :close-on-overlay="false"
+    :show-default-footer="false"
+  >
+    <p class="text-sm text-gray-600 mb-6">
+      CSVから取り込んだ艦船データをどこに出力しますか？
+      <br>
+      <span class="text-xs text-red-500">※「上書き」を選択すると、現在のタブの所持数データがCSVの内容で置き換わります。</span>
+    </p>
 
+    <template #footer>
       <div class="flex flex-col gap-3">
         <button
           @click="$emit('select', 'overwrite')"
@@ -29,15 +35,19 @@
           キャンセル
         </button>
       </div>
-    </div>
-  </div>
+    </template>
+  </BaseShipModal>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import BaseShipModal from '@/components/common/BaseShipModal.vue'
 
 export default defineComponent({
   name: 'CsvImportDestinationModal',
+  components: {
+    BaseShipModal
+  },
   emits: ['select', 'cancel']
 })
 </script>

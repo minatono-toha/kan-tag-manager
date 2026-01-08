@@ -1,26 +1,22 @@
 <template>
-  <Teleport to="body">
-    <div v-if="visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]">
-    <div
-      class="rounded-lg shadow-lg p-6 w-96 transition-colors duration-200"
-      :class="theme !== 'light' ? 'bg-gray-800' : 'bg-white'"
-      @click.stop
+  <BaseShipModal
+    :visible="visible"
+    :theme="theme"
+    title="データセットの削除"
+    @close="$emit('close')"
+    @confirm="$emit('confirm')"
+    confirm-text="削除"
+    confirm-variant="danger"
+  >
+    <p
+      class="text-sm mb-2"
+      :class="theme !== 'light' ? 'text-gray-300' : 'text-gray-600'"
     >
-      <h3
-        class="text-lg font-medium mb-2"
-        :class="theme !== 'light' ? 'text-white' : 'text-gray-900'"
-      >
-        データセットの削除
-      </h3>
+      このデータセットを削除してもよろしいですか？<br>
+      この操作は取り消せません。
+    </p>
 
-      <p
-        class="text-sm mb-6"
-        :class="theme !== 'light' ? 'text-gray-300' : 'text-gray-600'"
-      >
-        このデータセットを削除してもよろしいですか？<br>
-        この操作は取り消せません。
-      </p>
-
+    <template #footer>
       <div class="flex justify-end gap-2">
         <button
           type="button"
@@ -38,16 +34,19 @@
           削除
         </button>
       </div>
-    </div>
-    </div>
-  </Teleport>
+    </template>
+  </BaseShipModal>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import BaseShipModal from '@/components/common/BaseShipModal.vue'
 
 export default defineComponent({
   name: 'DatasetDeleteModal',
+  components: {
+    BaseShipModal
+  },
   props: {
     visible: {
       type: Boolean,

@@ -1,26 +1,21 @@
 <template>
-  <Teleport to="body">
-    <div v-if="visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]">
-    <div
-      class="rounded-lg shadow-lg p-6 w-96 transition-colors duration-200"
-      :class="theme !== 'light' ? 'bg-gray-800' : 'bg-white'"
-      @click.stop
+  <BaseShipModal
+    :visible="visible"
+    :theme="theme"
+    title="データセットの切り替え"
+    @close="$emit('close')"
+    @confirm="$emit('confirm')"
+    confirm-text="切り替え"
+  >
+    <p
+      class="text-sm mb-2"
+      :class="theme !== 'light' ? 'text-gray-300' : 'text-gray-600'"
     >
-      <h3
-        class="text-lg font-medium mb-2"
-        :class="theme !== 'light' ? 'text-white' : 'text-gray-900'"
-      >
-        データセットの切り替え
-      </h3>
+      データセットを切り替えますか？<br>
+      ページがリロードされます。
+    </p>
 
-      <p
-        class="text-sm mb-6"
-        :class="theme !== 'light' ? 'text-gray-300' : 'text-gray-600'"
-      >
-        データセットを切り替えますか？<br>
-        ページがリロードされます。
-      </p>
-
+    <template #footer>
       <div class="flex justify-end gap-2">
         <button
           type="button"
@@ -38,16 +33,19 @@
           切り替え
         </button>
       </div>
-    </div>
-    </div>
-  </Teleport>
+    </template>
+  </BaseShipModal>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import BaseShipModal from '@/components/common/BaseShipModal.vue'
 
 export default defineComponent({
   name: 'DatasetSwitchModal',
+  components: {
+    BaseShipModal
+  },
   props: {
     visible: {
       type: Boolean,

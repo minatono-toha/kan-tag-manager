@@ -79,9 +79,9 @@
 
 <script lang="ts">
 import { defineComponent, ref, computed, onMounted, watch, onUnmounted, type PropType } from 'vue'
-import { db } from '@/firebase'
-import { collection, getDocs } from 'firebase/firestore'
-import type { EventInfo } from '@/types/interfaces'
+// import { db } from '@/firebase'
+// import { collection, getDocs } from 'firebase/firestore'
+import { useEvents } from '@/composables/useEvents'
 import ChangelogDisplay from './ChangelogDisplay.vue'
 
 export default defineComponent({
@@ -99,16 +99,17 @@ export default defineComponent({
   },
   emits: ['event-selected', 'theme-change'],
   setup(props, { emit }) {
-    const events = ref<EventInfo[]>([])
+    const { events, sortedEvents, loading, fetchEvents } = useEvents()
+    // const events = ref<EventInfo[]>([])
     const localSelectedEventId = ref<number | null>(props.selectedEventId)
-    const loading = ref(true)
+    // const loading = ref(true)
     const currentTime = ref(new Date())
     let timer: number | null = null
 
     // eventId降順でソート
-    const sortedEvents = computed(() => {
-      return [...events.value].sort((a, b) => b.eventId - a.eventId)
-    })
+    // const sortedEvents = computed(() => {
+    //   return [...events.value].sort((a, b) => b.eventId - a.eventId)
+    // })
 
     // 選択されたイベント
     const selectedEvent = computed(() => {
@@ -218,22 +219,21 @@ export default defineComponent({
       }
     })
 
-    const fetchEvents = async () => {
-      try {
-        loading.value = true
-        const snap = await getDocs(collection(db, 'eventinfo'))
-        events.value = snap.docs.map((doc) => doc.data() as EventInfo)
-
-        // 最大のeventIdを自動的にセット
-        if (events.value.length > 0) {
-          const maxEventId = Math.max(...events.value.map((event) => event.eventId))
-          localSelectedEventId.value = maxEventId
-          emit('event-selected', maxEventId)
-        }
-      } catch (error) {
-        console.error('Failed to fetch events:', error)
-      } finally {
-        loading.value = false
+    const handleFetchEvents = async () => {
+      await fetchEvents()
+      // 最大のeventIdを自動的にセット
+      if (events.value.length > 0 && !localSelectedEventId.value) {
+        const maxEventId = Math.max(...events.value.map((event) => event.eventId))
+        localSelectedEventId.value = maxEventId
+        emit('event-selected', maxEventId)
+      } else if (events.value.length > 0 && localSelectedEventId.value) {
+           // Ensure localSelectedEventId is valid
+           if (!events.value.find(e => e.eventId === localSelectedEventId.value)) {
+                // If invalid, reset to max
+                const maxEventId = Math.max(...events.value.map((event) => event.eventId))
+                localSelectedEventId.value = maxEventId
+                emit('event-selected', maxEventId)
+           }
       }
     }
 
@@ -256,7 +256,7 @@ export default defineComponent({
     )
 
     onMounted(() => {
-      fetchEvents()
+      handleFetchEvents()
 
       // 1分ごとに時間を更新（開催中のイベントの残り時間をリアルタイム更新）
       timer = window.setInterval(() => {

@@ -1,36 +1,32 @@
 <template>
-  <Teleport to="body">
-    <div v-if="visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]">
-    <div
-      class="rounded-lg shadow-lg p-6 w-96 transition-colors duration-200"
-      :class="theme !== 'light' ? 'bg-gray-800' : 'bg-white'"
-      @click.stop
-    >
-      <h3
-        class="text-lg font-medium mb-4"
-        :class="theme !== 'light' ? 'text-white' : 'text-gray-900'"
+  <BaseShipModal
+    :visible="visible"
+    :theme="theme"
+    title="新規データセット作成"
+    @close="$emit('close')"
+    @confirm="handleConfirm"
+    :confirm-disabled="!name.trim()"
+    confirm-text="作成"
+  >
+    <div class="mb-4">
+      <label
+        class="block text-sm font-medium mb-1"
+        :class="theme !== 'light' ? 'text-gray-300' : 'text-gray-700'"
       >
-        新規データセット作成
-      </h3>
+        データセット名
+      </label>
+      <input
+        ref="inputRef"
+        v-model="name"
+        type="text"
+        class="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+        :class="theme !== 'light' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'"
+        placeholder="名前を入力"
+        @keyup.enter="handleConfirm"
+      />
+    </div>
 
-      <div class="mb-4">
-        <label
-          class="block text-sm font-medium mb-1"
-          :class="theme !== 'light' ? 'text-gray-300' : 'text-gray-700'"
-        >
-          データセット名
-        </label>
-        <input
-          ref="inputRef"
-          v-model="name"
-          type="text"
-          class="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-          :class="theme !== 'light' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'"
-          placeholder="名前を入力"
-          @keyup.enter="handleConfirm"
-        />
-      </div>
-
+    <template #footer>
       <div class="flex justify-end gap-2">
         <button
           type="button"
@@ -49,16 +45,19 @@
           作成
         </button>
       </div>
-    </div>
-    </div>
-  </Teleport>
+    </template>
+  </BaseShipModal>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref, watch, nextTick } from 'vue'
+import BaseShipModal from '@/components/common/BaseShipModal.vue'
 
 export default defineComponent({
   name: 'DatasetNameModal',
+  components: {
+    BaseShipModal
+  },
   props: {
     visible: {
       type: Boolean,
