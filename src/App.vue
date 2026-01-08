@@ -108,8 +108,9 @@
               :tagManagementData="tagManagementData"
               :theme="theme"
               :all-ships="allShips"
-              :variant-map="shipVariantMap"
-              @update-variant="updateShipVariant"
+               :variant-map="shipVariantMap"
+               :source-ships="expandedShips"
+               @update-variant="updateShipVariant"
               @select="openModal"
               @filter-change="handleSafeShipFilterChange"
               @increment-ship="incrementShipCount"
@@ -140,7 +141,7 @@
           <div class="flex-grow">
             <AttackTable
               v-if="selectedEventId"
-              :filteredUniqueOrigs="tagFilterActive ? filteredShipsFromTagTable : shipsToDisplay"
+              :filteredUniqueOrigs="intersectedShips"
               :selectedEventId="selectedEventId!"
               @update-sorted-ships="handleSortedShipsUpdate"
               @loading="handleLoading"
@@ -223,7 +224,6 @@ export default defineComponent({
     const { theme, handleThemeChange } = useTheme()
     const {
       allShips,
-      uniqueOrigs,
       filters,
       selectedFilterIds,
       ships,
@@ -278,6 +278,13 @@ export default defineComponent({
       filteredShipsFromTagTable.value = filteredShips
       tagFilterActive.value = isFiltering
     }
+
+    const intersectedShips = computed(() => {
+      if (tagFilterActive.value) {
+        return filteredShipsFromTagTable.value
+      }
+      return shipsToDisplay.value
+    })
 
     // Loop prevention: Only update if IDs change or length changes
     const handleSafeShipFilterChange = (filtered: ExpandedShip[], isActive: boolean) => {
@@ -345,7 +352,7 @@ export default defineComponent({
       attackIsAllExpanded.value = expanded
     }
 
-    const attackTableRef = ref<any>(null)
+    const attackTableRef = ref<InstanceType<typeof AttackTable> | null>(null)
 
     const handleToggleSortMode = () => {
       if (attackTableRef.value?.toggleSortMode) {
@@ -426,6 +433,7 @@ export default defineComponent({
       toggleAllFilters,
       allShips,
       ships,
+      expandedShips,
       modalShips,
       modalVisible,
       modalShipIndex,
@@ -468,6 +476,7 @@ export default defineComponent({
       filteredShipsFromTagTable,
       tagFilterActive,
       handleTagFilterChange,
+      intersectedShips,
       filteredShipsFromSearch,
       isSearchActive,
       handleSafeShipFilterChange,
@@ -479,17 +488,22 @@ export default defineComponent({
       updateShipVariant,
       handleVariantSelectFromModal,
       finalShips: computed(() => {
-        // If sorting is active (via AttackTable), use the sorted list.
-        if (sortedShipsFromAttackTable.value.length > 0) {
-          return sortedShipsFromAttackTable.value
+        // If an event is selected, we want to show ships in the order determined by AttackTable.
+        if (selectedEventId.value) {
+          // Guard: Only use the sorted list if it matches the current filtered set's size.
+          // This prevents "lag" or "flicker" when clearing filters.
+          if (sortedShipsFromAttackTable.value.length === intersectedShips.value.length && intersectedShips.value.length > 0) {
+            return sortedShipsFromAttackTable.value
+          }
+
+          // If no ships match after filtering, return empty.
+          if (isSearchActive.value || tagFilterActive.value || !isAllSelected.value) {
+            return []
+          }
         }
-        // If sorted list is empty but tag filter is active, it means the filter matched 0 items.
-        // In this case we should return empty list.
-        if (tagFilterActive.value) {
-          return []
-        }
-        // Fallback to base display list (Search + Category Filter)
-        return shipsToDisplay.value
+
+        // Fallback to active filtered list (Search + Category + Tag)
+        return intersectedShips.value
       })
     }
   },
@@ -518,7 +532,7 @@ export default defineComponent({
 }
 
 .list-container.flex-1 {
-  min-width: 610px; /* Detail mode minimum (60 + 120 + 200 + 165 + 55) */
+  min-width: 650px; /* Detail mode minimum (60 + 120 + 250 + 165 + 55) */
 }
 
 .attack-container {

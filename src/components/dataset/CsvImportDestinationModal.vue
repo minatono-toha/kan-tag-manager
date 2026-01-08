@@ -3,7 +3,6 @@
     :visible="true"
     width="md"
     title="出力先を選択"
-    :z-index="1000"
     :close-on-overlay="false"
     :show-default-footer="false"
   >

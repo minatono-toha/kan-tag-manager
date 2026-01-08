@@ -2,7 +2,7 @@
   <div>
     <div v-if="loading">読み込み中...</div>
     <table v-else class="w-full text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100 sticky top-0 z-50">
+      <thead class="bg-gray-100 sticky top-0 z-10">
         <tr>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="shipTypeFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
@@ -13,15 +13,11 @@
               title="絞り込み"
               ref="shipTypeIconRef"
             >
-              <svg v-if="shipTypeFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="shipTypeFilter.length === 0" />
+              <FilterIcon v-else />
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '210px', minWidth: '210px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '250px', minWidth: '250px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
             <div>艦名</div>
             <span
               @click="toggleSearch($event)"
@@ -29,12 +25,8 @@
               title="検索"
               ref="searchIconRef"
             >
-              <svg v-if="!searchQuery.trim()" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="!searchQuery.trim()" />
+              <FilterIcon v-else />
             </span>
           </th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '165px', minWidth: '165px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
@@ -45,12 +37,8 @@
               title="検索"
               ref="classSearchIconRef"
             >
-              <svg v-if="!classSearchQuery.trim()" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="!classSearchQuery.trim()" />
+              <FilterIcon v-else />
             </span>
           </th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '55px', minWidth: '55px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-gray-300' : 'bg-gray-100'">
@@ -61,19 +49,15 @@
               title="絞り込み"
               ref="speedIconRef"
             >
-              <svg v-if="!speedFilterValue" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="!speedFilterValue" />
+              <FilterIcon v-else />
             </span>
           </th>
         </tr>
       </thead>
       <tbody>
         <tr
-          v-for="ship in filteredShips"
+          v-for="ship in ships"
           :key="`${ship.orig}_${ship.shipIndex}`"
           v-memo="[
             ship.orig,
@@ -218,6 +202,9 @@ import { watchDebounced } from '@vueuse/core'
 import type { Ship, ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import FilterPopup from '@/components/common/FilterPopup.vue'
+import SearchIcon from '@/components/common/SearchIcon.vue'
+import FilterIcon from '@/components/common/FilterIcon.vue'
+import { useFilterPopupManager } from '@/composables/useFilterPopup'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -231,6 +218,7 @@ const props = withDefaults(defineProps<{
   allShips?: Ship[]
   variantMap: Map<string, number>
   showUnownedShips: boolean
+  sourceShips: ExpandedShip[]
 }>(), {
   theme: 'light',
   allShips: () => []
@@ -256,92 +244,64 @@ function decrementShip(orig: number) {
   emit('decrement-ship', orig)
 }
 
-const showSearchInput = ref(false)
+// Filter popup management
+const filterManager = useFilterPopupManager()
+
+const searchPopup = filterManager.register()
 const searchQuery = ref('')
-const searchPopupPosition = ref({ x: 0, y: 0 })
-const searchIconRef = ref<HTMLElement | null>(null)
-const searchPopupRef = ref<HTMLElement | null>(null)
 
-const showClassSearchInput = ref(false)
+const classSearchPopup = filterManager.register()
 const classSearchQuery = ref('')
-const classSearchPopupPosition = ref({ x: 0, y: 0 })
-const classSearchIconRef = ref<HTMLElement | null>(null)
-const classSearchPopupRef = ref<HTMLElement | null>(null)
 
-const showSpeedFilter = ref(false)
+const speedPopup = filterManager.register()
 const speedFilterValue = ref('')
-const speedFilterPosition = ref({ x: 0, y: 0 })
-const speedIconRef = ref<HTMLElement | null>(null)
-const speedPopupRef = ref<HTMLElement | null>(null)
 
-const showShipTypeFilter = ref(false)
+const shipTypePopup = filterManager.register()
 const shipTypeFilter = ref<string[]>([])
-const shipTypeFilterPosition = ref({ x: 0, y: 0 })
-const shipTypeIconRef = ref<HTMLElement | null>(null)
-const shipTypePopupRef = ref<HTMLElement | null>(null)
 
-const closeAllPopups = () => {
-  showSearchInput.value = false
-  showClassSearchInput.value = false
-  showSpeedFilter.value = false
-  showShipTypeFilter.value = false
-  showVariantPopup.value = false
-}
+// Explicitly declare ref types for FilterPopup components
+const searchPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const classSearchPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const speedPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const shipTypePopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+
+// Destructure for compatibility with existing template
+const showSearchInput = searchPopup.show
+const searchPopupPosition = searchPopup.position
+const searchIconRef = searchPopup.iconRef
+
+const showClassSearchInput = classSearchPopup.show
+const classSearchPopupPosition = classSearchPopup.position
+const classSearchIconRef = classSearchPopup.iconRef
+
+const showSpeedFilter = speedPopup.show
+const speedFilterPosition = speedPopup.position
+const speedIconRef = speedPopup.iconRef
+
+const showShipTypeFilter = shipTypePopup.show
+const shipTypeFilterPosition = shipTypePopup.position
+const shipTypeIconRef = shipTypePopup.iconRef
 
 function toggleSearch(event: MouseEvent) {
-  const willOpen = !showSearchInput.value
-  if (willOpen) closeAllPopups()
-  showSearchInput.value = willOpen
-
-  if (showSearchInput.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    searchPopupPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  searchPopup.toggle(event)
 }
 
 function toggleClassSearch(event: MouseEvent) {
-  const willOpen = !showClassSearchInput.value
-  if (willOpen) closeAllPopups()
-  showClassSearchInput.value = willOpen
-
-  if (showClassSearchInput.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    classSearchPopupPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  classSearchPopup.toggle(event)
 }
 
 function toggleSpeedFilter(event: MouseEvent) {
-  const willOpen = !showSpeedFilter.value
-  if (willOpen) closeAllPopups()
-  showSpeedFilter.value = willOpen
-
-  if (showSpeedFilter.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    speedFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  speedPopup.toggle(event)
 }
 
 function toggleShipTypeFilter(event: MouseEvent) {
-  const willOpen = !showShipTypeFilter.value
-  if (willOpen) closeAllPopups()
-  showShipTypeFilter.value = willOpen
+  shipTypePopup.toggle(event)
+}
 
-  if (showShipTypeFilter.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    shipTypeFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+// Helper to close all popups including variant popup
+const closeAllPopups = () => {
+  filterManager.closeAll()
+  showVariantPopup.value = false
 }
 
 // Variant Selection Logic
@@ -415,7 +375,7 @@ function handleClickOutside(event: MouseEvent) {
 
   if (showSearchInput.value && searchPopupRef.value) {
     const clickedIcon = searchIconRef.value?.contains(target)
-    const clickedPopup = (searchPopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = searchPopupRef.value.popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showSearchInput.value = false
     }
@@ -423,7 +383,7 @@ function handleClickOutside(event: MouseEvent) {
 
   if (showClassSearchInput.value && classSearchPopupRef.value) {
     const clickedIcon = classSearchIconRef.value?.contains(target)
-    const clickedPopup = (classSearchPopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = classSearchPopupRef.value.popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showClassSearchInput.value = false
     }
@@ -431,7 +391,7 @@ function handleClickOutside(event: MouseEvent) {
 
   if (showSpeedFilter.value && speedPopupRef.value) {
     const clickedIcon = speedIconRef.value?.contains(target)
-    const clickedPopup = (speedPopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = speedPopupRef.value.popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showSpeedFilter.value = false
     }
@@ -439,7 +399,7 @@ function handleClickOutside(event: MouseEvent) {
 
   if (showShipTypeFilter.value && shipTypePopupRef.value) {
     const clickedIcon = shipTypeIconRef.value?.contains(target)
-    const clickedPopup = (shipTypePopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = shipTypePopupRef.value.popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showShipTypeFilter.value = false
     }
@@ -527,13 +487,13 @@ const filteredShips = computed(() => {
   const hasUnownedFilter = !props.showUnownedShips
 
   if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter && !hasUnownedFilter) {
-    return props.ships
+    return props.sourceShips
   }
 
   const nameQuery = hasNameFilter ? searchQuery.value.toLowerCase() : ''
   const classQuery = hasClassFilter ? classSearchQuery.value.toLowerCase() : ''
 
-  return props.ships.filter(ship => {
+  return props.sourceShips.filter(ship => {
     if (hasUnownedFilter && ship.ownershipCount === 0) {
       return false
     }
@@ -542,10 +502,10 @@ const filteredShips = computed(() => {
 
     if (hasNameFilter) {
       const nameMatch = displayShip.name.toLowerCase().includes(nameQuery)
-      const kanaMatch = displayShip.read_kana?.toLowerCase().includes(nameQuery) ?? false
-      const kataMatch = displayShip.read_kata?.toLowerCase().includes(nameQuery) ?? false
-      const romaji1Match = displayShip.read_romaji1?.toLowerCase().includes(nameQuery) ?? false
-      const romaji2Match = displayShip.read_romaji2?.toLowerCase().includes(nameQuery) ?? false
+      const kanaMatch = ship.read_kana?.toLowerCase().includes(nameQuery) ?? false
+      const kataMatch = ship.read_kata?.toLowerCase().includes(nameQuery) ?? false
+      const romaji1Match = ship.read_romaji1?.toLowerCase().includes(nameQuery) ?? false
+      const romaji2Match = ship.read_romaji2?.toLowerCase().includes(nameQuery) ?? false
 
       if (!nameMatch && !kanaMatch && !kataMatch && !romaji1Match && !romaji2Match) {
         return false

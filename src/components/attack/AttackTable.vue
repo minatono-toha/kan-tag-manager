@@ -3,7 +3,7 @@
     <div v-if="loading">読み込み中...</div>
     <div v-else>
       <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
-        <thead class="bg-gray-100 sticky top-0 z-50" :style="headerStyle" ref="theadRef">
+        <thead class="bg-gray-100 sticky top-0 z-10" :style="headerStyle" ref="theadRef">
           <!-- Area Mode Header -->
           <template v-if="sortByMode === 'area'">
             <tr>
@@ -180,9 +180,14 @@
               </template>
             </template>
           </tr>
-          <tr v-if="!selectedEventId || sortedShips.length === 0">
+          <tr v-if="!selectedEventId">
             <td :colspan="totalColspan" class="border text-center py-4 text-gray-500">
-              {{ emptyStateMessage }}
+              海域を選択してください
+            </td>
+          </tr>
+          <tr v-else-if="sortedShips.length === 0">
+            <td :colspan="totalColspan" class="border text-center py-4 text-gray-500">
+              -
             </td>
           </tr>
         </tbody>
@@ -317,12 +322,7 @@ export default defineComponent({
       }
     })
 
-    const emptyStateMessage = computed(() => {
-      if (!props.selectedEventId) {
-        return '海域を選択してください'
-      }
-      return '-'
-    })
+
 
     // Watchers to sync header height
     watch(
@@ -427,7 +427,7 @@ export default defineComponent({
       toggleTag,
       isTagExpanded,
       totalColspan,
-      emptyStateMessage,
+
       TABLE_STYLE,
       toggleAllStages,
       isAllExpanded,

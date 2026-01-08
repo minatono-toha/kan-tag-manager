@@ -110,6 +110,16 @@
         :excluded="importResult.excluded"
         @close="closeResultModal"
       />
+    <BaseDialog
+      v-if="alertDialog.show"
+      :show="alertDialog.show"
+      :title="alertDialog.title"
+      :message="alertDialog.message"
+      :type="alertDialog.type"
+      @close="alertDialog.show = false"
+      @confirm="alertDialog.show = false"
+    />
+
     <Teleport to="body">
       <div
         v-if="tooltipState.show"
@@ -123,7 +133,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue'
+import { defineComponent, ref, computed } from 'vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useDatasetStore } from '@/stores/datasetStore'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
@@ -134,7 +145,8 @@ export default defineComponent({
   name: 'DatasetControlBar',
   components: {
     CsvImportDestinationModal,
-    CsvImportResultModal
+    CsvImportResultModal,
+    BaseDialog
   },
   props: {
     selectedEventId: {
@@ -181,12 +193,34 @@ export default defineComponent({
     const csvContent = ref('')
     const importResult = ref<{ total: number, success: number, excluded: string[] }>({ total: 0, success: 0, excluded: [] })
 
+    const alertDialog = ref({
+      show: false,
+      title: '',
+      message: '',
+      type: 'alert' as 'alert' | 'confirm'
+    })
+
+    const isAnyModalOpen = computed(() =>
+      showDestinationModal.value ||
+      showResultModal.value ||
+      alertDialog.value.show
+    )
+
+    const showAlert = (title: string, message: string) => {
+      alertDialog.value = {
+        show: true,
+        title,
+        message,
+        type: 'alert'
+      }
+    }
+
     const toggleExpand = () => {
       isExpanded.value = !isExpanded.value
     }
 
     const triggerImport = async () => {
-      if (!codeText.value) return
+      if (!codeText.value || isAnyModalOpen.value) return
 
       const name = prompt('インポートするデータセット名を入力してください:', 'Imported Data')
       if (!name) return
@@ -219,7 +253,7 @@ export default defineComponent({
           sTagMap
         )
       } catch (error) {
-        alert('インポートに失敗しました。形式を確認してください。')
+        showAlert('エラー', 'インポートに失敗しました。形式を確認してください。')
         console.error(error)
       } finally {
         loading.value = false
@@ -228,8 +262,10 @@ export default defineComponent({
     }
 
     const triggerExport = async () => {
+      if (isAnyModalOpen.value) return
+
       if (!props.selectedEventId) {
-        alert('イベントを選択してください')
+        showAlert('通知', 'イベントを選択してください')
         return
       }
 
@@ -253,7 +289,7 @@ export default defineComponent({
           codeText.value = json
       } catch (error) {
           console.error(error)
-          alert('エクスポートに失敗しました')
+          showAlert('エラー', 'エクスポートに失敗しました')
       } finally {
           loading.value = false
       }
@@ -270,6 +306,7 @@ export default defineComponent({
 
     // CSV Logic
     const triggerCsvImport = () => {
+      if (isAnyModalOpen.value) return
       fileInput.value?.click()
     }
 
@@ -318,7 +355,7 @@ export default defineComponent({
 
       } catch (error) {
         console.error('CSV Import Failed:', error)
-        alert('CSVインポートに失敗しました')
+        showAlert('エラー', 'CSVインポートに失敗しました')
       } finally {
         loading.value = false
       }
@@ -348,7 +385,10 @@ export default defineComponent({
       closeResultModal,
       tooltipState,
       handleMouseEnter,
-      handleMouseLeave
+      handleMouseLeave,
+      alertDialog,
+      isAnyModalOpen,
+      showAlert
     }
   }
 })

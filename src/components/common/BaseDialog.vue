@@ -1,49 +1,51 @@
 <template>
-  <div
-    v-if="show"
-    class="fixed inset-0 z-[2000] flex items-center justify-center bg-black bg-opacity-50"
-    @click.self="handleCancel"
-  >
+  <Teleport to="body">
     <div
-      class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 transform transition-all"
-      role="alertdialog"
-      aria-modal="true"
-      ref="dialogRef"
+      v-if="show"
+      class="fixed inset-0 z-[2000] flex items-center justify-center bg-black bg-opacity-50"
+      @click.self="handleCancel"
     >
-      <div class="mb-6">
-        <p class="text-gray-700 text-sm whitespace-pre-line text-center leading-relaxed font-medium">
-          {{ message }}
-        </p>
-      </div>
-      <div class="flex justify-center gap-4">
-        <template v-if="type === 'confirm'">
-          <button
-            @click="handleCancel"
-            class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors font-medium text-sm"
-            ref="cancelButton"
-          >
-            キャンセル
-          </button>
-          <button
-            @click="handleConfirm"
-            class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-semibold text-sm"
-            ref="okButton"
-          >
-            OK
-          </button>
-        </template>
-        <template v-else>
-          <button
-            @click="handleCancel"
-            class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-semibold text-sm"
-            ref="closeButton"
-          >
-            閉じる
-          </button>
-        </template>
+      <div
+        class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 transform transition-all"
+        role="alertdialog"
+        aria-modal="true"
+        ref="dialogRef"
+      >
+        <div class="mb-6">
+          <p class="text-gray-700 text-sm whitespace-pre-line text-center leading-relaxed font-medium">
+            {{ message }}
+          </p>
+        </div>
+        <div class="flex justify-center gap-4">
+          <template v-if="type === 'confirm'">
+            <button
+              @click="handleCancel"
+              class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors font-medium text-sm"
+              ref="cancelButton"
+            >
+              キャンセル
+            </button>
+            <button
+              @click="handleConfirm"
+              class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-semibold text-sm"
+              ref="okButton"
+            >
+              OK
+            </button>
+          </template>
+          <template v-else>
+            <button
+              @click="handleCancel"
+              class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-semibold text-sm"
+              ref="closeButton"
+            >
+              閉じる
+            </button>
+          </template>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">

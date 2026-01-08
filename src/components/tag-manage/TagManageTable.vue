@@ -6,7 +6,7 @@
         class="text-sm border-collapse border border-gray-300"
         :style="{ tableLayout: 'fixed', width: displayMode === 'detail' ? '410px' : '120px' }"
       >
-      <thead class="bg-gray-100 sticky top-0 z-50" ref="theadRef">
+      <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef">
         <tr>
           <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="assignedFilter !== null ? 'bg-gray-300' : 'bg-gray-100'">
             割当済
@@ -16,12 +16,8 @@
               title="絞り込み"
               ref="assignedIconRef"
             >
-              <svg v-if="assignedFilter === null" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="assignedFilter === null" />
+              <FilterIcon v-else />
             </span>
           </th>
           <th :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="preserveFilter !== null ? 'bg-gray-300' : 'bg-gray-100'">
@@ -32,12 +28,8 @@
               title="絞り込み"
               ref="preserveIconRef"
             >
-              <svg v-if="preserveFilter === null" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="preserveFilter === null" />
+              <FilterIcon v-else />
             </span>
           </th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }" class="border text-left align-top relative pb-6" :class="targetStageFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
@@ -48,12 +40,8 @@
               title="絞り込み"
               ref="targetStageIconRef"
             >
-              <svg v-if="targetStageFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="targetStageFilter.length === 0" />
+              <FilterIcon v-else />
             </span>
           </th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px' }" class="border text-left align-top relative pb-6" :class="assignedTagFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
@@ -64,12 +52,8 @@
               title="絞り込み"
               ref="assignedTagIconRef"
             >
-              <svg v-if="assignedTagFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="assignedTagFilter.length === 0" />
+              <FilterIcon v-else />
             </span>
           </th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }" class="border text-left align-top relative pb-6" :class="commentFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
@@ -80,12 +64,8 @@
               title="絞り込み"
               ref="commentIconRef"
             >
-              <svg v-if="commentFilter.length === 0" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-              </svg>
+              <SearchIcon v-if="commentFilter.length === 0" />
+              <FilterIcon v-else />
             </span>
           </th>
         </tr>
@@ -184,10 +164,14 @@
             />
           </td>
         </tr>
-        <tr v-if="displayedShips.length === 0">
-          <td :colspan="displayMode === 'detail' ? 5 : 2" :style="cellStyle" class="border text-center py-4 text-gray-500">
-            {{ emptyStateMessage }}
-          </td>
+        <tr v-if="displayedShips.length === 0" :style="rowStyle">
+          <td :style="cellStyle" class="border text-center">-</td>
+          <td :style="cellStyle" class="border text-center">-</td>
+          <template v-if="displayMode === 'detail'">
+            <td :style="cellStyle" class="border text-center">-</td>
+            <td :style="cellStyle" class="border text-center">-</td>
+            <td :style="cellStyle" class="border text-center">-</td>
+          </template>
         </tr>
       </tbody>
     </table>
@@ -385,6 +369,9 @@ import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import FilterPopup from '@/components/common/FilterPopup.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import SearchIcon from '@/components/common/SearchIcon.vue'
+import FilterIcon from '@/components/common/FilterIcon.vue'
+import { useFilterPopupManager } from '@/composables/useFilterPopup'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -433,30 +420,40 @@ const targetStageFilter = ref<string[]>([])
 const assignedTagFilter = ref<string[]>([])
 const commentFilter = ref<string[]>([])
 
-// Filter popup states
-const showAssignedFilter = ref(false)
-const showPreserveFilter = ref(false)
-const showTargetStageFilter = ref(false)
-const showAssignedTagFilter = ref(false)
-const showCommentFilter = ref(false)
+// Filter popup management
+const filterManager = useFilterPopupManager()
 
-const assignedFilterPosition = ref({ x: 0, y: 0 })
-const preserveFilterPosition = ref({ x: 0, y: 0 })
-const targetStageFilterPosition = ref({ x: 0, y: 0 })
-const assignedTagFilterPosition = ref({ x: 0, y: 0 })
-const commentFilterPosition = ref({ x: 0, y: 0 })
+const assignedPopup = filterManager.register()
+const preservePopup = filterManager.register()
+const targetStagePopup = filterManager.register()
+const assignedTagPopup = filterManager.register()
+const commentPopup = filterManager.register()
 
-const assignedIconRef = ref<HTMLElement | null>(null)
-const preserveIconRef = ref<HTMLElement | null>(null)
-const targetStageIconRef = ref<HTMLElement | null>(null)
-const assignedTagIconRef = ref<HTMLElement | null>(null)
-const commentIconRef = ref<HTMLElement | null>(null)
+// Destructure for compatibility with existing template
+const showAssignedFilter = assignedPopup.show
+const assignedFilterPosition = assignedPopup.position
+const assignedIconRef = assignedPopup.iconRef
+const assignedPopupRef = assignedPopup.popupRef
 
-const assignedPopupRef = ref<HTMLElement | null>(null)
-const preservePopupRef = ref<HTMLElement | null>(null)
-const targetStagePopupRef = ref<HTMLElement | null>(null)
-const assignedTagPopupRef = ref<HTMLElement | null>(null)
-const commentPopupRef = ref<HTMLElement | null>(null)
+const showPreserveFilter = preservePopup.show
+const preserveFilterPosition = preservePopup.position
+const preserveIconRef = preservePopup.iconRef
+const preservePopupRef = preservePopup.popupRef
+
+const showTargetStageFilter = targetStagePopup.show
+const targetStageFilterPosition = targetStagePopup.position
+const targetStageIconRef = targetStagePopup.iconRef
+const targetStagePopupRef = targetStagePopup.popupRef
+
+const showAssignedTagFilter = assignedTagPopup.show
+const assignedTagFilterPosition = assignedTagPopup.position
+const assignedTagIconRef = assignedTagPopup.iconRef
+const assignedTagPopupRef = assignedTagPopup.popupRef
+
+const showCommentFilter = commentPopup.show
+const commentFilterPosition = commentPopup.position
+const commentIconRef = commentPopup.iconRef
+const commentPopupRef = commentPopup.popupRef
 
 // Validation Alert State
 const showValidationAlert = ref(false)
@@ -508,16 +505,6 @@ const tagMenuPosition = ref({ x: 0, y: 0 })
 const activeStageCell = ref<HTMLElement | null>(null)
 
 const theadRef = ref<HTMLElement | null>(null)
-
-const emptyStateMessage = computed(() => {
-  if (!props.selectedEventId) {
-    return '海域を選択してください'
-  }
-  if (props.ships.length === 0) {
-    return '-'
-  }
-  return '該当なし'
-})
 
 // Get unique target stages from all source ships (for filter options)
 const uniqueTargetStages = computed(() => {
@@ -693,83 +680,29 @@ const handleCommentChange = (orig: number, shipIndex: number, value: string) => 
 }
 
 const closeAllPopups = () => {
-  showAssignedFilter.value = false
-  showPreserveFilter.value = false
-  showTargetStageFilter.value = false
-  showAssignedTagFilter.value = false
-  showCommentFilter.value = false
+  filterManager.closeAll()
   showStageSelectorPopup.value = false
 }
 
 // Filter popup controls
 const toggleAssignedFilter = (event: MouseEvent) => {
-  const willOpen = !showAssignedFilter.value
-  if (willOpen) closeAllPopups()
-  showAssignedFilter.value = willOpen
-
-  if (showAssignedFilter.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    assignedFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  assignedPopup.toggle(event)
 }
 
 const togglePreserveFilter = (event: MouseEvent) => {
-  const willOpen = !showPreserveFilter.value
-  if (willOpen) closeAllPopups()
-  showPreserveFilter.value = willOpen
-
-  if (showPreserveFilter.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    preserveFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  preservePopup.toggle(event)
 }
 
 const toggleTargetStageFilter = (event: MouseEvent) => {
-  const willOpen = !showTargetStageFilter.value
-  if (willOpen) closeAllPopups()
-  showTargetStageFilter.value = willOpen
-
-  if (showTargetStageFilter.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    targetStageFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  targetStagePopup.toggle(event)
 }
 
 const toggleAssignedTagFilter = (event: MouseEvent) => {
-  const willOpen = !showAssignedTagFilter.value
-  if (willOpen) closeAllPopups()
-  showAssignedTagFilter.value = willOpen
-
-  if (showAssignedTagFilter.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    assignedTagFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  assignedTagPopup.toggle(event)
 }
 
 const toggleCommentFilter = (event: MouseEvent) => {
-  const willOpen = !showCommentFilter.value
-  if (willOpen) closeAllPopups()
-  showCommentFilter.value = willOpen
-
-  if (showCommentFilter.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
-    commentFilterPosition.value = {
-      x: rect.left,
-      y: rect.bottom + 5
-    }
-  }
+  commentPopup.toggle(event)
 }
 
 const getStageOnlyFromTargetStage = (orig: number, shipIndex: number): string => {

@@ -85,7 +85,7 @@ export default defineComponent({
     },
     zIndex: {
       type: Number,
-      default: 200
+      default: 2000
     },
     closeOnOverlay: {
       type: Boolean,
@@ -177,7 +177,4 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.modal-content {
-  /* Ensure content has proper spacing */
-}
 </style>

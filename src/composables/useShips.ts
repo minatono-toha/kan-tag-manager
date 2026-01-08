@@ -179,11 +179,10 @@ export function useShips() {
   })
 
   const shipsToDisplay = computed(() => {
-    if (!isSearchActive.value || filteredShipsFromSearch.value.length === 0) {
+    if (!isSearchActive.value) {
       return expandedShips.value
     }
-    const searchedOrigs = new Set(filteredShipsFromSearch.value.map(s => s.orig))
-    return expandedShips.value.filter(ship => searchedOrigs.has(ship.orig))
+    return filteredShipsFromSearch.value
   })
 
   const toggleFilter = (id: number) => {

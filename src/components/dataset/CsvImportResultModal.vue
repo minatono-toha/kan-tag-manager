@@ -3,7 +3,6 @@
     :visible="true"
     width="lg"
     title="取り込み結果"
-    :z-index="1000"
     @close="$emit('close')"
     :show-default-footer="false"
   >

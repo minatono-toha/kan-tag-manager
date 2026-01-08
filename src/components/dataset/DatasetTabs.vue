@@ -64,7 +64,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, ref } from 'vue'
+import { defineComponent, onMounted, ref, computed } from 'vue'
 import { useDatasetStore } from '@/stores/datasetStore'
 import DatasetNameModal from './DatasetNameModal.vue'
 import DatasetDeleteModal from './DatasetDeleteModal.vue'
@@ -87,11 +87,15 @@ export default defineComponent({
     const deleteTargetId = ref<string | null>(null)
     const switchTargetId = ref<string | null>(null)
 
+    // Guard to prevent multiple modals
+    const isAnyModalOpen = computed(() => showNameModal.value || showDeleteModal.value || showSwitchModal.value)
+
     onMounted(() => {
        datasetStore.loadDatasets()
     })
 
     const switchDataset = (id: string) => {
+      if (isAnyModalOpen.value) return
       if (id === datasetStore.activeDatasetId) return
       switchTargetId.value = id
       showSwitchModal.value = true
@@ -106,6 +110,7 @@ export default defineComponent({
     }
 
     const openAddModal = () => {
+      if (isAnyModalOpen.value) return
       showNameModal.value = true
     }
 
@@ -119,6 +124,7 @@ export default defineComponent({
     }
 
     const confirmDelete = (id: string) => {
+      if (isAnyModalOpen.value) return
       deleteTargetId.value = id
       showDeleteModal.value = true
     }
@@ -141,7 +147,8 @@ export default defineComponent({
       showDeleteModal,
       handleDeleteDataset,
       showSwitchModal,
-      handleSwitchDataset
+      handleSwitchDataset,
+      isAnyModalOpen
     }
   }
 })
