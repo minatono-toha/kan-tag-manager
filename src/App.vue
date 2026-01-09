@@ -158,8 +158,8 @@
       </div>
 
        <!-- フッター (スクロールエリア内へ移動) -->
-      <footer class="bg-gray-50 border-t border-gray-300 py-4 px-6 text-center mt-10">
-        <div class="text-xs text-gray-500 space-y-1">
+      <footer class="bg-gray-50 border-t border-gray-300 py-1 px-6 text-center mt-3">
+        <div class="text-xxs text-gray-500 space-y-0.5">
           <p>本サイトは、ゲーム内イベントの攻略支援を目的とした非公式サイトです。</p>
           <p>バナー等ゲーム内で使用されている画像は、著作権法第32条に基づき、説明・識別のために必要最小限の範囲で引用しています。</p>
           <p>画像の著作権は、DMM GAMES様および原著作物の権利者に帰属します。</p>
@@ -259,7 +259,7 @@ export default defineComponent({
     const selectedEventId = ref<number | null>(null)
     const loading = ref(false)
     const attackTableHeaderHeight = ref<number | undefined>(undefined)
-    const shipListDisplayMode = ref<'detail' | 'nameOnly'>('detail')
+    const shipListDisplayMode = ref<'detail' | 'nameOnly'>('nameOnly')
     const showUnownedShips = ref(true)
     const attackSortByMode = ref<string>('area')
     const attackIsAllExpanded = ref<boolean>(false)
@@ -323,7 +323,7 @@ export default defineComponent({
       shipListDisplayMode.value = mode
     }
 
-    const tagManageDisplayMode = ref<'detail' | 'checkOnly'>('detail')
+    const tagManageDisplayMode = ref<'detail' | 'checkOnly'>('checkOnly')
     const handleTagManageDisplayModeChange = (mode: 'detail' | 'checkOnly') => {
       tagManageDisplayMode.value = mode
     }

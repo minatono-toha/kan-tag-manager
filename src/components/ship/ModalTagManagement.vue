@@ -4,12 +4,12 @@
       <h3 class="text-sm font-semibold mb-2">制御札管理</h3>
 
       <!-- Status Summary Box (Below Title) -->
-      <div class="px-3 py-1 bg-gray-500 border border-dotted border-gray-400 rounded-lg text-white text-[14px] leading-relaxed inline-block self-start min-w-[220px]">
+      <div class="px-3 py-1 bg-gray-500 border border-dotted border-gray-400 rounded-lg text-white text-sm leading-relaxed inline-block self-start min-w-[220px]">
         <div class="grid grid-cols-[auto,1fr] gap-x-1 items-center">
-          <div class="whitespace-nowrap text-[12px]">出撃{{ tagData.assigned ? '' : '(予定)' }}海域：</div>
+          <div class="whitespace-nowrap text-xs">出撃{{ tagData.assigned ? '' : '(予定)' }}海域：</div>
           <div>{{ parseTagFromTargetStage(tagData.targetStage)?.stage || '-' }}</div>
 
-          <div class="whitespace-nowrap text-[12px]">割当{{ tagData.assigned ? '' : '(予定)' }}札：</div>
+          <div class="whitespace-nowrap text-xs">割当{{ tagData.assigned ? '' : '(予定)' }}札：</div>
           <div class="flex items-center gap-1">
             <span
               v-if="assignedTagName"
@@ -30,7 +30,7 @@
       <div class="flex flex-wrap items-start gap-x-6 gap-y-2">
         <!-- Vertical Column for 割当済 & 温存 with Box -->
         <div class="relative pt-3">
-          <span class="absolute top-0 left-0 text-[10px] text-gray-400 leading-none">クリックで切替</span>
+          <span class="absolute top-0 left-0 text-xxs text-gray-400 leading-none">クリックで切替</span>
           <div class="flex flex-col items-center gap-1 border border-dotted border-gray-300 rounded px-4 py-2">
             <!-- 割当済 -->
             <div class="flex items-center">
@@ -62,7 +62,7 @@
 
         <!-- 割当先 (Stage Buttons) with Box -->
         <div class="relative pt-3">
-          <span class="absolute top-0 left-0 text-[10px] text-gray-400 leading-none">クリックで割当先・割当札を選択</span>
+          <span class="absolute top-0 left-0 text-xxs text-gray-400 leading-none">クリックで割当先・割当札を選択</span>
           <div class="flex flex-col border border-dotted border-gray-300 rounded p-2">
             <div class="flex flex-wrap gap-1">
               <button
@@ -79,7 +79,7 @@
             <div v-if="tagData.targetStage" class="mt-2 flex justify-end">
               <button
                 @click="clearStage"
-                class="px-6 bg-gray-700 hover:bg-gray-800 rounded text-[10px] text-gray-300 leading-none h-4 flex items-center justify-center font-medium"
+                class="px-6 bg-gray-700 hover:bg-gray-800 rounded text-xxs text-gray-300 leading-none h-4 flex items-center justify-center font-medium"
               >
                 選択クリア
               </button>

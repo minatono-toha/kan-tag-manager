@@ -3,7 +3,7 @@
 // 行の高さ（px）
 export const TABLE_ROW_HEIGHT = 30
 
-// フォントサイズ（CSSの文字列指定）
+// フォントサイズ（CSSの文字列指定） - Tailwindのtext-xs (12px) 相当
 export const TABLE_FONT_SIZE = '12px'
 
 // セル内のパディング

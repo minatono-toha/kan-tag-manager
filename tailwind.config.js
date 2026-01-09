@@ -4,7 +4,11 @@ module.exports = {
     './src/**/*.{vue,js,ts,jsx,tsx}', // src内のすべてのVueファイルを対象に
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontSize: {
+        'xxs': '10px',
+      },
+    },
   },
   plugins: [],
 }

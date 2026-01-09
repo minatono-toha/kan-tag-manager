@@ -2,11 +2,11 @@
   <BaseShipModal
     :visible="visible"
     :theme="theme"
-    title="新規データセット作成"
+    :title="title"
     @close="$emit('close')"
     @confirm="handleConfirm"
     :confirm-disabled="!name.trim()"
-    confirm-text="作成"
+    :confirm-text="confirmText"
   >
     <div class="mb-4">
       <label
@@ -42,7 +42,7 @@
           :disabled="!name.trim()"
           class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          作成
+          {{ confirmText }}
         </button>
       </div>
     </template>
@@ -66,6 +66,18 @@ export default defineComponent({
     theme: {
       type: String,
       default: 'light'
+    },
+    title: {
+      type: String,
+      default: '新規データセット作成'
+    },
+    confirmText: {
+      type: String,
+      default: '作成'
+    },
+    initialName: {
+      type: String,
+      default: ''
     }
   },
   emits: ['close', 'confirm'],
@@ -75,9 +87,12 @@ export default defineComponent({
 
     watch(() => props.visible, (val) => {
       if (val) {
-        name.value = ''
+        name.value = props.initialName
         nextTick(() => {
           inputRef.value?.focus()
+          if (props.initialName) {
+            inputRef.value?.select()
+          }
         })
       }
     })

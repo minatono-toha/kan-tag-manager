@@ -1,11 +1,14 @@
 <template>
-  <div class="tabs-container bg-white shadow-sm">
-    <div class="px-1 pt-[2px] text-sm font-bold text-gray-700">艦種選択ボタン</div>
+  <div class="tabs-container shadow-sm transition-colors duration-300" :class="isDarkTheme ? 'bg-transparent' : 'bg-white'">
+    <div class="px-1 pt-[2px] text-sm font-bold" :class="isDarkTheme ? 'text-gray-300' : 'text-gray-700'">艦種選択ボタン</div>
     <div class="flex flex-wrap gap-0 px-1 pb-0 pt-[1px]">
       <!-- 全選択ボタン -->
       <button
-        class="px-4 py-1 rounded-t-lg rounded-b-none text-sm font-medium transition-colors duration-200 border-r border-gray-300 last:border-r-0"
-        :class="allSelectedClass"
+        class="px-4 py-1 rounded-t-lg rounded-b-none text-sm font-medium transition-colors duration-200 border-r last:border-r-0"
+        :class="[
+          allSelectedClass,
+          isDarkTheme ? 'border-white/30' : 'border-gray-300'
+        ]"
         @click="$emit('toggle-all')"
       >
         全選択
@@ -15,8 +18,11 @@
       <button
         v-for="filter in filters"
         :key="filter.id"
-        class="px-4 py-1 rounded-t-lg rounded-b-none text-sm font-medium transition-colors duration-200 border-r border-gray-300 last:border-r-0"
-        :class="getFilterButtonClass(filter.id)"
+        class="px-4 py-1 rounded-t-lg rounded-b-none text-sm font-medium transition-colors duration-200 border-r last:border-r-0"
+        :class="[
+          getFilterButtonClass(filter.id),
+          isDarkTheme ? 'border-white/30' : 'border-gray-300'
+        ]"
         @click="$emit('toggle-filter', filter.id)"
       >
         {{ filter.label }}
@@ -54,7 +60,7 @@ const allSelectedClass = computed(() => {
   } else {
     // Inactive
     return isDarkTheme.value
-      ? 'bg-gray-800 text-gray-400 hover:bg-gray-700' // Dark mode inactive (Darker)
+      ? 'bg-gray-700/40 text-gray-400 hover:bg-gray-700/60' // Dark mode inactive (40% Opacity Gray)
       : 'bg-gray-200 text-gray-700 hover:bg-gray-300' // Light mode inactive
   }
 })
@@ -69,7 +75,7 @@ const getFilterButtonClass = (id: number) => {
   } else {
     // Inactive
     return isDarkTheme.value
-      ? 'bg-gray-800 text-gray-400 hover:bg-gray-700' // Dark mode inactive (Darker)
+      ? 'bg-gray-700/40 text-gray-400 hover:bg-gray-700/60' // Dark mode inactive (40% Opacity Gray)
       : 'bg-gray-200 text-gray-700 hover:bg-gray-300' // Light mode inactive
   }
 }

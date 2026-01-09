@@ -1,19 +1,50 @@
 <template>
-  <div class="dataset-tabs-container bg-gray-100 border-t border-gray-300 flex items-center px-4 pt-1 select-none">
+  <div
+    class="dataset-tabs-container border-b flex items-center px-4 pb-1 select-none transition-colors duration-300"
+    :class="[
+      theme === 'light' ? 'bg-gray-100 border-gray-300' :
+      theme === 'dark' ? 'bg-[#111827] border-gray-600' :
+      'bg-[rgba(30,58,138,0.8)] border-indigo-400/50'
+    ]"
+  >
     <!-- Tabs List -->
     <div class="flex items-end overflow-x-auto w-full no-scrollbar">
       <div
         v-for="ds in datasetStore.datasets"
         :key="ds.id"
-        class="tab-item px-3 py-0.5 -ml-px rounded-t-md text-sm cursor-pointer border-t border-l border-r border-gray-300 relative group flex items-center justify-between gap-2"
+        class="tab-item px-3 py-0.5 -ml-px rounded-b-md text-sm cursor-pointer border-b border-l border-r relative group flex items-center justify-between gap-2 transition-all duration-200"
         :class="[
+          theme === 'light' ? 'border-gray-300' :
+          theme === 'dark' ? 'border-gray-600' :
+          'border-indigo-400/50',
           ds.id === datasetStore.activeDatasetId
-            ? 'bg-white font-medium z-10 -mb-[1px] border-b-white pb-1'
-            : 'bg-gray-200 text-gray-600 hover:bg-gray-50'
+            ? (theme === 'light' ? 'bg-white font-medium z-10 -mt-[1px] border-t-white pt-1' :
+               theme === 'dark' ? 'bg-[#1f2937] font-medium z-10 -mt-[1px] border-t-[#1f2937] pt-1 text-white' :
+               'bg-[rgba(30,58,138,0.5)] font-medium z-10 -mt-[1px] border-t-[rgba(30,58,138,0.5)] pt-1 text-white')
+            : (theme === 'light' ? 'bg-gray-200 text-gray-600 hover:bg-gray-50' :
+               theme === 'dark' ? 'bg-gray-800/40 text-gray-400 hover:bg-gray-700/60' :
+               'bg-gray-800/40 text-gray-300 hover:bg-gray-700/60')
         ]"
         @click="switchDataset(ds.id)"
       >
-        <span class="truncate max-w-[100px] flex-1 text-left" :title="ds.name">{{ ds.name }}</span>
+        <span
+          v-if="editingDatasetId !== ds.id"
+          class="truncate max-w-[100px] flex-1 text-left"
+          :title="ds.name"
+          @dblclick.stop="startEditing(ds)"
+        >
+          {{ ds.name }}
+        </span>
+        <input
+          v-else
+          :ref="el => { if (el) editInputRefs[ds.id] = el as HTMLInputElement }"
+          v-model="editingName"
+          class="flex-1 min-w-0 px-1 py-0 text-sm border border-blue-400 rounded outline-none bg-white text-gray-900"
+          @keydown.enter="saveEdit"
+          @keydown.esc="cancelEdit"
+          @blur="cancelEdit"
+          @click.stop
+        />
 
         <!-- Delete Button (always visible if more than 1 dataset) -->
         <button
@@ -64,11 +95,17 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, ref, computed } from 'vue'
+import { defineComponent, onMounted, ref, computed, nextTick } from 'vue'
 import { useDatasetStore } from '@/stores/datasetStore'
 import DatasetNameModal from './DatasetNameModal.vue'
 import DatasetDeleteModal from './DatasetDeleteModal.vue'
 import DatasetSwitchModal from './DatasetSwitchModal.vue'
+
+interface Dataset {
+  id: string
+  name: string
+  createdAt: number
+}
 
 export default defineComponent({
   name: 'DatasetTabs',
@@ -86,6 +123,10 @@ export default defineComponent({
     const showSwitchModal = ref(false)
     const deleteTargetId = ref<string | null>(null)
     const switchTargetId = ref<string | null>(null)
+
+    const editingDatasetId = ref<string | null>(null)
+    const editingName = ref('')
+    const editInputRefs = ref<Record<string, HTMLInputElement>>({})
 
     // Guard to prevent multiple modals
     const isAnyModalOpen = computed(() => showNameModal.value || showDeleteModal.value || showSwitchModal.value)
@@ -137,6 +178,31 @@ export default defineComponent({
       }
     }
 
+    const startEditing = (ds: Dataset) => {
+      editingDatasetId.value = ds.id
+      editingName.value = ds.name
+      nextTick(() => {
+        const input = editInputRefs.value[ds.id]
+        if (input) {
+          input.focus()
+          input.select()
+        }
+      })
+    }
+
+    const saveEdit = () => {
+      if (!editingDatasetId.value) return
+      const name = editingName.value.trim()
+      if (name && name !== datasetStore.datasets.find(d => d.id === editingDatasetId.value)?.name) {
+        datasetStore.renameDataset(editingDatasetId.value, name)
+      }
+      editingDatasetId.value = null
+    }
+
+    const cancelEdit = () => {
+      editingDatasetId.value = null
+    }
+
     return {
       datasetStore,
       switchDataset,
@@ -148,7 +214,13 @@ export default defineComponent({
       handleDeleteDataset,
       showSwitchModal,
       handleSwitchDataset,
-      isAnyModalOpen
+      isAnyModalOpen,
+      editingDatasetId,
+      editingName,
+      editInputRefs,
+      startEditing,
+      saveEdit,
+      cancelEdit
     }
   }
 })
@@ -164,6 +236,7 @@ export default defineComponent({
   white-space: nowrap;
   min-width: 100px;
   justify-content: center;
+  align-self: flex-start;
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;

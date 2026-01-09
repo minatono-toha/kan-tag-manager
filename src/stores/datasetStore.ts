@@ -125,6 +125,14 @@ export const useDatasetStore = defineStore('dataset', () => {
     window.location.reload()
   }
 
+  const renameDataset = (id: string, newName: string) => {
+    const ds = datasets.value.find(d => d.id === id)
+    if (ds) {
+      ds.name = newName
+      saveDatasetsList()
+    }
+  }
+
   // Import Logic
   const importDataset = async (
     fileContent: string,
@@ -493,6 +501,7 @@ export const useDatasetStore = defineStore('dataset', () => {
     addDataset,
     deleteDataset,
     switchDataset,
+    renameDataset,
     importDataset,
     exportDataset,
     importShipCsv

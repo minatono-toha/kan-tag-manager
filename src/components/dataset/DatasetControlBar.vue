@@ -16,7 +16,7 @@
                  <!-- JSON Section (Disabled for Release) -->
                  <div class="relative flex items-center gap-2 flex-1 max-w-[550px]">
                       <div class="absolute inset-0 z-20 flex items-center justify-center bg-gray-200/50 backdrop-blur-[1px] rounded" title="現在開発中です">
-                         <span class="text-[10px] font-bold text-gray-600 bg-white/90 px-2 py-0.5 rounded border border-gray-300 shadow-sm">(実装中)</span>
+                         <span class="text-xxs font-bold text-gray-600 bg-white/90 px-2 py-0.5 rounded border border-gray-300 shadow-sm">(実装中)</span>
                       </div>
                       <div class="flex items-center gap-2 w-full opacity-50 pointer-events-none select-none" aria-disabled="true">
                         <div class="relative flex-1 max-w-[400px]">
