@@ -2,14 +2,23 @@
   <div v-if="modalVisible" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
       <div class="mb-4 text-left">
-        <span @click="showOnlySelected = !showOnlySelected" class="cursor-pointer text-sm text-blue-600 hover:underline select-none">
+        <span
+          @click="showOnlySelected = !showOnlySelected"
+          class="cursor-pointer text-sm text-blue-600 hover:underline select-none"
+        >
           {{ showOnlySelected ? 'すべての改装段階を表示' : '選択された改装段階を表示' }}
         </span>
       </div>
 
       <!-- 艦船ごとの詳細情報を表示 -->
       <ul class="ship-list">
-        <li v-for="ship in displayShips" :key="ship.id" class="ship-item" :class="{ 'selected-variant': ship.id === currentVariantId }" @click="handleShipItemClick(ship, $event)">
+        <li
+          v-for="ship in displayShips"
+          :key="ship.id"
+          class="ship-item"
+          :class="{ 'selected-variant': ship.id === currentVariantId }"
+          @click="handleShipItemClick(ship, $event)"
+        >
           <a
             v-if="ship.wiki_url"
             :href="ship.wiki_url"
@@ -114,7 +123,7 @@ const showOnlySelected = ref(true)
 
 const displayShips = computed(() => {
   if (showOnlySelected.value && props.currentVariantId !== null) {
-    return filteredShips.value.filter(s => s.id === props.currentVariantId)
+    return filteredShips.value.filter((s) => s.id === props.currentVariantId)
   }
   return filteredShips.value
 })
@@ -202,7 +211,8 @@ const closeModal = () => {
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   padding: 20px;
   border-radius: 8px;
   width: fit-content;
@@ -226,16 +236,16 @@ const closeModal = () => {
   gap: 15px;
   align-items: flex-start;
   padding: 10px;
-  border: 2px solid #ccc;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
-  background-color: #f9f9f9;
+  background-color: var(--bg-secondary);
   transition: all 0.2s ease;
 }
 
 .ship-item.selected-variant {
   border-color: #4a90e2;
   box-shadow: 0 0 8px rgba(74, 144, 226, 0.3);
-  background-color: #f0f7ff;
+  background-color: var(--hover-bg);
 }
 
 .ship-info {
@@ -276,7 +286,7 @@ button {
 }
 
 .card-modal-content {
-  background-color: white;
+  background-color: var(--bg-primary);
   padding: 2px;
   border-radius: 0;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -298,5 +308,4 @@ button {
 .wiki-link:hover {
   text-decoration: underline;
 }
-
 </style>

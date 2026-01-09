@@ -4,12 +4,18 @@
       <h3 class="text-sm font-semibold mb-2">制御札管理</h3>
 
       <!-- Status Summary Box (Below Title) -->
-      <div class="px-3 py-1 bg-gray-500 border border-dotted border-gray-400 rounded-lg text-white text-sm leading-relaxed inline-block self-start min-w-[220px]">
+      <div
+        class="px-3 py-1 bg-gray-500 border border-dotted border-gray-400 rounded-lg text-white text-sm leading-relaxed inline-block self-start min-w-[220px]"
+      >
         <div class="grid grid-cols-[auto,1fr] gap-x-1 items-center">
-          <div class="whitespace-nowrap text-xs">出撃{{ tagData.assigned ? '' : '(予定)' }}海域：</div>
+          <div class="whitespace-nowrap text-xs text-gray-100">
+            出撃{{ tagData.assigned ? '' : '(予定)' }}海域：
+          </div>
           <div>{{ parseTagFromTargetStage(tagData.targetStage)?.stage || '-' }}</div>
 
-          <div class="whitespace-nowrap text-xs">割当{{ tagData.assigned ? '' : '(予定)' }}札：</div>
+          <div class="whitespace-nowrap text-xs text-gray-100">
+            割当{{ tagData.assigned ? '' : '(予定)' }}札：
+          </div>
           <div class="flex items-center gap-1">
             <span
               v-if="assignedTagName"
@@ -30,14 +36,18 @@
       <div class="flex flex-wrap items-start gap-x-6 gap-y-2">
         <!-- Vertical Column for 割当済 & 温存 with Box -->
         <div class="relative pt-3">
-          <span class="absolute top-0 left-0 text-xxs text-gray-400 leading-none">クリックで切替</span>
-          <div class="flex flex-col items-center gap-1 border border-dotted border-gray-300 rounded px-4 py-2">
+          <span class="absolute top-0 left-0 text-xxs text-gray-400 leading-none"
+            >クリックで切替</span
+          >
+          <div
+            class="flex flex-col items-center gap-1 border border-dotted border-gray-300 rounded px-4 py-2"
+          >
             <!-- 割当済 -->
             <div class="flex items-center">
               <span
                 @click="toggleAssigned"
-                class="cursor-pointer select-none text-sm font-medium whitespace-nowrap"
-                :class="tagData.assigned ? 'text-gray-700' : 'text-gray-300'"
+                class="cursor-pointer select-none text-sm font-medium whitespace-nowrap transition-colors"
+                :class="tagData.assigned ? 'text-blue-500 font-bold' : 'text-gray-400'"
               >
                 {{ tagData.assigned ? '割当済' : '割当前' }}
               </span>
@@ -47,12 +57,12 @@
             <div class="flex items-center">
               <span
                 @click="!tagData.assigned && togglePreserve()"
-                @mouseenter="tagData.assigned && handleMouseEnterWarning($event, '割当済の艦は温存できません')"
+                @mouseenter="
+                  tagData.assigned && handleMouseEnterWarning($event, '割当済の艦は温存できません')
+                "
                 @mouseleave="handleMouseLeaveWarning"
-                class="select-none text-sm font-medium whitespace-nowrap cursor-pointer"
-                :class="[
-                  (tagData.preserve && !tagData.assigned) ? 'text-blue-600' : 'text-gray-300'
-                ]"
+                class="select-none text-sm font-medium whitespace-nowrap cursor-pointer transition-colors"
+                :class="[tagData.preserve && !tagData.assigned ? 'text-blue-600' : 'text-gray-400']"
               >
                 温存
               </span>
@@ -62,15 +72,19 @@
 
         <!-- 割当先 (Stage Buttons) with Box -->
         <div class="relative pt-3">
-          <span class="absolute top-0 left-0 text-xxs text-gray-400 leading-none">クリックで割当先・割当札を選択</span>
+          <span class="absolute top-0 left-0 text-xxs text-gray-400 leading-none"
+            >クリックで割当先・割当札を選択</span
+          >
           <div class="flex flex-col border border-dotted border-gray-300 rounded p-2">
             <div class="flex flex-wrap gap-1">
               <button
                 v-for="area in uniqueAreas"
                 :key="area"
                 @click="handleAreaClick($event, area)"
-                class="min-w-[50px] px-2 py-0.5 bg-gray-200 hover:bg-gray-300 rounded text-xs font-medium transition-all"
-                :class="{ 'bg-blue-400 text-white hover:bg-blue-500': currentStageArea === area }"
+                class="min-w-[50px] px-2 py-0.5 bg-gray-500 hover:bg-gray-600 rounded text-xs font-medium transition-all text-white border border-gray-400"
+                :class="{
+                  'bg-blue-600 border-blue-400 text-white font-bold': currentStageArea === area,
+                }"
               >
                 {{ area }}
               </button>
@@ -86,15 +100,19 @@
             </div>
           </div>
         </div>
-
       </div>
 
       <!-- Stage Selection Popup -->
       <div
         v-if="showStagePopup"
         ref="stagePopupRef"
-        class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-[1200] overflow-y-auto"
-        :style="{ top: stagePopupPosition.y + 'px', left: stagePopupPosition.x + 'px', maxHeight: '200px', minWidth: '120px' }"
+        class="fixed bg-gray-800 border border-gray-600 shadow-lg rounded py-1 z-[1200] overflow-y-auto text-white"
+        :style="{
+          top: stagePopupPosition.y + 'px',
+          left: stagePopupPosition.x + 'px',
+          maxHeight: '200px',
+          minWidth: '120px',
+        }"
         @click.stop
       >
         <div
@@ -102,26 +120,33 @@
           :key="stage"
           @click="handleStageClick($event, stage)"
           @mouseenter="handleStageHover($event, stage)"
-          class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm flex justify-between items-center"
-          :class="{ 'bg-gray-100': hoveredStage === stage }"
+          class="px-2 py-1 cursor-pointer hover:bg-gray-700 text-sm flex justify-between items-center"
+          :class="{ 'bg-gray-700': hoveredStage === stage }"
         >
           <span>{{ stage }}</span>
-          <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2">▶</span>
+          <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2"
+            >▶</span
+          >
         </div>
       </div>
 
       <!-- Tag Selection Popup (3rd level) -->
       <div
         v-if="showStagePopup && hoveredStage && getTagsForStage(hoveredStage).length > 0"
-        class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-[1300] overflow-y-auto"
-        :style="{ top: tagMenuPosition.y + 'px', left: tagMenuPosition.x + 'px', maxHeight: '200px', minWidth: '140px' }"
+        class="fixed bg-gray-800 border border-gray-600 shadow-lg rounded py-1 z-[1300] overflow-y-auto"
+        :style="{
+          top: tagMenuPosition.y + 'px',
+          left: tagMenuPosition.x + 'px',
+          maxHeight: '200px',
+          minWidth: '140px',
+        }"
         @click.stop
       >
         <div
           v-for="tag in getTagsForStage(hoveredStage)"
           :key="tag.tagId"
           @click="applyTagSelection(hoveredStage, tag.tagName)"
-          class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm"
+          class="px-2 py-1 cursor-pointer hover:opacity-80 text-sm"
           :style="{ backgroundColor: tag.tagColor, color: '#000' }"
         >
           {{ tag.tagName }}
@@ -134,7 +159,7 @@
           type="text"
           :value="tagData.comment"
           @input="handleCommentChange(($event.target as HTMLInputElement).value)"
-          class="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+          class="w-full px-2 py-1 text-xs border border-gray-300 rounded bg-transparent text-inherit"
           placeholder="コメントを入力"
         />
       </div>
@@ -206,7 +231,7 @@ const tagData = computed(() => {
     assigned: false,
     preserve: false,
     targetStage: '',
-    comment: ''
+    comment: '',
   }
 })
 
@@ -215,18 +240,19 @@ const showValidationAlert = ref(false)
 // Confirmation Dialog State
 const showConfirmDialog = ref(false)
 const pendingAction = ref<(() => void) | null>(null)
-const confirmMessage = "すでに制御札割当済の艦の情報を変更しようとしています\n実行してよろしいですか"
+const confirmMessage =
+  'すでに制御札割当済の艦の情報を変更しようとしています\n実行してよろしいですか'
 
 // Unassign Confirmation State
 const showUnassignConfirm = ref(false)
-const unassignConfirmMessage = "割当済チェックを外しますか"
+const unassignConfirmMessage = '割当済チェックを外しますか'
 
 // Custom Tooltip State
 const tooltipState = ref({
   show: false,
   content: '',
   x: 0,
-  y: 0
+  y: 0,
 })
 
 const handleMouseEnterWarning = (e: MouseEvent, content: string) => {
@@ -235,7 +261,7 @@ const handleMouseEnterWarning = (e: MouseEvent, content: string) => {
     show: true,
     content,
     x: rect.left + rect.width / 2,
-    y: rect.top - 5 // Position just above the element
+    y: rect.top - 5, // Position just above the element
   }
 }
 
@@ -259,7 +285,7 @@ const toggleAssigned = () => {
 
   const updated: TagManagement = {
     ...tagData.value,
-    assigned: !tagData.value.assigned
+    assigned: !tagData.value.assigned,
   }
   props.updateTagManagement(updated)
 }
@@ -267,7 +293,7 @@ const toggleAssigned = () => {
 const handleConfirmUnassign = () => {
   const updated: TagManagement = {
     ...tagData.value,
-    assigned: false
+    assigned: false,
   }
   props.updateTagManagement(updated)
   showUnassignConfirm.value = false
@@ -276,7 +302,7 @@ const handleConfirmUnassign = () => {
 const togglePreserve = () => {
   const updated: TagManagement = {
     ...tagData.value,
-    preserve: !tagData.value.preserve
+    preserve: !tagData.value.preserve,
   }
   props.updateTagManagement(updated)
 }
@@ -291,7 +317,7 @@ const tagMenuPosition = ref({ x: 0, y: 0 })
 
 const uniqueAreas = computed(() => {
   const areas = new Set<string>()
-  props.stageOptions.forEach(stage => {
+  props.stageOptions.forEach((stage) => {
     const parts = stage.split('-')
     if (parts.length >= 2) {
       const area = `${parts[0]}-${parts[1]}`
@@ -309,7 +335,8 @@ const uniqueAreas = computed(() => {
 
 const currentStageArea = computed(() => {
   if (!tagData.value.targetStage) return null
-  const stage = parseTagFromTargetStage(tagData.value.targetStage)?.stage || tagData.value.targetStage
+  const stage =
+    parseTagFromTargetStage(tagData.value.targetStage)?.stage || tagData.value.targetStage
   const parts = stage.split('-')
   if (parts.length >= 2) {
     return `${parts[0]}-${parts[1]}`
@@ -319,7 +346,7 @@ const currentStageArea = computed(() => {
 
 const stagesForSelectedArea = computed(() => {
   if (!selectedArea.value) return []
-  return props.stageOptions.filter(stage => stage.startsWith(selectedArea.value!))
+  return props.stageOptions.filter((stage) => stage.startsWith(selectedArea.value!))
 })
 
 const handleAreaClick = (event: MouseEvent, area: string) => {
@@ -330,7 +357,7 @@ const handleAreaClick = (event: MouseEvent, area: string) => {
   const rect = (event.target as HTMLElement).getBoundingClientRect()
   stagePopupPosition.value = {
     x: rect.left,
-    y: rect.bottom + 5
+    y: rect.bottom + 5,
   }
 }
 
@@ -351,7 +378,7 @@ const handleStageHover = (event: MouseEvent, stage: string) => {
 
   tagMenuPosition.value = {
     x: rect.right + 5,
-    y: rect.top
+    y: rect.top,
   }
 }
 
@@ -371,7 +398,7 @@ const applyStageSelection = (stage: string) => {
 const executeStageSelection = (stage: string) => {
   const updated: TagManagement = {
     ...tagData.value,
-    targetStage: stage
+    targetStage: stage,
   }
   props.updateTagManagement(updated)
   showStagePopup.value = false
@@ -394,7 +421,7 @@ const executeTagSelection = (stage: string, tagName: string) => {
   const value = `${stage} (${tagName})`
   const updated: TagManagement = {
     ...tagData.value,
-    targetStage: value
+    targetStage: value,
   }
   props.updateTagManagement(updated)
   showStagePopup.value = false
@@ -415,7 +442,7 @@ const clearStage = () => {
 const executeClearStage = () => {
   const updated: TagManagement = {
     ...tagData.value,
-    targetStage: ''
+    targetStage: '',
   }
   props.updateTagManagement(updated)
   pendingAction.value = null
@@ -434,12 +461,12 @@ const parseTagFromTargetStage = (targetStage: string) => {
   if (match) {
     return {
       stage: match[1],
-      tagName: match[2]
+      tagName: match[2],
     }
   }
   return {
     stage: targetStage,
-    tagName: null
+    tagName: null,
   }
 }
 
@@ -453,14 +480,14 @@ const assignedTagName = computed(() => {
 const assignedTagColor = computed(() => {
   if (!assignedTagName.value) return 'transparent'
   const tags = Object.values(props.tagMap)
-  const tag = tags.find(t => t.tagName === assignedTagName.value)
+  const tag = tags.find((t) => t.tagName === assignedTagName.value)
   return tag ? tag.tagColor : '#e5e7eb'
 })
 
 const handleCommentChange = (value: string) => {
   const updated: TagManagement = {
     ...tagData.value,
-    comment: value
+    comment: value,
   }
   props.updateTagManagement(updated)
 }
@@ -489,7 +516,8 @@ onUnmounted(() => {
 <style scoped>
 .modal-tag-management {
   padding: 16px;
-  background-color: #f9fafb;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
   border-radius: 8px;
 }
 </style>
