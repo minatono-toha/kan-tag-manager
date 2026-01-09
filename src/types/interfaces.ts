@@ -97,3 +97,14 @@ export interface ShipVariantOverride {
   shipIndex: number
   variantId: number // Selected Ship.id
 }
+
+// 公開QAデータ
+export interface QA {
+  id?: string
+  qa_category: number
+  qa_status: number
+  qa_createDate: any // Firestore Timestamp
+  qa_updateDate: any // Firestore Timestamp
+  qa_question: string
+  qa_answer: string
+}

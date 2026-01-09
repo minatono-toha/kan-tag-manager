@@ -42,8 +42,22 @@
 
     <!-- 更新履歴（入力枠の高さに合わせる） -->
     <div class="absolute top-[33px] right-4 w-64">
+      <div class="absolute -top-6 right-0">
+        <button
+          @click="qaModalVisible = true"
+          class="text-xs text-gray-600 hover:text-gray-800 transition-colors bg-white/80 px-2 py-0.5"
+        >
+          公開QA
+        </button>
+      </div>
       <ChangelogDisplay />
     </div>
+
+    <QASheetModal
+      :visible="qaModalVisible"
+      :theme="theme"
+      @close="qaModalVisible = false"
+    />
 
     <!-- 期間情報（イベント名の下に配置） -->
     <div class="mt-3 ml-40">
@@ -83,10 +97,11 @@ import { defineComponent, ref, computed, onMounted, watch, onUnmounted, type Pro
 // import { collection, getDocs } from 'firebase/firestore'
 import { useEvents } from '@/composables/useEvents'
 import ChangelogDisplay from './ChangelogDisplay.vue'
+import QASheetModal from '../common/QASheetModal.vue'
 
 export default defineComponent({
   name: 'EventSelect',
-  components: { ChangelogDisplay },
+  components: { ChangelogDisplay, QASheetModal },
   props: {
     selectedEventId: {
       type: Number as PropType<number | null>,
@@ -102,6 +117,7 @@ export default defineComponent({
     const { events, sortedEvents, loading, fetchEvents } = useEvents()
     // const events = ref<EventInfo[]>([])
     const localSelectedEventId = ref<number | null>(props.selectedEventId)
+    const qaModalVisible = ref(false)
     // const loading = ref(true)
     const currentTime = ref(new Date())
     let timer: number | null = null
@@ -262,6 +278,12 @@ export default defineComponent({
       timer = window.setInterval(() => {
         currentTime.value = new Date()
       }, 60000) // 1分 = 60000ms
+
+      // クエリパラメータのチェック (?qa=true であればモーダルを表示)
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('qa') === 'true') {
+        qaModalVisible.value = true
+      }
     })
 
     onUnmounted(() => {
@@ -281,6 +303,7 @@ export default defineComponent({
       eventStatus,
       statusColorClass,
       handleThemeChange,
+      qaModalVisible,
     }
   },
 })
