@@ -15,8 +15,15 @@
         <li
           v-for="ship in displayShips"
           :key="ship.id"
-          class="ship-item"
-          :class="{ 'selected-variant': ship.id === currentVariantId }"
+          class="ship-item cursor-pointer"
+          :class="[
+            shipItemClass,
+            {
+              'selected-variant': ship.id === currentVariantId,
+              'opacity-50 cursor-not-allowed': selectedShip && isVariantDisabled(selectedShip.name, ship.name)
+            }
+          ]"
+          :title="selectedShip && isVariantDisabled(selectedShip.name, ship.name) ? '改装元と特攻倍率が異なるため、改装後の行を参照してください' : ''"
           @click="handleShipItemClick(ship, $event)"
         >
           <a
@@ -96,8 +103,10 @@ import { ref, watch, computed } from 'vue'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import ShipCard from './ShipCard.vue'
 import ModalTagManagement from './ModalTagManagement.vue'
+import { SP_ATTACK_EXCEPTION_SHIPS } from '@/components/attack/SPAttackException'
+import { useTheme } from '@/composables/useTheme'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   ships: Ship[]
   modalVisible: boolean
   selectedShipOrig: number | null
@@ -109,7 +118,17 @@ const props = defineProps<{
   stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
   tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
   updateTagManagement: (data: TagManagement) => Promise<void>
-}>()
+}>(), {})
+
+const { theme } = useTheme()
+
+const isVariantDisabled = (rowShipName: string, variantName: string): boolean => {
+  // 例外リストに含まれる艦の場合、名称が部分一致しないバリエーションは選択不可とする
+  if (SP_ATTACK_EXCEPTION_SHIPS.some(ex => rowShipName.includes(ex))) {
+    return !variantName.includes(rowShipName)
+  }
+  return false
+}
 
 const emit = defineEmits(['close', 'select-variant'])
 
@@ -120,6 +139,13 @@ const filteredShips = ref<Ship[]>([])
 const cardModalVisible = ref(false)
 const cardBannerId = ref<number | null>(null)
 const showOnlySelected = ref(true)
+
+const shipItemClass = computed(() => {
+  if (theme.value === 'dark' || theme.value === 'gradient') {
+    return 'hover:bg-gray-700 text-gray-100 border-gray-600'
+  }
+  return 'hover:bg-blue-50 border-gray-200'
+})
 
 const displayShips = computed(() => {
   if (showOnlySelected.value && props.currentVariantId !== null) {
@@ -144,19 +170,35 @@ const handleCardOpen = (bannerId: number) => {
 }
 
 const handleBannerClick = (event: MouseEvent, ship: Ship) => {
-  // Check if the click target is the image (which would have triggered handleCardOpen)
+  // Check if disabled (for variant selection logic via frame click)
   const target = event.target as HTMLElement
+
   if (target.tagName === 'IMG') {
     // Prevent the link from navigating when clicking the image
     event.preventDefault()
-  } else {
-    // Clicking the frame (outside the image) - select variant
-    event.preventDefault()
-    emit('select-variant', ship.orig, ship.id)
+    // Image click (card open) is allowed even if disabled?
+    // Usually only variant switching is the issue.
+    // If we want to allow viewing card of disabling ship, we can proceed.
+    // The user said "selectable from modal", so variant switching is the main concern.
+    return
   }
+
+  // Clicking the frame (outside the image) - select variant
+  event.preventDefault()
+
+  if (selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name)) {
+    return
+  }
+
+  emit('select-variant', ship.orig, ship.id)
 }
 
 const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
+  // Check if disabled
+  if (selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name)) {
+    return
+  }
+
   // Check if the click originated from the banner area (image or link)
   const target = event.target as HTMLElement
   const isBannerClick = target.closest('.ship-banner') !== null

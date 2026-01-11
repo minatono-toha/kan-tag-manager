@@ -110,7 +110,7 @@
               :all-ships="allShips"
                :variant-map="shipVariantMap"
                :source-ships="expandedShips"
-               @update-variant="updateShipVariant"
+               @update-variant="handleSafeUpdateVariant"
               @select="openModal"
               @filter-change="handleSafeShipFilterChange"
               @increment-ship="incrementShipCount"
@@ -187,6 +187,16 @@
       @close="closeModal"
       @select-variant="handleVariantSelectFromModal"
     />
+    <BaseDialog
+      :show="showTypeChangeDialog"
+      title="艦種変更確認"
+      :message="typeChangeDialogMessage"
+      confirmText="変更する"
+      cancelText="キャンセル"
+      @confirm="confirmTypeChange"
+      @cancel="cancelTypeChange"
+      @close="cancelTypeChange"
+    />
   </div>
 </template>
 
@@ -203,6 +213,7 @@ import EventSelect from './components/eventselect/EventSelect.vue'
 import ThemeSelector from './components/theme/ThemeSelector.vue'
 import DatasetTabs from './components/dataset/DatasetTabs.vue'
 import DatasetControlBar from './components/dataset/DatasetControlBar.vue'
+import BaseDialog from './components/common/BaseDialog.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
@@ -218,7 +229,8 @@ export default defineComponent({
     EventSelect,
     ThemeSelector,
     DatasetTabs,
-    DatasetControlBar
+    DatasetControlBar,
+    BaseDialog
   },
   setup() {
     const { theme, handleThemeChange } = useTheme()
@@ -273,6 +285,72 @@ export default defineComponent({
     // Store filtered ships from tag management table
     const filteredShipsFromTagTable = ref<ExpandedShip[]>([])
     const tagFilterActive = ref(false)
+
+    // Type Change Dialog Logic
+    const showTypeChangeDialog = ref(false)
+    const typeChangeDialogMessage = ref('')
+    const pendingVariantUpdate = ref<{ orig: number; shipIndex: number; variantId: number; newFilterId: number } | null>(null)
+
+    const handleSafeUpdateVariant = async (orig: number, shipIndex: number, variantId: number) => {
+      // Find current ship instance
+      const ship = expandedShips.value.find(s => s.orig === orig && s.shipIndex === shipIndex)
+      if (!ship) return
+
+      // Determine current filterId (displayed)
+      let currentFilterId = ship.filterId
+      const key = `${orig}_${shipIndex}`
+      const currentVariantId = shipVariantMap.value.get(key)
+      if (currentVariantId) {
+        const v = allShips.value.find(s => s.id === currentVariantId)
+        if (v) currentFilterId = v.filterId
+      }
+
+      // Determine new filterId
+      let newFilterId = ship.filterId
+      const newVariant = allShips.value.find(s => s.id === variantId)
+      if (newVariant) {
+        newFilterId = newVariant.filterId
+      }
+
+      // If filter IDs differ and we have filters active (and neither involves keeping the ship visible), warn user
+      // Actually, user wants warning if it "moves to another tab".
+      // If no filters are active (All displayed), no warning needed? "改装段階によって艦種が変わるため、変更後の艦種フィルタに組み込みます"
+      // Suggests we should warn if it affects filtering.
+      // If I am in "Aux" tab and change to "CVL", it disappears.
+      // If I am in "All" tab, it doesn't disappear.
+      // User request: "改装段階によって艦種が変わるものは、改装後の艦種タブの一覧に表示するようにしたいです"
+      // "プルダウンから選択して別の艦種になる場合は ... ダイアログを出して"
+
+      if (currentFilterId !== newFilterId) {
+        // Construct detailed message
+        const currentFilterLabel = filters.value.find(f => f.id === currentFilterId)?.label || '不明'
+        const newFilterLabel = filters.value.find(f => f.id === newFilterId)?.label || '不明'
+
+        typeChangeDialogMessage.value = `改装段階によって艦種が変わるため、変更後の艦種フィルタに組み込みます。よろしいですか？\n${currentFilterLabel} → ${newFilterLabel}`
+
+        pendingVariantUpdate.value = { orig, shipIndex, variantId, newFilterId }
+        showTypeChangeDialog.value = true
+        return
+      }
+
+      await updateShipVariant(orig, shipIndex, variantId)
+    }
+
+    const confirmTypeChange = async () => {
+      if (pendingVariantUpdate.value) {
+        const { orig, shipIndex, variantId, newFilterId } = pendingVariantUpdate.value
+        await updateShipVariant(orig, shipIndex, variantId)
+        // Automatically switch to the new filter tab to ensure visibility
+        selectedFilterIds.value = [newFilterId]
+        pendingVariantUpdate.value = null
+      }
+      showTypeChangeDialog.value = false
+    }
+
+    const cancelTypeChange = () => {
+      pendingVariantUpdate.value = null
+      showTypeChangeDialog.value = false
+    }
 
     const handleTagFilterChange = (filteredShips: ExpandedShip[], isFiltering: boolean) => {
       filteredShipsFromTagTable.value = filteredShips
@@ -391,7 +469,7 @@ export default defineComponent({
 
       if (targetShip) {
         // Update the variant for the clicked ship instance
-        updateShipVariant(orig, clickedShipIndex, variantId)
+        handleSafeUpdateVariant(orig, clickedShipIndex, variantId)
       }
     }
 
@@ -486,6 +564,11 @@ export default defineComponent({
       decrementShipCount,
       shipVariantMap,
       updateShipVariant,
+      handleSafeUpdateVariant,
+      showTypeChangeDialog,
+      typeChangeDialogMessage,
+      confirmTypeChange,
+      cancelTypeChange,
       handleVariantSelectFromModal,
       finalShips: computed(() => {
         // If an event is selected, we want to show ships in the order determined by AttackTable.

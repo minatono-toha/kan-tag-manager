@@ -164,9 +164,34 @@ export function useShips() {
 
   const ships = computed(() => {
     if (selectedFilterIds.value.length === 0) return []
+
     return uniqueOrigs.value
-      .filter((ship) => selectedFilterIds.value.includes(ship.filterId))
+      .filter((ship) => {
+        // 1. Basic check: Does the original ship match?
+        if (selectedFilterIds.value.includes(ship.filterId)) return true
+
+        // 2. Extended check: Does any owned variant match?
+        const count = getOwnershipCount(ship.orig)
+        if (count > 0) {
+           for (let i = 0; i < count; i++) {
+             const key = `${ship.orig}_${i}`
+             const variantId = shipVariantMap.value.get(key)
+             if (variantId) {
+               // Resolve variant
+               const variant = allShips.value.find(s => s.id === variantId)
+               // If variant exists and its filterId is selected, include this ship group
+               if (variant && selectedFilterIds.value.includes(variant.filterId)) {
+                 return true
+               }
+             }
+           }
+        }
+        return false
+      })
       .sort((a, b) => {
+        // Sort logic might need adjustment if the "primary" displayed ship changes,
+        // but for now sorting by the base ship's ID is stable and acceptable.
+        // Or we could try to sort by the "first matching variant", but that's complex.
         const fa = a.filterId ?? 0
         const fb = b.filterId ?? 0
         return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
@@ -175,7 +200,27 @@ export function useShips() {
 
   // Expanded ships for display
   const expandedShips = computed(() => {
-    return expandShips(ships.value)
+    const expanded = expandShips(ships.value)
+
+    // Strict re-filtering: Ensure the specific variant being displayed matches the filter
+    if (selectedFilterIds.value.length === 0) return expanded
+
+    return expanded.filter(ship => {
+      // Resolve the actual ship type being displayed
+      let currentFilterId = ship.filterId
+      const key = `${ship.orig}_${ship.shipIndex}`
+      const variantId = shipVariantMap.value.get(key)
+
+      if (variantId) {
+        // If there's an override, check the variant's type
+        const variant = allShips.value.find(s => s.id === variantId)
+        if (variant) {
+          currentFilterId = variant.filterId
+        }
+      }
+
+      return selectedFilterIds.value.includes(currentFilterId)
+    })
   })
 
   const shipsToDisplay = computed(() => {

@@ -175,7 +175,8 @@
     <!-- Variant Selection Popup -->
     <div
       v-if="showVariantPopup"
-      class="fixed z-[100] bg-white border border-gray-300 shadow-lg rounded p-2 text-sm max-h-60 overflow-y-auto"
+      class="fixed z-[100] shadow-lg rounded p-2 text-sm max-h-60 overflow-y-auto border"
+      :class="popupContainerClass"
       :style="{ top: `${variantPopupPosition.y}px`, left: `${variantPopupPosition.x}px` }"
       ref="variantPopupRef"
       @click.stop
@@ -183,7 +184,12 @@
       <div
         v-for="variant in currentVariants"
         :key="variant.id"
-        class="cursor-pointer hover:bg-gray-100 p-1 rounded whitespace-nowrap focus:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        class="cursor-pointer p-1 rounded whitespace-nowrap focus:outline-none focus:ring-1 focus:ring-blue-500"
+        :class="[
+          popupItemClass,
+          { 'opacity-50 cursor-not-allowed': currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) }
+        ]"
+        :title="currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) ? '改装元と特攻倍率が異なるため、改装後の行を参照してください' : ''"
         tabindex="0"
         @click="selectVariant(variant)"
         @keydown.enter="selectVariant(variant)"
@@ -205,6 +211,7 @@ import FilterPopup from '@/components/common/FilterPopup.vue'
 import SearchIcon from '@/components/common/SearchIcon.vue'
 import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
+import { SP_ATTACK_EXCEPTION_SHIPS } from '@/components/attack/SPAttackException'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -309,7 +316,7 @@ const showVariantPopup = ref(false)
 const variantPopupPosition = ref({ x: 0, y: 0 })
 const variantPopupRef = ref<HTMLElement | null>(null)
 const currentVariants = ref<Ship[]>([])
-const currentTarget = ref<{ orig: number; shipIndex: number } | null>(null)
+const currentTarget = ref<{ orig: number; shipIndex: number; ship: ExpandedShip } | null>(null)
 
 const getDisplayShip = (ship: ExpandedShip): Ship => {
   const key = `${ship.orig}_${ship.shipIndex}`
@@ -329,7 +336,7 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
     closeAllPopups()
 
     // Set target
-    currentTarget.value = { orig: ship.orig, shipIndex: ship.shipIndex }
+    currentTarget.value = { orig: ship.orig, shipIndex: ship.shipIndex, ship }
 
     // Find variants
     const variants = props.allShips.filter(s => s.orig === ship.orig)
@@ -360,8 +367,21 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
   }
 }
 
+
+const isVariantDisabled = (rowShipName: string, variantName: string): boolean => {
+  // 例外リストに含まれる艦の場合、名称が部分一致しないバリエーションは選択不可とする
+  if (SP_ATTACK_EXCEPTION_SHIPS.some(ex => rowShipName.includes(ex))) {
+    return !variantName.includes(rowShipName)
+  }
+  return false
+}
+
 const selectVariant = (variant: Ship) => {
   if (currentTarget.value) {
+    const rowShip = currentTarget.value.ship
+    if (isVariantDisabled(getDisplayShip(rowShip).name, variant.name)) {
+      return
+    }
     emit('update-variant', currentTarget.value.orig, currentTarget.value.shipIndex, variant.id)
   }
   showVariantPopup.value = false
@@ -571,6 +591,20 @@ const headerStyle = computed(() => ({
   height: props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`,
   fontSize: TABLE_STYLE.fontSize,
 }))
+
+const popupContainerClass = computed(() => {
+  if (props.theme === 'dark' || props.theme === 'gradient') {
+    return 'bg-gray-800 border-gray-600 text-gray-100'
+  }
+  return 'bg-white border-gray-300 text-gray-900'
+})
+
+const popupItemClass = computed(() => {
+  if (props.theme === 'dark' || props.theme === 'gradient') {
+    return 'hover:bg-gray-700 focus:bg-gray-700'
+  }
+  return 'hover:bg-gray-100 focus:bg-gray-100'
+})
 </script>
 
 <style scoped>
