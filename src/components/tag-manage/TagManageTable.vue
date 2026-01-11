@@ -369,7 +369,7 @@
     <div
       v-if="showStageSelectorPopup"
       ref="stageSelectorPopupRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-50 overflow-y-auto"
+      class="fixed shadow-lg rounded py-1 z-50 overflow-y-auto border popup-container"
       :style="{
         top: stageSelectorPosition.y + 'px',
         left: stageSelectorPosition.x + 'px',
@@ -381,13 +381,13 @@
       <div
         v-for="area in uniqueAreas"
         :key="area"
-        class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center relative group hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+        class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center relative group popup-item focus:outline-none"
         tabindex="0"
         @mouseenter="handleAreaHover($event, area)"
         @click="handleAreaClick($event, area)"
         @keydown.enter="handleAreaClick($event, area)"
         @keydown.space.prevent="handleAreaClick($event, area)"
-        :class="{ 'bg-gray-100': hoveredArea === area }"
+        :class="{ 'popup-item-active': hoveredArea === area }"
       >
         <span>{{ area }}</span>
         <span class="text-gray-400 text-xs ml-2">▶</span>
@@ -398,7 +398,7 @@
         @click="applyStageSelection('')"
         @keydown.enter="applyStageSelection('')"
         @keydown.space.prevent="applyStageSelection('')"
-        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-gray-500 text-xs focus:bg-gray-100 focus:outline-none"
+        class="px-2 py-1 cursor-pointer text-gray-500 text-xs popup-item focus:outline-none"
         tabindex="0"
         @mouseenter="hoveredArea = null"
       >
@@ -410,7 +410,7 @@
     <div
       v-if="showStageSelectorPopup && hoveredArea"
       ref="subMenuRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] overflow-y-auto"
+      class="fixed shadow-lg rounded py-1 z-[60] overflow-y-auto border popup-container"
       :style="{
         top: subMenuPosition.y + 'px',
         left: subMenuPosition.x + 'px',
@@ -427,9 +427,9 @@
         @keydown.enter="handleStageClick($event, stage)"
         @keydown.space.prevent="handleStageClick($event, stage)"
         @mouseenter="handleStageHover($event, stage)"
-        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm flex justify-between items-center focus:bg-gray-100 focus:outline-none"
+        class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center popup-item focus:outline-none"
         tabindex="0"
-        :class="{ 'bg-gray-100': hoveredStage === stage }"
+        :class="{ 'popup-item-active': hoveredStage === stage }"
       >
         <span>{{ stage }}</span>
         <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2">▶</span>
@@ -440,7 +440,7 @@
     <div
       v-if="showStageSelectorPopup && hoveredStage && getTagsForStage(hoveredStage).length > 0"
       ref="tagMenuRef"
-      class="fixed bg-white border border-gray-300 shadow-lg rounded py-1 z-[70] overflow-y-auto"
+      class="fixed shadow-lg rounded py-1 z-[70] overflow-y-auto border popup-container"
       :style="{
         top: tagMenuPosition.y + 'px',
         left: tagMenuPosition.x + 'px',
@@ -455,7 +455,7 @@
         @click="applyTagSelection(hoveredStage, tag.tagName)"
         @keydown.enter="applyTagSelection(hoveredStage, tag.tagName)"
         @keydown.space.prevent="applyTagSelection(hoveredStage, tag.tagName)"
-        class="px-2 py-1 cursor-pointer hover:bg-gray-100 text-sm focus:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        class="px-2 py-1 cursor-pointer text-sm popup-item focus:outline-none focus:ring-1 focus:ring-blue-500"
         tabindex="0"
         :style="{ backgroundColor: tag.tagColor, color: '#000' }"
       >
@@ -1193,18 +1193,12 @@ const getRowClass = (orig: number, shipIndex: number) => {
 
   // Assigned flag takes priority
   if (tagData.assigned) {
-    if (props.theme === 'dark' || props.theme === 'gradient') {
-      return 'row-assigned-dark'
-    }
-    return 'row-assigned-light'
+    return 'row-assigned'
   }
 
   // Preserve flag
   if (tagData.preserve) {
-    if (props.theme === 'dark' || props.theme === 'gradient') {
-      return 'row-preserve-dark'
-    }
-    return 'row-preserve-light'
+    return 'row-preserve'
   }
 
   return ''
@@ -1260,19 +1254,26 @@ input[type='checkbox'].pointer-events-none {
 }
 
 /* Optimization: Row Highlight Classes */
-.row-assigned-light {
-  background-color: #e5e7eb; /* gray-200 */
-}
-.row-assigned-dark {
-  background-color: #4b5563 !important; /* gray-600 */
-  color: #f3f4f6 !important; /* gray-100 */
+.row-assigned {
+  background-color: var(--bg-row-assigned) !important;
+  color: var(--text-row-assigned) !important;
 }
 
-.row-preserve-light {
-  background-color: #dbeafe; /* blue-100 */
+.row-preserve {
+  background-color: var(--bg-row-preserve) !important;
+  color: var(--text-row-preserve) !important;
 }
-.row-preserve-dark {
-  background-color: #1e40af !important; /* blue-800 */
-  color: #dbeafe !important; /* blue-100 */
+
+.popup-container {
+  background-color: var(--bg-popup) !important;
+  color: var(--text-popup) !important;
+  border-color: var(--border-popup) !important;
+}
+
+.popup-item:hover,
+.popup-item:focus,
+.popup-item-active {
+  background-color: var(--bg-popup-hover) !important;
+  outline: none;
 }
 </style>

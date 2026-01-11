@@ -175,8 +175,7 @@
     <!-- Variant Selection Popup -->
     <div
       v-if="showVariantPopup"
-      class="fixed z-[100] shadow-lg rounded p-2 text-sm max-h-60 overflow-y-auto border"
-      :class="popupContainerClass"
+      class="fixed z-[100] shadow-lg rounded p-2 text-sm max-h-60 overflow-y-auto border popup-container"
       :style="{ top: `${variantPopupPosition.y}px`, left: `${variantPopupPosition.x}px` }"
       ref="variantPopupRef"
       @click.stop
@@ -186,7 +185,7 @@
         :key="variant.id"
         class="cursor-pointer p-1 rounded whitespace-nowrap focus:outline-none focus:ring-1 focus:ring-blue-500"
         :class="[
-          popupItemClass,
+          'popup-item',
           { 'opacity-50 cursor-not-allowed': currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) }
         ]"
         :title="currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) ? '改装元と特攻倍率が異なるため、改装後の行を参照してください' : ''"
@@ -559,17 +558,11 @@ const getRowClass = (orig: number, shipIndex: number) => {
   if (!tagData) return ''
 
   if (tagData.assigned) {
-    if (props.theme === 'dark' || props.theme === 'gradient') {
-      return 'row-assigned-dark'
-    }
-    return 'row-assigned-light'
+    return 'row-assigned'
   }
 
   if (tagData.preserve) {
-    if (props.theme === 'dark' || props.theme === 'gradient') {
-      return 'row-preserve-dark'
-    }
-    return 'row-preserve-light'
+    return 'row-preserve'
   }
 
   return ''
@@ -592,19 +585,6 @@ const headerStyle = computed(() => ({
   fontSize: TABLE_STYLE.fontSize,
 }))
 
-const popupContainerClass = computed(() => {
-  if (props.theme === 'dark' || props.theme === 'gradient') {
-    return 'bg-gray-800 border-gray-600 text-gray-100'
-  }
-  return 'bg-white border-gray-300 text-gray-900'
-})
-
-const popupItemClass = computed(() => {
-  if (props.theme === 'dark' || props.theme === 'gradient') {
-    return 'hover:bg-gray-700 focus:bg-gray-700'
-  }
-  return 'hover:bg-gray-100 focus:bg-gray-100'
-})
 </script>
 
 <style scoped>
@@ -625,19 +605,25 @@ th, td {
   border-bottom: 1px solid #d1d5db !important;
 }
 
-.row-assigned-light {
-  background-color: #e5e7eb;
-}
-.row-assigned-dark {
-  background-color: #4b5563 !important;
-  color: #f3f4f6 !important;
+.row-assigned {
+  background-color: var(--bg-row-assigned) !important;
+  color: var(--text-row-assigned) !important;
 }
 
-.row-preserve-light {
-  background-color: #dbeafe;
+.row-preserve {
+  background-color: var(--bg-row-preserve) !important;
+  color: var(--text-row-preserve) !important;
 }
-.row-preserve-dark {
-  background-color: #1e40af !important;
-  color: #dbeafe !important;
+
+.popup-container {
+  background-color: var(--bg-popup) !important;
+  color: var(--text-popup) !important;
+  border-color: var(--border-popup) !important;
+}
+
+.popup-item:hover,
+.popup-item:focus {
+  background-color: var(--bg-popup-hover) !important;
+  outline: none;
 }
 </style>

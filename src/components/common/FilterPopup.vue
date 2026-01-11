@@ -2,7 +2,7 @@
   <div
     v-if="show"
     ref="popupRef"
-    class="fixed bg-white border border-gray-300 shadow-lg rounded p-3 z-[100]"
+    class="fixed shadow-lg rounded p-3 z-[100] border popup-container"
     :class="{ 'max-h-80 overflow-y-auto': type === 'checkbox' }"
     :style="{ top: position.y + 'px', left: position.x + 'px' }"
     @click.stop
@@ -244,3 +244,17 @@ defineExpose({
   popupRef
 })
 </script>
+
+<style scoped>
+.popup-container {
+  background-color: var(--bg-popup) !important;
+  color: var(--text-popup) !important;
+  border-color: var(--border-popup) !important;
+}
+
+.popup-container input[type="text"] {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+</style>

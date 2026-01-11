@@ -54,6 +54,23 @@ a,
   --hover-bg: #f3f4f6;
   --table-border: #d1d5db;
   --tab-grayed-text: #374151;
+
+  /* Semantic Colors */
+  --bg-popup: #ffffff;
+  --text-popup: #111827;
+  --border-popup: #d1d5db;
+  --bg-popup-hover: #f3f4f6;
+
+  --bg-row-assigned: #e5e7eb;
+  --text-row-assigned: #111827;
+
+  --bg-row-preserve: #dbeafe;
+  --text-row-preserve: #111827;
+
+  --bg-modal: #ffffff;
+  --text-modal: #111827;
+
+  --header-bg-stage: #e5e7eb;
 }
 
 /* Dark Mode */
@@ -70,6 +87,23 @@ a,
   --hover-bg: #4b5563;
   --table-border: #4b5563;
   --tab-grayed-text: #111827;
+
+  /* Semantic Colors */
+  --bg-popup: #1f2937;
+  --text-popup: #f3f4f6;
+  --border-popup: #4b5563;
+  --bg-popup-hover: #374151;
+
+  --bg-row-assigned: #4b5563;
+  --text-row-assigned: #f3f4f6;
+
+  --bg-row-preserve: #1e40af;
+  --text-row-preserve: #dbeafe;
+
+  --bg-modal: #1f2937;
+  --text-modal: #f3f4f6;
+
+  --header-bg-stage: #4b5563;
 }
 
 /* Gradient Mode */
@@ -86,6 +120,23 @@ a,
   --hover-bg: rgba(99, 102, 241, 0.2);
   --table-border: rgba(99, 102, 241, 0.3);
   --tab-grayed-text: #111827;
+
+  /* Semantic Colors */
+  --bg-popup: #111827; /* Darker solid bg for readability */
+  --text-popup: #f3f4f6;
+  --border-popup: rgba(99, 102, 241, 0.5);
+  --bg-popup-hover: rgba(30, 58, 138, 0.5);
+
+  --bg-row-assigned: #4b5563;
+  --text-row-assigned: #f3f4f6;
+
+  --bg-row-preserve: #1e40af;
+  --text-row-preserve: #dbeafe;
+
+  --bg-modal: #1f2937;
+  --text-modal: #f3f4f6;
+
+  --header-bg-stage: rgba(30, 58, 138, 0.6);
 }
 
 /* Apply theme colors to root and body for full coverage */

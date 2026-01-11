@@ -15,8 +15,7 @@
         <div v-if="$slots.header || title" class="mb-4">
           <slot name="header">
             <h3
-              class="text-lg font-medium"
-              :class="theme !== 'light' ? 'text-white' : 'text-gray-900'"
+              class="text-lg font-medium text-modal"
             >
               {{ title }}
             </h3>
@@ -36,8 +35,7 @@
                 v-if="showCancel"
                 type="button"
                 @click="handleCancel"
-                class="px-4 py-2 text-sm rounded-md transition-colors"
-                :class="theme !== 'light' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="px-4 py-2 text-sm rounded-md transition-colors btn-cancel"
               >
                 {{ cancelText }}
               </button>
@@ -124,7 +122,7 @@ export default defineComponent({
   emits: ['close', 'cancel', 'confirm'],
   setup(props, { emit }) {
     const containerClass = computed(() => {
-      return props.theme !== 'light' ? 'bg-gray-800' : 'bg-white'
+      return 'modal-container'
     })
 
     const widthClass = computed(() => {
@@ -177,4 +175,16 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.modal-container {
+  background-color: var(--bg-modal) !important;
+  color: var(--text-modal) !important;
+}
+
+.btn-cancel {
+  color: var(--text-modal);
+}
+
+.btn-cancel:hover {
+  background-color: var(--hover-bg);
+}
 </style>

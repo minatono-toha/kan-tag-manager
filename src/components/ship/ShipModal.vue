@@ -253,8 +253,8 @@ const closeModal = () => {
 }
 
 .modal-content {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg-modal);
+  color: var(--text-modal);
   padding: 20px;
   border-radius: 8px;
   width: fit-content;
@@ -328,7 +328,7 @@ button {
 }
 
 .card-modal-content {
-  background-color: var(--bg-primary);
+  background-color: var(--bg-modal);
   padding: 2px;
   border-radius: 0;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
