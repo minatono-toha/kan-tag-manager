@@ -15,23 +15,23 @@
             <div class="flex items-center gap-2 flex-1 max-w-[900px]">
                  <!-- JSON Section (Disabled for Release) -->
                  <div class="relative flex items-center gap-2 flex-1 max-w-[550px]">
-                      <div class="absolute inset-0 z-20 flex items-center justify-center bg-gray-200/50 backdrop-blur-[1px] rounded" title="現在開発中です">
+                      <div v-if="!isDev" class="absolute inset-0 z-20 flex items-center justify-center bg-gray-200/50 backdrop-blur-[1px] rounded" title="現在開発中です">
                          <span class="text-xxs font-bold text-gray-600 bg-white/90 px-2 py-0.5 rounded border border-gray-300 shadow-sm">(実装中)</span>
                       </div>
-                      <div class="flex items-center gap-2 w-full opacity-50 pointer-events-none select-none" aria-disabled="true">
+                      <div class="flex items-center gap-2 w-full transition-opacity duration-300" :class="{ 'opacity-50 pointer-events-none select-none': !isDev, 'aria-disabled': !isDev }">
                         <div class="relative flex-1 max-w-[400px]">
                           <input
                             type="text"
                             v-model="codeText"
                             class="w-full pl-2 pr-8 py-1 border border-gray-400 rounded text-xs shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="艦隊分析コード（JSON）"
-                            disabled
+                            :disabled="!isDev"
                           />
                           <button
                             @click="copyCode"
                             class="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
                             title="コピー"
-                            disabled
+                            :disabled="!isDev"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                               <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
@@ -46,7 +46,7 @@
                           type="button"
                           @click="triggerImport"
                           class="px-2 py-1 bg-gray-300 text-gray-800 border border-gray-400 rounded hover:bg-gray-400 text-xs flex items-center gap-1 shadow-sm transition-colors whitespace-nowrap"
-                          disabled
+                          :disabled="!isDev || loading"
                         >
                           <span v-if="loading">...</span>
                           <span v-else>コードから取り込み</span>
@@ -56,7 +56,7 @@
                           type="button"
                           @click="triggerExport"
                           class="px-2 py-1 bg-gray-300 text-gray-800 border border-gray-400 rounded hover:bg-gray-400 text-xs flex items-center gap-1 shadow-sm transition-colors whitespace-nowrap"
-                          disabled
+                          :disabled="!isDev || loading"
                         >
                           <span>コードを生成</span>
                         </button>
@@ -119,13 +119,13 @@
       </div>
 
       <!-- Modals -->
-      <CsvImportDestinationModal
+      <ImportDestinationModal
         v-if="showDestinationModal"
         @select="handleDestinationSelect"
         @cancel="closeDestinationModal"
       />
 
-      <CsvImportResultModal
+      <ImportResultModal
         v-if="showResultModal"
         :total="importResult.total"
         :success="importResult.success"
@@ -138,8 +138,9 @@
       :title="alertDialog.title"
       :message="alertDialog.message"
       :type="alertDialog.type"
-      @close="alertDialog.show = false"
+      @cancel="alertDialog.show = false"
       @confirm="alertDialog.show = false"
+      @update:show="alertDialog.show = $event"
     />
 
     <Teleport to="body">
@@ -160,14 +161,14 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useDatasetStore } from '@/stores/datasetStore'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
-import CsvImportDestinationModal from './CsvImportDestinationModal.vue'
-import CsvImportResultModal from './CsvImportResultModal.vue'
+import ImportDestinationModal from './ImportDestinationModal.vue'
+import ImportResultModal from './ImportResultModal.vue'
 
 export default defineComponent({
   name: 'DatasetControlBar',
   components: {
-    CsvImportDestinationModal,
-    CsvImportResultModal,
+    ImportDestinationModal,
+    ImportResultModal,
     BaseDialog
   },
   props: {
@@ -186,6 +187,7 @@ export default defineComponent({
     const codeText = ref('')
     const fileInput = ref<HTMLInputElement | null>(null)
     const isExpanded = ref(false)
+    const isDev = import.meta.env.DEV
 
     // Custom Tooltip State
     const tooltipState = ref({
@@ -213,6 +215,7 @@ export default defineComponent({
     const showDestinationModal = ref(false)
     const showResultModal = ref(false)
     const csvContent = ref('')
+    const importSource = ref<'csv' | 'json'>('csv')
     const importResult = ref<{ total: number, success: number, excluded: string[] }>({ total: 0, success: 0, excluded: [] })
 
     const alertDialog = ref({
@@ -243,44 +246,8 @@ export default defineComponent({
 
     const triggerImport = async () => {
       if (!codeText.value || isAnyModalOpen.value) return
-
-      const name = prompt('インポートするデータセット名を入力してください:', 'Imported Data')
-      if (!name) return
-
-      loading.value = true
-      try {
-        if (props.selectedEventId) {
-            selectedEventIdRef.value = props.selectedEventId
-            await fetchData(props.selectedEventId)
-        }
-
-        const tMap: Record<number, { tagId: number, tagName: string }> = {}
-        for (const k in tagMap.value) {
-            const v = tagMap.value[k]
-            tMap[v.tagId] = { tagId: v.tagId, tagName: v.tagName }
-        }
-
-        const sTagMap: Record<string, { tagId: number }[]> = {}
-        for (const k in stageTagMap.value) {
-            const v = stageTagMap.value[k]
-            sTagMap[k] = v.map(t => ({ tagId: t.tagId }))
-        }
-
-        await datasetStore.importDataset(
-          codeText.value,
-          name,
-          allShips.value,
-          props.selectedEventId,
-          tMap,
-          sTagMap
-        )
-      } catch (error) {
-        showAlert('エラー', 'インポートに失敗しました。形式を確認してください。')
-        console.error(error)
-      } finally {
-        loading.value = false
-        codeText.value = ''
-      }
+      importSource.value = 'json'
+      showDestinationModal.value = true
     }
 
     const triggerExport = async () => {
@@ -296,16 +263,9 @@ export default defineComponent({
           selectedEventIdRef.value = props.selectedEventId
           await fetchData(props.selectedEventId)
 
-          const sTagMap: Record<string, { tagId: number }[]> = {}
-          for (const k in stageTagMap.value) {
-              const v = stageTagMap.value[k]
-              sTagMap[k] = v.map(t => ({ tagId: t.tagId }))
-          }
-
           const json = await datasetStore.exportDataset(
             allShips.value,
-            props.selectedEventId,
-            sTagMap
+            props.selectedEventId
           )
 
           codeText.value = json
@@ -329,6 +289,7 @@ export default defineComponent({
     // CSV Logic
     const triggerCsvImport = () => {
       if (isAnyModalOpen.value) return
+      importSource.value = 'csv'
       fileInput.value?.click()
     }
 
@@ -359,27 +320,60 @@ export default defineComponent({
       try {
         let name
         if (mode === 'new') {
-           name = prompt('新しいデータセット名を入力してください:', 'CSV Imported Data')
+           const defaultName = importSource.value === 'csv' ? 'CSV Imported Data' : 'Fleet Analysis Import'
+           name = prompt('新しいデータセット名を入力してください:', defaultName)
            if (!name) {
              loading.value = false
              return
            }
         }
 
-        const result = await datasetStore.importShipCsv(csvContent.value, mode, allShips.value, name)
+        if (importSource.value === 'csv') {
+          const result = await datasetStore.importShipCsv(csvContent.value, mode, allShips.value, name)
+          importResult.value = {
+            total: result.success + result.excluded.length,
+            success: result.success,
+            excluded: result.excluded
+          }
+          showResultModal.value = true
+        } else {
+          // JSON (Fleet Analysis) Import
+          if (props.selectedEventId) {
+            selectedEventIdRef.value = props.selectedEventId
+            await fetchData(props.selectedEventId)
+          }
 
-        importResult.value = {
-          total: result.success + result.excluded.length,
-          success: result.success,
-          excluded: result.excluded
+          const tMap: Record<number, { tagId: number, tagName: string }> = {}
+          for (const k in tagMap.value) {
+            const v = tagMap.value[k]
+            tMap[v.tagId] = { tagId: v.tagId, tagName: v.tagName }
+          }
+
+          const sTagMap: Record<string, { tagId: number; tagName: string }[]> = {}
+          for (const k in stageTagMap.value) {
+            const v = stageTagMap.value[k]
+            sTagMap[k] = v.map((t) => ({ tagId: t.tagId, tagName: t.tagName }))
+          }
+
+          await datasetStore.importDataset(
+            codeText.value,
+            name || '',
+            allShips.value,
+            props.selectedEventId,
+            tMap,
+            sTagMap,
+            mode // Added mode parameter to importDataset if it supports it, OR we need to handle it in the store
+          )
+          // For JSON import, we reload immediately if successful (same as current behavior)
+          window.location.reload()
         }
-        showResultModal.value = true
-
       } catch (error) {
-        console.error('CSV Import Failed:', error)
-        showAlert('エラー', 'CSVインポートに失敗しました')
+        console.error('Import Failed:', error)
+        showAlert('エラー', 'インポートに失敗しました')
       } finally {
         loading.value = false
+        codeText.value = ''
+        csvContent.value = ''
       }
     }
 
@@ -410,7 +404,8 @@ export default defineComponent({
       handleMouseLeave,
       alertDialog,
       isAnyModalOpen,
-      showAlert
+      showAlert,
+      isDev
     }
   }
 })

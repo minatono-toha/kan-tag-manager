@@ -231,6 +231,7 @@ const tagData = computed(() => {
     assigned: false,
     preserve: false,
     targetStage: '',
+    tagId: 0,
     comment: '',
   }
 })
@@ -283,9 +284,19 @@ const toggleAssigned = () => {
     return
   }
 
+  let finalTagId = tagData.value.tagId
+  if (finalTagId === 0 && tagData.value.targetStage) {
+    const parsed = parseTagFromTargetStage(tagData.value.targetStage)
+    if (parsed && parsed.tagName) {
+      const tagEntry = Object.values(props.tagMap).find((t) => t.tagName === parsed.tagName)
+      if (tagEntry) finalTagId = tagEntry.tagId
+    }
+  }
+
   const updated: TagManagement = {
     ...tagData.value,
     assigned: !tagData.value.assigned,
+    tagId: finalTagId,
   }
   props.updateTagManagement(updated)
 }
@@ -386,20 +397,36 @@ const getTagsForStage = (stage: string) => {
   return props.stageTagMap[stage] || []
 }
 
-const applyStageSelection = (stage: string) => {
+const applyStageSelection = (stage: string, tagId: number = 0) => {
   if (tagData.value.assigned && tagData.value.targetStage !== stage) {
-    pendingAction.value = () => executeStageSelection(stage)
+    pendingAction.value = () => executeStageSelection(stage, tagId)
     showConfirmDialog.value = true
     return
   }
-  executeStageSelection(stage)
+  executeStageSelection(stage, tagId)
 }
 
-const executeStageSelection = (stage: string) => {
+const executeStageSelection = (stage: string, tagId: number = 0) => {
+  let finalTagId = tagId
+  if (finalTagId === 0 && stage) {
+    const parsed = parseTagFromTargetStage(stage)
+    if (parsed && parsed.tagName) {
+      const tagEntry = Object.values(props.tagMap).find((t) => t.tagName === parsed.tagName)
+      if (tagEntry) finalTagId = tagEntry.tagId
+    }
+  }
+
   const updated: TagManagement = {
     ...tagData.value,
     targetStage: stage,
+    tagId: finalTagId,
   }
+
+  // If we assigned a specific tag, automatically set assigned to true
+  if (finalTagId > 0) {
+    updated.assigned = true
+  }
+
   props.updateTagManagement(updated)
   showStagePopup.value = false
   selectedArea.value = null
@@ -408,20 +435,26 @@ const executeStageSelection = (stage: string) => {
 }
 
 const applyTagSelection = (stage: string, tagName: string) => {
+  // Find tagId from tagMap
+  const tagEntry = Object.values(props.tagMap).find((t) => t.tagName === tagName)
+  const tagId = tagEntry?.tagId || 0
+
   const value = `${stage} (${tagName})`
   if (tagData.value.assigned && tagData.value.targetStage !== value) {
-    pendingAction.value = () => executeTagSelection(stage, tagName)
+    pendingAction.value = () => executeTagSelection(stage, tagName, tagId)
     showConfirmDialog.value = true
     return
   }
-  executeTagSelection(stage, tagName)
+  executeTagSelection(stage, tagName, tagId)
 }
 
-const executeTagSelection = (stage: string, tagName: string) => {
+const executeTagSelection = (stage: string, tagName: string, tagId: number) => {
   const value = `${stage} (${tagName})`
   const updated: TagManagement = {
     ...tagData.value,
     targetStage: value,
+    tagId: tagId,
+    assigned: true
   }
   props.updateTagManagement(updated)
   showStagePopup.value = false
@@ -443,6 +476,8 @@ const executeClearStage = () => {
   const updated: TagManagement = {
     ...tagData.value,
     targetStage: '',
+    tagId: 0,
+    assigned: false
   }
   props.updateTagManagement(updated)
   pendingAction.value = null

@@ -1,12 +1,11 @@
 import { ref, computed, watch } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs } from 'firebase/firestore'
-import type { Ship, ExpandedShip } from '@/types/interfaces'
+import type { Ship, ExpandedShip, UserShip } from '@/types/interfaces'
 import {
-  getAllShipOwnership,
-  saveShipOwnership,
-  getAllShipVariantOverrides,
-  saveShipVariantOverride
+  saveUserShip,
+  getAllUserShips,
+  deleteUserShip
 } from '@/utils/indexedDB'
 
 // --- Singleton State ---
@@ -15,11 +14,10 @@ const uniqueOrigs = ref<Ship[]>([])
 const filters = ref<{ id: number; label: string }[]>([])
 const selectedFilterIds = ref<number[]>([])
 
-// Ship ownership data (orig -> count)
-const shipOwnershipMap = ref<Map<number, number>>(new Map())
-
-// Ship variant overrides (orig_shipIndex -> variantId)
-const shipVariantMap = ref<Map<string, number>>(new Map())
+// UserShip data: Map<string, UserShip> where key is `${orig}_${shipIndex}`
+// We also maintain a count map for performance: Map<orig, count>
+const userShipMap = ref<Map<string, UserShip>>(new Map())
+const ownershipCountMap = ref<Map<number, number>>(new Map())
 
 // Search state
 const filteredShipsFromSearch = ref<ExpandedShip[]>([])
@@ -66,74 +64,95 @@ export function useShips() {
     })
   }
 
-  // Load ship ownership data from IndexedDB
-  const loadShipOwnership = async () => {
+  // Load UserShips from IndexedDB
+  const loadUserShips = async () => {
     try {
-      const allOwnership = await getAllShipOwnership()
-      const ownershipMap = new Map<number, number>()
-      allOwnership.forEach((ownership) => {
-        ownershipMap.set(ownership.orig, ownership.count)
+      const allData = await getAllUserShips()
+      const uMap = new Map<string, UserShip>()
+      const cMap = new Map<number, number>()
+
+      allData.forEach((ship) => {
+        uMap.set(`${ship.orig}_${ship.shipIndex}`, ship)
+        cMap.set(ship.orig, (cMap.get(ship.orig) || 0) + 1)
       })
-      shipOwnershipMap.value = ownershipMap
+
+      userShipMap.value = uMap
+      ownershipCountMap.value = cMap
     } catch (error) {
-      console.error('Error loading ship ownership:', error)
+      console.error('Error loading user ships:', error)
     }
   }
 
-  // Load ship variant overrides
-  const loadShipVariants = async () => {
-    try {
-      const allVariants = await getAllShipVariantOverrides()
-      const variantMap = new Map<string, number>()
-      allVariants.forEach((v) => {
-        variantMap.set(`${v.orig}_${v.shipIndex}`, v.variantId)
-      })
-      shipVariantMap.value = variantMap
-    } catch (error) {
-      console.error('Error loading ship variants:', error)
+  // Helper to construct a new UserShip
+  const createDefaultUserShip = (orig: number, index: number): UserShip => {
+    // Find default variant (base ship)
+    const baseShip = uniqueOrigs.value.find(s => s.orig === orig)
+    const variantId = baseShip ? baseShip.id : orig
+
+    return {
+      orig,
+      shipIndex: index,
+      variantId,
+      lv: 99,
+      st: [0,0,0,0,0,0,0],
+      exp: [0,0,0],
+      ex: 0,
+      sp: []
     }
   }
 
   // Increment ship count (max 30)
   const incrementShipCount = async (orig: number) => {
     const currentCount = getOwnershipCount(orig)
-    if (currentCount >= 30) return  // Max limit
+    if (currentCount >= 30) return
 
-    const newCount = currentCount + 1
-    await saveShipOwnership({ orig, count: newCount })
-    shipOwnershipMap.value.set(orig, newCount)
+    const newIndex = currentCount // 0-based index
+    const newUserShip = createDefaultUserShip(orig, newIndex)
+
+    await saveUserShip(newUserShip)
+
+    // Update local state
+    userShipMap.value.set(`${orig}_${newIndex}`, newUserShip)
+    ownershipCountMap.value.set(orig, currentCount + 1)
   }
 
   // Decrement ship count (min 0)
   const decrementShipCount = async (orig: number) => {
     const currentCount = getOwnershipCount(orig)
-    if (currentCount <= 0) return  // Min limit
+    if (currentCount <= 0) return
 
-    const newCount = currentCount - 1
-    await saveShipOwnership({ orig, count: newCount })
-    shipOwnershipMap.value.set(orig, newCount)
+    const lastIndex = currentCount - 1
+    await deleteUserShip(orig, lastIndex)
+
+    // Update local state
+    userShipMap.value.delete(`${orig}_${lastIndex}`)
+    ownershipCountMap.value.set(orig, currentCount - 1)
   }
 
   // Update ship variant
   const updateShipVariant = async (orig: number, shipIndex: number, variantId: number) => {
     const key = `${orig}_${shipIndex}`
-    await saveShipVariantOverride({ orig, shipIndex, variantId })
-    shipVariantMap.value.set(key, variantId)
+    const existing = userShipMap.value.get(key)
+
+    if (existing) {
+      const updated = { ...existing, variantId }
+      await saveUserShip(updated)
+      userShipMap.value.set(key, updated)
+    } else {
+      // Should not happen if strictly counting, but safety fallback
+      const newUserShip = createDefaultUserShip(orig, shipIndex)
+      newUserShip.variantId = variantId
+      await saveUserShip(newUserShip)
+      userShipMap.value.set(key, newUserShip)
+    }
   }
 
   // Get ownership count for a ship
-  // Default to 1 if no data is found (as per user request)
   const getOwnershipCount = (orig: number): number => {
-    if (!shipOwnershipMap.value.has(orig)) {
-      return 1
-    }
-    return shipOwnershipMap.value.get(orig) || 0
+    return ownershipCountMap.value.get(orig) || 0
   }
 
   // Expand ships based on ownership count
-  // If count = 0, show as unowned (1 row)
-  // If count = 1, show as single ship (1 row, index 0)
-  // If count = 2+, show multiple rows (index 0, 1, 2, ...)
   const expandShips = (ships: Ship[]): ExpandedShip[] => {
     const expanded: ExpandedShip[] = []
 
@@ -175,11 +194,9 @@ export function useShips() {
         if (count > 0) {
            for (let i = 0; i < count; i++) {
              const key = `${ship.orig}_${i}`
-             const variantId = shipVariantMap.value.get(key)
-             if (variantId) {
-               // Resolve variant
-               const variant = allShips.value.find(s => s.id === variantId)
-               // If variant exists and its filterId is selected, include this ship group
+             const userShip = userShipMap.value.get(key)
+             if (userShip) {
+               const variant = allShips.value.find(s => s.id === userShip.variantId)
                if (variant && selectedFilterIds.value.includes(variant.filterId)) {
                  return true
                }
@@ -189,9 +206,6 @@ export function useShips() {
         return false
       })
       .sort((a, b) => {
-        // Sort logic might need adjustment if the "primary" displayed ship changes,
-        // but for now sorting by the base ship's ID is stable and acceptable.
-        // Or we could try to sort by the "first matching variant", but that's complex.
         const fa = a.filterId ?? 0
         const fb = b.filterId ?? 0
         return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
@@ -202,18 +216,17 @@ export function useShips() {
   const expandedShips = computed(() => {
     const expanded = expandShips(ships.value)
 
-    // Strict re-filtering: Ensure the specific variant being displayed matches the filter
     if (selectedFilterIds.value.length === 0) return expanded
 
     return expanded.filter(ship => {
       // Resolve the actual ship type being displayed
       let currentFilterId = ship.filterId
       const key = `${ship.orig}_${ship.shipIndex}`
-      const variantId = shipVariantMap.value.get(key)
+      const userShip = userShipMap.value.get(key)
 
-      if (variantId) {
-        // If there's an override, check the variant's type
-        const variant = allShips.value.find(s => s.id === variantId)
+      if (userShip) {
+        // Check local override
+        const variant = allShips.value.find(s => s.id === userShip.variantId)
         if (variant) {
           currentFilterId = variant.filterId
         }
@@ -250,10 +263,9 @@ export function useShips() {
     isSearchActive.value = isActive
   }
 
-  // Watch for changes in allShips and reload ownership/variants
+  // Watch for changes in allShips and reload
   watch(allShips, async () => {
-    await loadShipOwnership()
-    await loadShipVariants()
+    await loadUserShips()
   })
 
   return {
@@ -272,12 +284,11 @@ export function useShips() {
     handleShipFilterChange,
     filteredShipsFromSearch,
     isSearchActive,
-    loadShipOwnership,
+    loadUserShips,
     incrementShipCount,
     decrementShipCount,
     getOwnershipCount,
-    shipOwnershipMap,
-    shipVariantMap,
+    userShipMap,
     updateShipVariant
   }
 }

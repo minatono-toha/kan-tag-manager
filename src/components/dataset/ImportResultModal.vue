@@ -38,7 +38,7 @@ import { defineComponent, PropType } from 'vue'
 import BaseShipModal from '@/components/common/BaseShipModal.vue'
 
 export default defineComponent({
-  name: 'CsvImportResultModal',
+  name: 'ImportResultModal',
   components: {
     BaseShipModal
   },

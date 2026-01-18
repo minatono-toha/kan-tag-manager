@@ -73,8 +73,23 @@ export interface TagManagement {
   shipIndex: number // 何隻目か (0-29)
   assigned: boolean // 割り当て済み
   preserve: boolean // 温存
-  targetStage: string // 割当先
+  targetStage: string // 割当先 (例: "E-1 (甲第一遊撃部隊)")
+  tagId: number // 札ID (0=未割当)
   comment: string // コメント
+}
+
+// ユーザー所持艦 (正規化されたマスタデータ)
+// 旧 shipOwnership (数) + shipVariant (改造段階) + TagManagementのメタデータ を統合
+export interface UserShip {
+  id?: string // `${orig}_${shipIndex}`
+  orig: number // 艦ID (系統)
+  shipIndex: number // 何隻目か (0-29)
+  variantId: number // 現在の改造段階ID (shipId)
+  lv: number
+  st: number[]
+  exp: number[]
+  ex: number
+  sp: number[]
 }
 
 // 展開された艦船データ（所持数に応じて複数インスタンス化）

@@ -249,12 +249,21 @@ export default defineComponent({
       handleShipFilterChange,
       filteredShipsFromSearch,
       isSearchActive,
-      loadShipOwnership,
+      loadUserShips,
       incrementShipCount,
       decrementShipCount,
-      shipVariantMap,
+      userShipMap,
       updateShipVariant
     } = useShips()
+
+    // Backward compatibility for components expecting simple variant ID map
+    const shipVariantMap = computed(() => {
+      const map = new Map<string, number>()
+      userShipMap.value.forEach((userShip, key) => {
+        map.set(key, userShip.variantId)
+      })
+      return map
+    })
 
     const modalShips = ref<Ship[]>([])
     const modalVisible = ref(false)
@@ -492,7 +501,7 @@ export default defineComponent({
     onMounted(async () => {
       await fetchShips()
       await fetchFilters()
-      await loadShipOwnership()
+      await loadUserShips()
 
       // Add resize event listener for zoom changes
       window.addEventListener('resize', handleResize)

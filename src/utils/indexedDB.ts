@@ -1,12 +1,10 @@
 import { openDB, type IDBPDatabase, deleteDB } from 'idb'
-import type { TagManagement, ShipOwnership, ShipVariantOverride } from '@/types/interfaces'
+import type { TagManagement, UserShip } from '@/types/interfaces'
 
 const DEFAULT_DB_NAME = 'KanTagManagerDB'
 const TAG_STORE_NAME = 'tagManagement'
-const OWNERSHIP_STORE_NAME = 'shipOwnership'
-const VARIANT_STORE_NAME = 'shipVariant'
-const METADATA_STORE_NAME = 'externalMetadata'
-const DB_VERSION = 5 // Bumped to 5 for metadata store
+const USER_SHIP_STORE_NAME = 'userShips'
+const DB_VERSION = 7 // v7: Normalized schema with userShips
 
 let dbPromise: Promise<IDBPDatabase> | null = null
 
@@ -33,40 +31,34 @@ export async function initDB(): Promise<IDBPDatabase> {
   const dbName = getActiveDBName()
 
   dbPromise = openDB(dbName, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion, transaction) {
+    upgrade(db, oldVersion, newVersion) {
       console.log(`IndexedDB upgrade: v${oldVersion} -> v${newVersion}`)
 
-      // 1. Mandatory cleanup/reset for very old versions or requested reset
-      if (oldVersion < 4) {
-        console.log('Cleaning up and re-creating all stores for v4...')
-        const existingStores = Array.from(db.objectStoreNames)
-        existingStores.forEach((name) => {
-          db.deleteObjectStore(name)
+      // v7: Normalize DB. Consolidated shipOwnership and shipVariant into userShips.
+      // User requested NO MIGRATION, just reset/init.
+      if (oldVersion < 7) {
+        console.log('Upgrading to v7: Resetting and creating userShips store')
+
+        // Delete deprecated stores
+        const deprecatedStores = ['shipOwnership', 'shipVariant', 'externalMetadata']
+        deprecatedStores.forEach(name => {
+          if (db.objectStoreNames.contains(name)) {
+            db.deleteObjectStore(name)
+          }
         })
+
+        // Create new userShips store
+        if (!db.objectStoreNames.contains(USER_SHIP_STORE_NAME)) {
+           db.createObjectStore(USER_SHIP_STORE_NAME, { keyPath: 'id' })
+           // Indexes if needed?
+        }
       }
 
-      // 2. Ensure all stores exist (Safe to call if stores don't exist yet)
+      // Ensure tagManagement exists (v6 logic preserved but streamlined)
       if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
-        const tagStore = db.createObjectStore(TAG_STORE_NAME, { keyPath: 'id' })
-        tagStore.createIndex('eventId', 'eventId', { unique: false })
-        tagStore.createIndex('orig', 'orig', { unique: false })
-        tagStore.createIndex('eventId_orig_shipIndex', ['eventId', 'orig', 'shipIndex'], { unique: true })
-        tagStore.createIndex('shipIndex', 'shipIndex', { unique: false })
-      }
-
-      if (!db.objectStoreNames.contains(OWNERSHIP_STORE_NAME)) {
-        const ownershipStore = db.createObjectStore(OWNERSHIP_STORE_NAME, { keyPath: 'id' })
-        ownershipStore.createIndex('orig', 'orig', { unique: true })
-      }
-
-      if (!db.objectStoreNames.contains(VARIANT_STORE_NAME)) {
-        const variantStore = db.createObjectStore(VARIANT_STORE_NAME, { keyPath: 'id' })
-        variantStore.createIndex('orig', 'orig', { unique: false })
-      }
-
-      if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
-        const metadataStore = db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'id' })
-        metadataStore.createIndex('orig', 'orig', { unique: false })
+         const tagStore = db.createObjectStore(TAG_STORE_NAME, { keyPath: 'id' })
+         tagStore.createIndex('eventId', 'eventId', { unique: false })
+         tagStore.createIndex('eventId_orig_shipIndex', ['eventId', 'orig', 'shipIndex'], { unique: true })
       }
 
       console.log('IndexedDB initialization complete.')
@@ -93,38 +85,39 @@ export async function deleteDatabase(dbName: string): Promise<void> {
   await deleteDB(dbName)
 }
 
-// ===== Ship Ownership Functions =====
+// ===== User Ship Functions (New V7) =====
 
-function generateOwnershipId(orig: number): string {
-  return `${orig}`
+function generateUserShipId(orig: number, shipIndex: number): string {
+  return `${orig}_${shipIndex}`
 }
 
-export async function saveShipOwnership(data: ShipOwnership): Promise<void> {
+export async function saveUserShip(data: UserShip): Promise<void> {
   const db = await initDB()
   const dataWithId = {
     ...data,
-    id: generateOwnershipId(data.orig)
+    id: generateUserShipId(data.orig, data.shipIndex)
   }
-  await db.put(OWNERSHIP_STORE_NAME, dataWithId)
+  await db.put(USER_SHIP_STORE_NAME, dataWithId)
 }
 
-export async function getShipOwnership(orig: number): Promise<ShipOwnership | null> {
+export async function getUserShip(orig: number, shipIndex: number): Promise<UserShip | null> {
   const db = await initDB()
-  const id = generateOwnershipId(orig)
-  const result = await db.get(OWNERSHIP_STORE_NAME, id)
+  const id = generateUserShipId(orig, shipIndex)
+  const result = await db.get(USER_SHIP_STORE_NAME, id)
   return result || null
 }
 
-export async function getAllShipOwnership(): Promise<ShipOwnership[]> {
+export async function getAllUserShips(): Promise<UserShip[]> {
   const db = await initDB()
-  return await db.getAll(OWNERSHIP_STORE_NAME)
+  return await db.getAll(USER_SHIP_STORE_NAME)
 }
 
-export async function deleteShipOwnership(orig: number): Promise<void> {
+export async function deleteUserShip(orig: number, shipIndex: number): Promise<void> {
   const db = await initDB()
-  const id = generateOwnershipId(orig)
-  await db.delete(OWNERSHIP_STORE_NAME, id)
+  const id = generateUserShipId(orig, shipIndex)
+  await db.delete(USER_SHIP_STORE_NAME, id)
 }
+
 
 // ===== Tag Management Functions =====
 
@@ -180,58 +173,4 @@ export async function deleteTagManagement(
   const db = await initDB()
   const id = generateTagId(eventId, orig, shipIndex)
   await db.delete(TAG_STORE_NAME, id)
-}
-
-// ===== Ship Variant Persistence Functions =====
-
-function generateVariantKey(orig: number, shipIndex: number): string {
-  return `${orig}_${shipIndex}`
-}
-
-export async function saveShipVariantOverride(data: ShipVariantOverride): Promise<void> {
-  const db = await initDB()
-  const dataWithId = {
-    ...data,
-    id: generateVariantKey(data.orig, data.shipIndex)
-  }
-  await db.put(VARIANT_STORE_NAME, dataWithId)
-}
-
-export async function getAllShipVariantOverrides(): Promise<ShipVariantOverride[]> {
-  const db = await initDB()
-  return await db.getAll(VARIANT_STORE_NAME)
-}
-
-// ===== External Metadata Functions =====
-
-export interface ExternalShipMetadata {
-  id?: string // `${orig}_${shipIndex}`
-  orig: number
-  shipIndex: number
-  // JSON fields to preserve
-  lv: number
-  st: number[]
-  exp: number[]
-  ex: number
-  sp: number[]
-  // Any other unknown fields
-  [key: string]: any
-}
-
-function generateMetadataKey(orig: number, shipIndex: number): string {
-    return `${orig}_${shipIndex}`
-}
-
-export async function saveShipMetadata(data: ExternalShipMetadata): Promise<void> {
-    const db = await initDB()
-    const dataWithId = {
-        ...data,
-        id: generateMetadataKey(data.orig, data.shipIndex)
-    }
-    await db.put(METADATA_STORE_NAME, dataWithId)
-}
-
-export async function getAllShipMetadata(): Promise<ExternalShipMetadata[]> {
-    const db = await initDB()
-    return await db.getAll(METADATA_STORE_NAME)
 }

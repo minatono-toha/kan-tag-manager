@@ -8,7 +8,7 @@
       :src="`${baseUrl}img/ship/banner/${ship.bannerId}.png`"
       alt="バナー"
       class="w-full h-auto"
-      @click="$emit('openCard', ship.bannerId)"
+      @dblclick="$emit('openCard', ship.bannerId)"
     />
     <p class="text-center mt-1 text-sm" @click="$emit('select', ship.orig)">
       {{ ship.name }}

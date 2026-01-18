@@ -36,11 +36,12 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
       const tMap: Record<number, TagDef> = {}
       tagsSnap.forEach((doc) => {
         const data = doc.data()
-        if (typeof data.tagId === 'number') {
-          tMap[data.tagId] = {
-            tagId: data.tagId,
-            tagName: data.tagName,
-            tagColor: data.tagColor,
+        const id = Number(data.tagId)
+        if (!isNaN(id) && id !== 0) {
+          tMap[id] = {
+            tagId: id,
+            tagName: data.tagName || '',
+            tagColor: data.tagColor || '',
           }
         }
       })
@@ -60,9 +61,10 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
 
           // Collect tags for this stage
           const tagsForStage: TagDef[] = []
-          ;[data.tagId1, data.tagId2, data.tagId3, data.tagId4].forEach(tagId => {
-            if (typeof tagId === 'number' && tMap[tagId]) {
-              tagsForStage.push(tMap[tagId])
+          ;[data.tagId1, data.tagId2, data.tagId3, data.tagId4].forEach(rawId => {
+            const id = Number(rawId)
+            if (!isNaN(id) && id !== 0 && tMap[id]) {
+              tagsForStage.push(tMap[id])
             }
           })
 
@@ -127,6 +129,7 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
             assigned: false,
             preserve: false,
             targetStage: '',
+            tagId: 0,
             comment: ''
           })
         }
@@ -151,6 +154,8 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
 
   // Update tag management data (Immediate UI feedback + debounced DB save)
   const updateTagManagement = async (data: TagManagement) => {
+    console.log(`[useTagManagement] updateTagManagement: key=${data.orig}_${data.shipIndex}, tagId=${data.tagId}, assigned=${data.assigned}`)
+
     // 1. Update local state immediately for instant UI feedback
     const key = `${data.orig}_${data.shipIndex}`
     // Create a new map reference to trigger reactivity if using ref(Map)
@@ -176,6 +181,7 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
       assigned: false,
       preserve: false,
       targetStage: '',
+      tagId: 0,
       comment: ''
     }
   }

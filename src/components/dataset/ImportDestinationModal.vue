@@ -7,9 +7,9 @@
     :show-default-footer="false"
   >
     <p class="text-sm text-gray-600 mb-6">
-      CSVから取り込んだ艦船データをどこに出力しますか？
+      取り込んだ艦船データをどこに出力しますか？
       <br>
-      <span class="text-xs text-red-500">※「上書き」を選択すると、現在のタブの所持数データがCSVの内容で置き換わります。</span>
+      <span class="text-xs text-red-500">※「上書き」を選択すると、現在のタブの所持数データが取り込み内容で置き換わります。</span>
     </p>
 
     <template #footer>
@@ -43,7 +43,7 @@ import { defineComponent } from 'vue'
 import BaseShipModal from '@/components/common/BaseShipModal.vue'
 
 export default defineComponent({
-  name: 'CsvImportDestinationModal',
+  name: 'ImportDestinationModal',
   components: {
     BaseShipModal
   },

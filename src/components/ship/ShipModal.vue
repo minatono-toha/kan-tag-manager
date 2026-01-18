@@ -174,13 +174,9 @@ const handleBannerClick = (event: MouseEvent, ship: Ship) => {
   const target = event.target as HTMLElement
 
   if (target.tagName === 'IMG') {
-    // Prevent the link from navigating when clicking the image
+    // Single click on image - don't open card, just select variant
+    // We used @dblclick on ShipCard, so click event reaches here.
     event.preventDefault()
-    // Image click (card open) is allowed even if disabled?
-    // Usually only variant switching is the issue.
-    // If we want to allow viewing card of disabling ship, we can proceed.
-    // The user said "selectable from modal", so variant switching is the main concern.
-    return
   }
 
   // Clicking the frame (outside the image) - select variant

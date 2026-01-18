@@ -11,6 +11,11 @@
         aria-modal="true"
         ref="dialogRef"
       >
+        <div class="mb-4" v-if="title">
+          <h3 class="text-gray-800 text-lg font-bold text-center">
+            {{ title }}
+          </h3>
+        </div>
         <div class="mb-6">
           <p class="text-gray-700 text-sm whitespace-pre-line text-center leading-relaxed font-medium">
             {{ message }}
@@ -53,9 +58,11 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 
 const props = withDefaults(defineProps<{
   show: boolean
+  title?: string
   message: string
   type?: 'confirm' | 'alert'
 }>(), {
+  title: '',
   type: 'confirm'
 })
 

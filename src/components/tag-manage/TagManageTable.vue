@@ -537,6 +537,7 @@ const getTagData = (orig: number, shipIndex: number): TagManagement => {
     assigned: false,
     preserve: false,
     targetStage: '',
+    tagId: 0,
     comment: '',
   }
 }
@@ -557,38 +558,40 @@ const targetStagePopup = filterManager.register()
 const assignedTagPopup = filterManager.register()
 const commentPopup = filterManager.register()
 
+// Explicitly declare ref types for FilterPopup components
+const assignedPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const preservePopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const targetStagePopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const assignedTagPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const commentPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+
 // Destructure for compatibility with existing template
 const showAssignedFilter = assignedPopup.show
 const assignedFilterPosition = assignedPopup.position
 const assignedIconRef = assignedPopup.iconRef
-const assignedPopupRef = assignedPopup.popupRef
 
 const showPreserveFilter = preservePopup.show
 const preserveFilterPosition = preservePopup.position
 const preserveIconRef = preservePopup.iconRef
-const preservePopupRef = preservePopup.popupRef
 
 const showTargetStageFilter = targetStagePopup.show
 const targetStageFilterPosition = targetStagePopup.position
 const targetStageIconRef = targetStagePopup.iconRef
-const targetStagePopupRef = targetStagePopup.popupRef
 
 const showAssignedTagFilter = assignedTagPopup.show
 const assignedTagFilterPosition = assignedTagPopup.position
 const assignedTagIconRef = assignedTagPopup.iconRef
-const assignedTagPopupRef = assignedTagPopup.popupRef
 
 const showCommentFilter = commentPopup.show
 const commentFilterPosition = commentPopup.position
 const commentIconRef = commentPopup.iconRef
-const commentPopupRef = commentPopup.popupRef
 
 // Validation Alert State
 const showValidationAlert = ref(false)
 
 // Confirmation Dialog State
 const showConfirmDialog = ref(false)
-const pendingStageSelection = ref<{ stage: string } | null>(null)
+const pendingStageSelection = ref<{ stage: string; tagId: number } | null>(null)
 const confirmMessage =
   'すでに制御札割当済の艦の情報を変更しようとしています\n実行してよろしいですか'
 
@@ -798,20 +801,45 @@ const togglePreserve = (orig: number, shipIndex: number) => {
   props.updateTagManagement(updated)
 }
 
-const handleTargetStageChange = (orig: number, shipIndex: number, value: string) => {
+const executeStageChange = (orig: number, shipIndex: number, value: string, tagId: number = 0) => {
   const current = getTagData(orig, shipIndex)
+
+  // Safety inference: If tagId is 0 but value has (TagName), try to find tagId
+  let finalTagId = tagId
+  if (finalTagId === 0 && value) {
+    const parsed = parseTagFromTargetStage(value)
+    if (parsed && parsed.tagName) {
+      const tagEntry = Object.values(props.tagMap).find((t) => t.tagName === parsed.tagName)
+      if (tagEntry) {
+        finalTagId = tagEntry.tagId
+        console.log(`[tagId Inference] Inferred tagId ${finalTagId} from "${value}"`)
+      }
+    }
+  }
+
   const updated: TagManagement = {
     ...current,
     targetStage: value,
+    tagId: finalTagId,
   }
+
+  // If we assigned a specific tag, automatically set assigned to true
+  if (finalTagId > 0) {
+    updated.assigned = true
+  }
+
   props.updateTagManagement(updated)
 }
 
-const handleCommentChange = (orig: number, shipIndex: number, value: string) => {
+const handleTargetStageChange = (orig: number, shipIndex: number, value: string, tagId: number = 0) => {
+  executeStageChange(orig, shipIndex, value, tagId)
+}
+
+const handleCommentChange = (orig: number, shipIndex: number, comment: string) => {
   const current = getTagData(orig, shipIndex)
   const updated: TagManagement = {
     ...current,
-    comment: value,
+    comment,
   }
   props.updateTagManagement(updated)
 }
@@ -842,112 +870,6 @@ const toggleCommentFilter = (event: MouseEvent) => {
   commentPopup.toggle(event)
 }
 
-const getStageOnlyFromTargetStage = (orig: number, shipIndex: number): string => {
-  const data = getTagData(orig, shipIndex)
-  if (!data.targetStage) return ''
-
-  const parsed = parseTagFromTargetStage(data.targetStage)
-  return parsed ? parsed.stage : data.targetStage
-}
-
-// Stage Selector Logic
-const uniqueAreas = computed(() => {
-  const areas = new Set<string>()
-  props.stageOptions.forEach((stage) => {
-    // Determine Area from stage string (e.g. "E-2-1" -> "E-2", "E-7" -> "E-7")
-    // Assumption: Format is "E-{Area}-{Map}" or "E-{Area}"
-    const parts = stage.split('-')
-    if (parts.length >= 2) {
-      // "E" + "-" + "1" -> "E-1"
-      const area = `${parts[0]}-${parts[1]}`
-      areas.add(area)
-    } else {
-      // Fallback
-      areas.add(stage)
-    }
-  })
-  // Sort areas naturally
-  return Array.from(areas).sort((a, b) => {
-    const aNum = parseInt(a.replace('E-', '')) || 0
-    const bNum = parseInt(b.replace('E-', '')) || 0
-    return aNum - bNum
-  })
-})
-
-const getStagesForArea = (area: string) => {
-  return props.stageOptions.filter((stage) => stage.startsWith(area))
-}
-
-const openStageSelector = (event: MouseEvent, orig: number, shipIndex: number) => {
-  const willOpen = true
-  closeAllPopups()
-
-  if (willOpen) {
-    editingShipOrig.value = orig
-    editingShipIndex.value = shipIndex
-    showStageSelectorPopup.value = true
-    hoveredArea.value = null
-    hoveredStage.value = null
-    activeStageCell.value = event.currentTarget as HTMLElement
-
-    // Improve positioning to prevent overflow
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-
-    // Default: show below
-    let top = rect.bottom + 5
-    const left = rect.left
-
-    // Check if bottom overflow (viewport height)
-    const viewportHeight = window.innerHeight
-    const estimatedHeight = 300
-    if (top + estimatedHeight > viewportHeight) {
-      // Show above
-      top = rect.top - estimatedHeight - 5
-    }
-
-    stageSelectorPosition.value = {
-      x: left,
-      y: top,
-    }
-  }
-}
-
-const handleAreaHover = (event: MouseEvent | KeyboardEvent, area: string) => {
-  hoveredArea.value = area
-
-  // Calculate sub-menu position based on the hovered item
-  const target = event.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
-
-  // Default: align top with item, place to the right
-  const top = rect.top
-  let left = rect.right
-
-  // Adjust if overflow
-  // We can't strictly know width/height of sub-menu yet, assume width ~140, height variable
-  const viewportWidth = window.innerWidth
-  if (left + 140 > viewportWidth) {
-    // Place to the left if no room on right
-    left = rect.left - 140
-  }
-
-  subMenuPosition.value = { x: left, y: top }
-}
-
-const handleAreaClick = (event: MouseEvent | KeyboardEvent, area: string) => {
-  // Mobile support: click behaves like hover
-  handleAreaHover(event, area)
-}
-
-const getTagsForStage = (stage: string) => {
-  return props.stageTagMap[stage] || []
-}
-
-const applyTagSelection = (stage: string, tagName: string) => {
-  const value = `${stage} (${tagName})`
-  applyStageSelection(value)
-}
-
 // Extract tag info from targetStage string: "E-1-1 (TagName)" -> { stage: "E-1-1", tagName: "TagName" }
 const parseTagFromTargetStage = (targetStage: string) => {
   if (!targetStage) return null
@@ -964,52 +886,58 @@ const parseTagFromTargetStage = (targetStage: string) => {
   }
 }
 
-// Get tag color for a ship
-const getTagColorForShip = (orig: number, shipIndex: number) => {
+const getStageOnlyFromTargetStage = (orig: number, shipIndex: number) => {
   const data = getTagData(orig, shipIndex)
-  if (!data.targetStage) return 'transparent'
-
-  const parsed = parseTagFromTargetStage(data.targetStage)
-  if (parsed && parsed.tagName) {
-    const tags = Object.values(props.tagMap)
-    const tag = tags.find((t) => t.tagName === parsed.tagName)
-    return tag ? tag.tagColor : 'transparent'
-  }
-  return 'transparent'
+  return data.targetStage
 }
 
-const getTagNameForShip = (orig: number, shipIndex: number) => {
+const getTagNameForShip = (orig: number, shipIndex: number): string => {
   const data = getTagData(orig, shipIndex)
-  if (!data.targetStage) return ''
-
-  const parsed = parseTagFromTargetStage(data.targetStage)
-  return parsed && parsed.tagName ? parsed.tagName : ''
+  if (!data.tagId || data.tagId === 0) return ''
+  return props.tagMap[data.tagId]?.tagName || ''
 }
 
-const cancelCloseSubMenu = () => {
-  // Logic to keep menu open if needed
+const getTagColorForShip = (orig: number, shipIndex: number): string => {
+  const data = getTagData(orig, shipIndex)
+  if (!data.tagId || data.tagId === 0) return 'transparent'
+  return props.tagMap[data.tagId]?.tagColor || 'transparent'
 }
 
-const applyStageSelection = (stage: string) => {
-  if (editingShipOrig.value !== null) {
-    const current = getTagData(editingShipOrig.value, editingShipIndex.value)
+// Stage Selector Logic
+// ----------------------------------------------------
 
-    // If ship is assigned and value is different, show confirmation
-    if (current.assigned && current.targetStage !== stage) {
-      pendingStageSelection.value = { stage }
-      showConfirmDialog.value = true
-      return
-    }
+// Computed: Unique Areas from stageTagMap
+const uniqueAreas = computed(() => {
+  if (!props.stageTagMap) return []
+  return Object.keys(props.stageTagMap)
+})
 
-    executeStageSelection(stage)
+const getStagesForArea = (area: string) => {
+  return [area]
+}
+
+const getTagsForStage = (stage: string) => {
+  return props.stageTagMap[stage] || []
+}
+
+const openStageSelector = (event: MouseEvent, orig: number, shipIndex: number) => {
+  editingShipOrig.value = orig
+  editingShipIndex.value = shipIndex
+  activeStageCell.value = event.currentTarget as HTMLElement
+
+  // Position logic
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  stageSelectorPosition.value = {
+    x: rect.left,
+    y: rect.bottom + 5,
   }
-}
 
-const executeStageSelection = (stage: string) => {
-  if (editingShipOrig.value !== null) {
-    handleTargetStageChange(editingShipOrig.value, editingShipIndex.value, stage)
+  // Adjust if off-screen
+  if (stageSelectorPosition.value.y + 300 > window.innerHeight) {
+    stageSelectorPosition.value.y = rect.top - 300
   }
-  closeStageSelector()
+
+  showStageSelectorPopup.value = true
 }
 
 const closeStageSelector = () => {
@@ -1021,29 +949,83 @@ const closeStageSelector = () => {
   activeStageCell.value = null
 }
 
-const handleConfirmStageChange = () => {
-  if (pendingStageSelection.value) {
-    executeStageSelection(pendingStageSelection.value.stage)
+const handleAreaHover = (event: MouseEvent | KeyboardEvent, area: string) => {
+  hoveredArea.value = area
+  hoveredStage.value = null // Reset lower level
+
+  // Position sub-menu next to the area item
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  subMenuPosition.value = {
+    x: rect.right - 5, // Slightly overlap
+    y: rect.top,
   }
+}
+
+const handleAreaClick = (event: MouseEvent | KeyboardEvent, area: string) => {
+  // Mobile support: click implies hover
+  handleAreaHover(event, area)
 }
 
 const handleStageHover = (event: MouseEvent | KeyboardEvent, stage: string) => {
   hoveredStage.value = stage
 
-  // Position 3rd level menu (Tag selection)
+  // Position tag-menu next to the stage item
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
+  tagMenuPosition.value = {
+    x: rect.right - 5,
+    y: rect.top,
+  }
+}
 
-  const top = rect.top
-  let left = rect.right
+const cancelCloseSubMenu = () => {
+  // Helper to keep sub menu open when moving mouse
+}
 
-  // Adjust if overflow
-  const viewportWidth = window.innerWidth
-  if (left + 140 > viewportWidth) {
-    left = rect.left - 140
+// Apply Logic
+const applyTagSelection = (stage: string, tagName: string) => {
+  // Find tagId
+  const tags = props.stageTagMap[stage]
+  const tag = tags.find((t) => t.tagName === tagName)
+  if (!tag) return
+
+  applyStageSelection(stage, tag.tagId)
+}
+
+const applyStageSelection = (stage: string, tagId: number = 0) => {
+  if (editingShipOrig.value === null) return
+
+  const orig = editingShipOrig.value
+  const shipIndex = editingShipIndex.value
+
+  // Check if we are overwriting an existing assignment
+  const current = getTagData(orig, shipIndex)
+  if (current.assigned && current.targetStage) {
+    // If changing stage/tag on an assigned ship, ask confirmation?
+    // Current requirement says: "割り当て済みの艦の情報（割当先、コメント）を変更しようとした場合... 確認ダイアログを表示"
+    // So yes.
+    pendingStageSelection.value = { stage, tagId }
+    showConfirmDialog.value = true
+    closeStageSelector()
+    return
   }
 
-  tagMenuPosition.value = { x: left, y: top }
+  executeStageChange(orig, shipIndex, stage, tagId)
+  closeStageSelector()
+}
+
+const handleConfirmStageChange = () => {
+  if (pendingStageSelection.value && editingShipOrig.value !== null) {
+      executeStageChange(
+      editingShipOrig.value,
+      editingShipIndex.value,
+      pendingStageSelection.value.stage,
+      pendingStageSelection.value.tagId,
+    )
+    pendingStageSelection.value = null
+  }
+  showConfirmDialog.value = false
 }
 
 const handleStageClick = (event: MouseEvent | KeyboardEvent, stage: string) => {
@@ -1064,7 +1046,7 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Assigned Filter Popup
   if (showAssignedFilter.value && assignedPopupRef.value) {
     const clickedIcon = assignedIconRef.value?.contains(target)
-    const clickedPopup = (assignedPopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = (assignedPopupRef.value as InstanceType<typeof FilterPopup>).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showAssignedFilter.value = false
     }
@@ -1073,7 +1055,7 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Preserve Filter Popup
   if (showPreserveFilter.value && preservePopupRef.value) {
     const clickedIcon = preserveIconRef.value?.contains(target)
-    const clickedPopup = (preservePopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = (preservePopupRef.value as InstanceType<typeof FilterPopup>).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showPreserveFilter.value = false
     }
@@ -1082,7 +1064,7 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Target Stage Filter Popup
   if (showTargetStageFilter.value && targetStagePopupRef.value) {
     const clickedIcon = targetStageIconRef.value?.contains(target)
-    const clickedPopup = (targetStagePopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = (targetStagePopupRef.value as InstanceType<typeof FilterPopup>).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showTargetStageFilter.value = false
     }
@@ -1091,7 +1073,7 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Assigned Tag Filter Popup
   if (showAssignedTagFilter.value && assignedTagPopupRef.value) {
     const clickedIcon = assignedTagIconRef.value?.contains(target)
-    const clickedPopup = (assignedTagPopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = (assignedTagPopupRef.value as InstanceType<typeof FilterPopup>).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showAssignedTagFilter.value = false
     }
@@ -1100,7 +1082,7 @@ const handleClickOutside = (event: MouseEvent) => {
   // Handle Comment Filter Popup
   if (showCommentFilter.value && commentPopupRef.value) {
     const clickedIcon = commentIconRef.value?.contains(target)
-    const clickedPopup = (commentPopupRef.value as any).popupRef?.contains(target)
+    const clickedPopup = (commentPopupRef.value as InstanceType<typeof FilterPopup>).popupRef?.contains(target)
     if (!clickedIcon && !clickedPopup) {
       showCommentFilter.value = false
     }
