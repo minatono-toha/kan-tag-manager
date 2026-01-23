@@ -2,6 +2,18 @@
   <div v-if="modalVisible" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
       <div class="mb-4 text-left">
+        <div
+          v-if="isUnowned"
+          class="bg-red-500/60 text-white text-xs font-bold px-2 py-1 rounded shadow-md mb-2 w-fit"
+        >
+          未着任
+        </div>
+        <div
+          v-else
+          class="bg-blue-500/60 text-white text-xs font-bold px-2 py-1 rounded shadow-md mb-2 w-fit"
+        >
+          着任済({{ modalShipIndex + 1 }}隻目)
+        </div>
         <span
           @click="showOnlySelected = !showOnlySelected"
           class="cursor-pointer text-sm text-blue-600 hover:underline select-none"
@@ -109,6 +121,7 @@ import { useTheme } from '@/composables/useTheme'
 const props = withDefaults(defineProps<{
   ships: Ship[]
   modalVisible: boolean
+  isUnowned?: boolean
   selectedShipOrig: number | null
   modalShipIndex: number
   currentVariantId: number | null
@@ -118,7 +131,9 @@ const props = withDefaults(defineProps<{
   stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
   tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
   updateTagManagement: (data: TagManagement) => Promise<void>
-}>(), {})
+}>(), {
+  isUnowned: false
+})
 
 const { theme } = useTheme()
 
@@ -186,10 +201,12 @@ const handleBannerClick = (event: MouseEvent, ship: Ship) => {
     return
   }
 
+  console.log('[ShipModal] Banner clicked, emitting:', ship.orig, ship.id)
   emit('select-variant', ship.orig, ship.id)
 }
 
 const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
+  console.log('[ShipModal] Clicked:', ship.name, ship.id, 'Disabled?', selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name))
   // Check if disabled
   if (selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name)) {
     return
@@ -201,6 +218,7 @@ const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
 
   if (!isBannerClick) {
     // Clicked on the ship info area - update the variant in the ship list table
+    console.log('[ShipModal] Emitting select-variant:', ship.orig, ship.id)
     emit('select-variant', ship.orig, ship.id)
   }
 }

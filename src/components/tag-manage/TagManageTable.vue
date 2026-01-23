@@ -823,17 +823,10 @@ const executeStageChange = (orig: number, shipIndex: number, value: string, tagI
     tagId: finalTagId,
   }
 
-  // If we assigned a specific tag, automatically set assigned to true
-  if (finalTagId > 0) {
-    updated.assigned = true
-  }
 
   props.updateTagManagement(updated)
 }
 
-const handleTargetStageChange = (orig: number, shipIndex: number, value: string, tagId: number = 0) => {
-  executeStageChange(orig, shipIndex, value, tagId)
-}
 
 const handleCommentChange = (orig: number, shipIndex: number, comment: string) => {
   const current = getTagData(orig, shipIndex)
@@ -844,10 +837,6 @@ const handleCommentChange = (orig: number, shipIndex: number, comment: string) =
   props.updateTagManagement(updated)
 }
 
-const closeAllPopups = () => {
-  filterManager.closeAll()
-  showStageSelectorPopup.value = false
-}
 
 // Filter popup controls
 const toggleAssignedFilter = (event: MouseEvent) => {

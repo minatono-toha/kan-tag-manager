@@ -28,14 +28,14 @@
               class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors font-medium text-sm"
               ref="cancelButton"
             >
-              キャンセル
+              {{ cancelText }}
             </button>
             <button
               @click="handleConfirm"
               class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-semibold text-sm"
               ref="okButton"
             >
-              OK
+              {{ confirmText }}
             </button>
           </template>
           <template v-else>
@@ -61,9 +61,13 @@ const props = withDefaults(defineProps<{
   title?: string
   message: string
   type?: 'confirm' | 'alert'
+  confirmText?: string
+  cancelText?: string
 }>(), {
   title: '',
-  type: 'confirm'
+  type: 'confirm',
+  confirmText: 'OK',
+  cancelText: 'キャンセル'
 })
 
 const emit = defineEmits<{

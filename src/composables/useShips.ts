@@ -109,7 +109,7 @@ export function useShips() {
     const newIndex = currentCount // 0-based index
     const newUserShip = createDefaultUserShip(orig, newIndex)
 
-    await saveUserShip(newUserShip)
+    await saveUserShip(JSON.parse(JSON.stringify(newUserShip)))
 
     // Update local state
     userShipMap.value.set(`${orig}_${newIndex}`, newUserShip)
@@ -136,14 +136,20 @@ export function useShips() {
 
     if (existing) {
       const updated = { ...existing, variantId }
-      await saveUserShip(updated)
-      userShipMap.value.set(key, updated)
+      await saveUserShip(JSON.parse(JSON.stringify(updated)))
+      // trigger reactivity by creating new Map
+      const newMap = new Map(userShipMap.value)
+      newMap.set(key, updated)
+      userShipMap.value = newMap
     } else {
       // Should not happen if strictly counting, but safety fallback
       const newUserShip = createDefaultUserShip(orig, shipIndex)
       newUserShip.variantId = variantId
-      await saveUserShip(newUserShip)
-      userShipMap.value.set(key, newUserShip)
+      await saveUserShip(JSON.parse(JSON.stringify(newUserShip)))
+      // trigger reactivity
+      const newMap = new Map(userShipMap.value)
+      newMap.set(key, newUserShip)
+      userShipMap.value = newMap
     }
   }
 

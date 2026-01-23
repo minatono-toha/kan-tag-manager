@@ -422,10 +422,6 @@ const executeStageSelection = (stage: string, tagId: number = 0) => {
     tagId: finalTagId,
   }
 
-  // If we assigned a specific tag, automatically set assigned to true
-  if (finalTagId > 0) {
-    updated.assigned = true
-  }
 
   props.updateTagManagement(updated)
   showStagePopup.value = false
@@ -454,7 +450,6 @@ const executeTagSelection = (stage: string, tagName: string, tagId: number) => {
     ...tagData.value,
     targetStage: value,
     tagId: tagId,
-    assigned: true
   }
   props.updateTagManagement(updated)
   showStagePopup.value = false

@@ -177,7 +177,8 @@
       :modalVisible="modalVisible"
       :selectedShipOrig="modalShips.length ? modalShips[0].orig : null"
       :modalShipIndex="modalShipIndex"
-      :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].orig}_${modalShipIndex}`) || modalShips[0].orig) : null"
+      :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].orig}_${modalShipIndex}`) || modalShips[0].id) : null"
+      :isUnowned="isModalShipUnowned"
       :selectedEventId="selectedEventId"
       :tagManagementData="tagManagementData"
       :stageOptions="stageOptions"
@@ -253,7 +254,8 @@ export default defineComponent({
       incrementShipCount,
       decrementShipCount,
       userShipMap,
-      updateShipVariant
+      updateShipVariant,
+      getOwnershipCount
     } = useShips()
 
     // Backward compatibility for components expecting simple variant ID map
@@ -467,8 +469,23 @@ export default defineComponent({
       modalShipIndex.value = 0
     }
 
-    const handleVariantSelectFromModal = (orig: number, variantId: number) => {
-      // Use the shipIndex of the ship that was clicked to open the modal
+    const handleVariantSelectFromModal = async (orig: number, variantId: number) => {
+      console.log('[App] handleVariantSelectFromModal:', orig, variantId)
+
+      // Check ownership first
+      const count = getOwnershipCount(orig)
+      if (count === 0) {
+        // Auto-arrive: Add ship first
+        // Since we are adding the first ship, the index will be 0
+        console.log('[App] Unowned ship selected. Auto-arriving...')
+        await incrementShipCount(orig)
+        // After increment, we need to update the variant
+        // Since it's the first ship (index 0), we use shipIndex 0
+        await handleSafeUpdateVariant(orig, 0, variantId)
+        return
+      }
+
+      // Existing logic for owned ships
       const clickedShipIndex = modalShipIndex.value
 
       // Verify the ship instance exists
@@ -477,8 +494,11 @@ export default defineComponent({
       )
 
       if (targetShip) {
+        console.log('[App] Found target ship, updating...')
         // Update the variant for the clicked ship instance
         handleSafeUpdateVariant(orig, clickedShipIndex, variantId)
+      } else {
+        console.warn('[App] Target ship not found in expandedShips', orig, clickedShipIndex)
       }
     }
 
@@ -596,6 +616,11 @@ export default defineComponent({
 
         // Fallback to active filtered list (Search + Category + Tag)
         return intersectedShips.value
+      }),
+      getOwnershipCount,
+      isModalShipUnowned: computed(() => {
+        if (!modalShips.value.length) return false
+        return getOwnershipCount(modalShips.value[0].orig) === 0
       })
     }
   },

@@ -101,6 +101,7 @@
                  </div>
                  <!-- Variant Selector Toggle -->
                  <span
+                    v-if="ship.ownershipCount > 0"
                     @click.stop="toggleVariantPopup($event, ship)"
                     class="cursor-pointer text-gray-500 hover:text-gray-700 select-none text-xs w-6 h-5 flex items-center justify-center"
                     title="改装段階変更"
@@ -189,6 +190,7 @@
           { 'opacity-50 cursor-not-allowed': currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) }
         ]"
         :title="currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) ? '改装元と特攻倍率が異なるため、改装後の行を参照してください' : ''"
+        :data-variant-id="variant.id"
         tabindex="0"
         @click="selectVariant(variant)"
         @keydown.enter="selectVariant(variant)"
@@ -470,9 +472,15 @@ watch(showVariantPopup, (newShow) => {
   if (newShow) {
     document.addEventListener('keydown', handleKeydown)
     setTimeout(() => {
-      if (variantPopupRef.value) {
-        const first = variantPopupRef.value.querySelector('[tabindex="0"]') as HTMLElement
-        first?.focus()
+      if (variantPopupRef.value && currentTarget.value) {
+        const currentShipId = getDisplayShip(currentTarget.value.ship).id
+        const targetEl = variantPopupRef.value.querySelector(`[data-variant-id="${currentShipId}"]`) as HTMLElement
+        if (targetEl) {
+          targetEl.focus()
+        } else {
+          const first = variantPopupRef.value.querySelector('[tabindex="0"]') as HTMLElement
+          first?.focus()
+        }
       }
     }, 0)
   } else {
