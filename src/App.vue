@@ -39,132 +39,137 @@
       @scroll="onScroll"
       :style="{ fontSize: `${scaleFactor * 100}%` }"
     >
-      <div class="main-content flex gap-10 min-h-[calc(100%-60px)]">
-        <!-- 札管理（左側） -->
-        <div
-          class="tag-manage-container flex-none flex flex-col"
-          ref="tagManageContainerRef"
-          :class="{ 'check-only': tagManageDisplayMode === 'checkOnly' }"
-        >
-          <!-- Spacer to align with other tables -->
-           <TableTitle title="制御札管理" type="tag" />
-          <div class="p-1 pb-0">
-            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
-               <button
-                @click="handleTagManageDisplayModeChange(tagManageDisplayMode === 'detail' ? 'checkOnly' : 'detail')"
-                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-              >
-                {{ tagManageDisplayMode === 'detail' ? 'チェックのみ' : '詳細表示' }}
-              </button>
+      <!-- 動的幅拡張と最下部固定のためのラッパー -->
+      <div class="flex flex-col min-h-full w-fit min-w-full">
+        <div class="main-content flex-1 flex gap-10 min-h-[calc(100%-60px)]">
+          <!-- 札管理（左側） -->
+          <div
+            class="tag-manage-container flex-none flex flex-col"
+            ref="tagManageContainerRef"
+            :class="{ 'check-only': tagManageDisplayMode === 'checkOnly' }"
+          >
+            <!-- Spacer to align with other tables -->
+             <TableTitle title="制御札管理" type="tag" />
+            <div class="p-1 pb-0">
+              <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
+                 <button
+                  @click="handleTagManageDisplayModeChange(tagManageDisplayMode === 'detail' ? 'checkOnly' : 'detail')"
+                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+                >
+                  {{ tagManageDisplayMode === 'detail' ? 'チェックのみ' : '詳細表示' }}
+                </button>
+              </div>
+            </div>
+            <div class="flex-grow">
+              <TagManageTable
+                :ships="finalShips"
+                :sourceShips="shipsToDisplay"
+                :selectedEventId="selectedEventId"
+                :loading="loading"
+                :targetHeaderHeight="attackTableHeaderHeight"
+                :tagManagementData="tagManagementData"
+                :stageOptions="stageOptions"
+                :stageTagMap="stageTagMap"
+                :tagMap="tagMap"
+                :updateTagManagement="updateTagManagement"
+                :displayMode="tagManageDisplayMode"
+                :theme="theme"
+                @filter-change="handleTagFilterChange"
+              />
             </div>
           </div>
-          <div class="flex-grow">
-            <TagManageTable
-              :ships="finalShips"
-              :sourceShips="shipsToDisplay"
-              :selectedEventId="selectedEventId"
-              :loading="loading"
-              :targetHeaderHeight="attackTableHeaderHeight"
-              :tagManagementData="tagManagementData"
-              :stageOptions="stageOptions"
-              :stageTagMap="stageTagMap"
-              :tagMap="tagMap"
-              :updateTagManagement="updateTagManagement"
-              :displayMode="tagManageDisplayMode"
-              :theme="theme"
-              @filter-change="handleTagFilterChange"
-            />
+
+          <!-- 艦船一覧（中央） -->
+          <div class="list-container flex flex-col" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }" ref="shipListContainerRef">
+               <TableTitle title="艦船情報" type="ship" />
+            <div class="p-1 pb-0">
+              <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
+                <button
+                  @click="handleDisplayModeChange(shipListDisplayMode === 'detail' ? 'nameOnly' : 'detail')"
+                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
+                >
+                  {{ shipListDisplayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
+                </button>
+                <button
+                  @click="showUnownedShips = !showUnownedShips"
+                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+                >
+                  {{ showUnownedShips ? '未所持艦を表示しない' : '未所持艦を表示する' }}
+                </button>
+              </div>
+            </div>
+            <div class="flex-grow">
+              <ShipListTable
+                :ships="finalShips"
+                :loading="loading"
+                :targetHeaderHeight="attackTableHeaderHeight"
+                :hasFiltersSelected="selectedFilterIds.length > 0"
+                :displayMode="shipListDisplayMode"
+                 :show-unowned-ships="showUnownedShips"
+                 :selectedEventId="selectedEventId"
+                :tagManagementData="tagManagementData"
+                :theme="theme"
+                :all-ships="allShips"
+                 :variant-map="shipVariantMap"
+                 :source-ships="expandedShips"
+                 @update-variant="handleSafeUpdateVariant"
+                @select="openModal"
+                @filter-change="handleSafeShipFilterChange"
+                @increment-ship="incrementShipCount"
+                @decrement-ship="decrementShipCount"
+              />
+            </div>
+          </div>
+
+          <!-- 特攻情報（右側） -->
+          <div class="attack-container flex-1 flex flex-col" ref="attackContainerRef">
+               <TableTitle v-if="selectedEventId" title="海域特攻情報" type="attack" />
+            <div v-if="selectedEventId" class="p-1 pb-0">
+              <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
+                <button
+                  @click="handleToggleSortMode"
+                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
+                >
+                  {{ attackSortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
+                </button>
+                <button
+                  @click="handleToggleAllStages"
+                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+                >
+                  {{ attackIsAllExpanded ? '全格納' : '全展開' }}
+                </button>
+              </div>
+            </div>
+            <div class="flex-grow">
+              <AttackTable
+                v-if="selectedEventId"
+                :filteredUniqueOrigs="intersectedShips"
+                :selectedEventId="selectedEventId!"
+                @update-sorted-ships="handleSortedShipsUpdate"
+                @loading="handleLoading"
+                @header-height-change="handleHeaderHeightChange"
+                @update-sort-mode="handleSortModeUpdate"
+                @update-is-all-expanded="handleIsAllExpandedUpdate"
+                ref="attackTableRef"
+              />
+              <div v-else class="p-4 text-center text-gray-500">
+                イベントを選択してください
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 艦船一覧（中央） -->
-        <div class="list-container flex flex-col" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }" ref="shipListContainerRef">
-             <TableTitle title="艦船情報" type="ship" />
-          <div class="p-1 pb-0">
-            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
-              <button
-                @click="handleDisplayModeChange(shipListDisplayMode === 'detail' ? 'nameOnly' : 'detail')"
-                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
-              >
-                {{ shipListDisplayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
-              </button>
-              <button
-                @click="showUnownedShips = !showUnownedShips"
-                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-              >
-                {{ showUnownedShips ? '未所持艦を表示しない' : '未所持艦を表示する' }}
-              </button>
-            </div>
+         <!-- フッター (スクロールエリア内) -->
+        <footer class="relative bg-gray-50 border-t border-gray-300 py-2 px-6 flex items-center justify-center min-h-[80px] mt-3">
+          <div class="text-xxs text-gray-500 space-y-0.5">
+            <p>本サイトは、ゲーム内イベントの攻略支援を目的とした非公式サイトです。</p>
+            <p>バナー等ゲーム内で使用されている画像は、著作権法第32条に基づき、説明・識別のために必要最小限の範囲で引用しています。</p>
+            <p>画像の著作権は、DMM GAMES様および原著作物の権利者に帰属します。</p>
           </div>
-          <div class="flex-grow">
-            <ShipListTable
-              :ships="finalShips"
-              :loading="loading"
-              :targetHeaderHeight="attackTableHeaderHeight"
-              :hasFiltersSelected="selectedFilterIds.length > 0"
-              :displayMode="shipListDisplayMode"
-               :show-unowned-ships="showUnownedShips"
-               :selectedEventId="selectedEventId"
-              :tagManagementData="tagManagementData"
-              :theme="theme"
-              :all-ships="allShips"
-               :variant-map="shipVariantMap"
-               :source-ships="expandedShips"
-               @update-variant="handleSafeUpdateVariant"
-              @select="openModal"
-              @filter-change="handleSafeShipFilterChange"
-              @increment-ship="incrementShipCount"
-              @decrement-ship="decrementShipCount"
-            />
-          </div>
-        </div>
-
-        <!-- 特攻情報（右側） -->
-        <div class="attack-container flex-1 flex flex-col" ref="attackContainerRef">
-             <TableTitle v-if="selectedEventId" title="海域特攻情報" type="attack" />
-          <div v-if="selectedEventId" class="p-1 pb-0">
-            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
-              <button
-                @click="handleToggleSortMode"
-                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
-              >
-                {{ attackSortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
-              </button>
-              <button
-                @click="handleToggleAllStages"
-                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-              >
-                {{ attackIsAllExpanded ? '全格納' : '全展開' }}
-              </button>
-            </div>
-          </div>
-          <div class="flex-grow">
-            <AttackTable
-              v-if="selectedEventId"
-              :filteredUniqueOrigs="intersectedShips"
-              :selectedEventId="selectedEventId!"
-              @update-sorted-ships="handleSortedShipsUpdate"
-              @loading="handleLoading"
-              @header-height-change="handleHeaderHeightChange"
-              @update-sort-mode="handleSortModeUpdate"
-              @update-is-all-expanded="handleIsAllExpandedUpdate"
-              ref="attackTableRef"
-            />
-            <div v-else class="p-4 text-center text-gray-500">
-              イベントを選択してください
-            </div>
-          </div>
-        </div>
+          <!-- 妖精さんをフッター内に配置 -->
+          <FairyTips class="absolute right-4 bottom-0" />
+        </footer>
       </div>
-
-       <!-- フッター (スクロールエリア内へ移動) -->
-      <footer class="bg-gray-50 border-t border-gray-300 py-1 px-6 text-center mt-3">
-        <div class="text-xxs text-gray-500 space-y-0.5">
-          <p>本サイトは、ゲーム内イベントの攻略支援を目的とした非公式サイトです。</p>
-          <p>バナー等ゲーム内で使用されている画像は、著作権法第32条に基づき、説明・識別のために必要最小限の範囲で引用しています。</p>
-          <p>画像の著作権は、DMM GAMES様および原著作物の権利者に帰属します。</p>
-        </div>
-      </footer>
     </div>
 
     <!-- Dataset Tabs (Bottom Fixed) -->
@@ -215,6 +220,7 @@ import ThemeSelector from './components/theme/ThemeSelector.vue'
 import DatasetTabs from './components/dataset/DatasetTabs.vue'
 import DatasetControlBar from './components/dataset/DatasetControlBar.vue'
 import BaseDialog from './components/common/BaseDialog.vue'
+import FairyTips from './tips/FairyTips.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
@@ -231,7 +237,8 @@ export default defineComponent({
     ThemeSelector,
     DatasetTabs,
     DatasetControlBar,
-    BaseDialog
+    BaseDialog,
+    FairyTips
   },
   setup() {
     const { theme, handleThemeChange } = useTheme()
