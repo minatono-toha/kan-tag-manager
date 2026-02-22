@@ -192,6 +192,7 @@ export const useDatasetStore = defineStore('dataset', () => {
 
         // Create UserShip
         const userShip: UserShip = {
+          uniqueId: p.id,
           orig,
           shipIndex: currentIndex,
           variantId: p.ship_id,
@@ -266,6 +267,15 @@ export const useDatasetStore = defineStore('dataset', () => {
     // 3. Construct JSON
     const result: FleetAnalysisShip[] = []
 
+    // 採番用の最大IDを探す
+    let maxId = 0
+    for (const ship of userShips) {
+      if (ship.uniqueId && ship.uniqueId > maxId) {
+        maxId = ship.uniqueId
+      }
+    }
+
+    // 欠落しているIDには最大値+1から割り当てる
     for (const ship of userShips) {
       const key = `${ship.orig}_${ship.shipIndex}`
       const tagData = tagManagementMap.get(key)
@@ -273,8 +283,14 @@ export const useDatasetStore = defineStore('dataset', () => {
 
       console.log(`[Area Debug] ship ${ship.orig}[${ship.shipIndex}]: tagId=${area}`)
 
+      let shipId = ship.uniqueId
+      if (!shipId) {
+        maxId += 1
+        shipId = maxId
+      }
+
       const entry: FleetAnalysisShip = {
-        id: ship.shipIndex + 1, // Note: This might need to be global serial? Fleet analysis likely just needs generic unique ID or order.
+        id: shipId,
         ship_id: ship.variantId,
         lv: ship.lv,
         st: ship.st,

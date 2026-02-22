@@ -82,6 +82,7 @@ export interface TagManagement {
 // 旧 shipOwnership (数) + shipVariant (改造段階) + TagManagementのメタデータ を統合
 export interface UserShip {
   id?: string // `${orig}_${shipIndex}`
+  uniqueId?: number // オリジナルの艦隊分析コードのid (情報のロストを防ぐため)
   orig: number // 艦ID (系統)
   shipIndex: number // 何隻目か (0-29)
   variantId: number // 現在の改造段階ID (shipId)
