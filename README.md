@@ -1,45 +1,60 @@
-# kan-tag-manager
+# Kan-Tag-Manager
 
-This template should help get you started developing with Vue 3 in Vite.
+本サイトはDMM/C2機関提供のブラウザゲーム「艦隊これくしょん -艦これ-」の期間限定イベント攻略のため、出撃札や艦娘の配備状況をブラウザ上で管理するツールです。
 
-## Recommended IDE Setup
+## ①本サイトの使い方解説
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+**※本サイトは、ゲーム内イベントの攻略支援を目的とした非公式サイトです。バナー等ゲーム内で使用されている画像は、著作権法第32条に基づき、説明・識別のために必要最小限の範囲で引用しています。画像の著作権は、DMM GAMES様および原著作物の権利者に帰属します。**
 
-## Type Support for `.vue` Imports in TS
+1. 艦娘データを読み込む
+   Fleet Analysisなどで出力したJSONデータをインポートして、所持している艦娘やレベルの情報を画面に反映させます。手動での着任・未着任の切り替えも可能です。
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+2. 出撃札を割り当てる
+   イベント海域向けに札を作成し、個別の艦娘に出撃先を指定します。
 
-## Customize configuration
+3. 編成を確認する
+   札ごとに艦娘を絞り込み、部隊の構成や不足している艦種を把握します。
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+4. データを保存する
+   割り当てた札や編成の情報はJSON形式でエクスポートし、バックアップに利用します。
 
-## Project Setup
+## ②機能・仕様の詳細
+
+- ローカル保存
+  入力データはすべてブラウザのIndexedDBに保存されます。外部サーバーへの送信処理をもたないため、セキュアに動作します。
+
+- 画面テーマ切り替え
+  ライト、ダーク、ダークブルーの表示テーマを備えており、好みに応じて配色を変更できます。
+
+- 複数プランの保持（データセット）
+  イベントごと、あるいは複数の攻略プランごとにデータセットを分割して保存し、画面上で素早く切り替えられます。
+
+## ③開発手順と環境構築
+
+本プロジェクトはVue 3とViteを利用しています。ローカルで起動・開発する場合のコマンドは次の通りです。
+
+### パッケージのインストールと起動
 
 ```sh
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### ビルドと静的検証
 
 ```sh
 npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
 npm run test:unit
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
 npm run lint
 ```
+
+## ④その他・運用背景
+
+- 画面構成とUIについて
+  本サイトの基本的な言語や画面構成は、「制空権シミュレータ (Noro 様)」を勝手に参考にして設計しています。
+
+- 開発体制
+  本プロジェクトにおける機能設計およびすべてのコーディング作業は、大規模言語モデル「Google DeepMind Antigravity」によって行われています。
+
+- JSONインポート機能について
+  艦隊分析ツールからのJSON入出力に関するコードは、Antigravityによるリバースエンジニアリングで実装しています。そのため、データ構造の最新仕様に完全には追随できていない可能性があります。
