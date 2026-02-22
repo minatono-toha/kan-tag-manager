@@ -230,11 +230,11 @@ const getStatusStyle = (status: number) => {
   }
 }
 
-const formatDate = (date: { toDate?: () => Date } | Date | string | number | null): string => {
+const formatDate = (date: unknown): string => {
   if (!date) return '-'
   let d: Date
-  if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
-    d = date.toDate()
+  if (date && typeof date === 'object' && 'toDate' in date && typeof (date as { toDate: unknown }).toDate === 'function') {
+    d = (date as { toDate: () => Date }).toDate()
   } else {
     d = new Date(date as Date | string | number)
   }
