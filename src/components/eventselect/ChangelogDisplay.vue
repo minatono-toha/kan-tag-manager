@@ -66,24 +66,26 @@ const displayedLogs = computed(() => {
   return changelogs.value.slice(0, 2)
 })
 
-// Remaining logs to show when expanded
-const remainingLogs = computed(() => {
-  return changelogs.value.slice(2)
-})
+
 
 // Format date as yyyy/mm/dd
-const formatDate = (date: any): string => {
+const formatDate = (date: unknown): string => {
   if (!date) return '-'
 
   let d: Date
   // Firestore Timestamp
-  if (date && typeof date.toDate === 'function') {
-    d = date.toDate()
+  if (
+    date &&
+    typeof date === 'object' &&
+    'toDate' in date &&
+    typeof (date as { toDate: unknown }).toDate === 'function'
+  ) {
+    d = (date as { toDate: () => Date }).toDate()
   } else if (date instanceof Date) {
     d = date
   } else {
     // Try to parse string or number
-    d = new Date(date)
+    d = new Date(date as string | number)
   }
 
   if (isNaN(d.getTime())) {

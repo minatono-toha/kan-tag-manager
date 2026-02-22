@@ -24,8 +24,8 @@ export interface EventInfo {
   event_jp: string
   event_en: string
   eventName: string
-  eventStart: any // Firestore Timestamp or Date
-  eventEnd: any // Firestore Timestamp or Date
+  eventStart: unknown // Firestore Timestamp or Date
+  eventEnd: unknown // Firestore Timestamp or Date
 }
 
 export interface Event {
@@ -102,7 +102,7 @@ export interface ExpandedShip extends Ship {
 // 更新履歴データ
 export interface Changelog {
   c_logId: number // ログID（ソート用）
-  c_logDate: any // Firestore Timestamp
+  c_logDate: unknown // Firestore Timestamp
   c_logStr: string // ログメッセージ
 }
 
@@ -119,8 +119,8 @@ export interface QA {
   id?: string
   qa_category: number
   qa_status: number
-  qa_createDate: any // Firestore Timestamp
-  qa_updateDate: any // Firestore Timestamp
+  qa_createDate: unknown // Firestore Timestamp
+  qa_updateDate: unknown // Firestore Timestamp
   qa_question: string
   qa_answer: string
 }

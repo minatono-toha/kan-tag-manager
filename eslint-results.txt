@@ -1,0 +1,14 @@
+[0m[0m
+[0m[4mD:\src\kan-tag-manager\src\components\eventselect\ChangelogDisplay.vue[24m[0m
+[0m  [2m70:7[22m   [31merror[39m  'remainingLogs' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m75:27[22m  [31merror[39m  Unexpected any. Specify a different type            [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mD:\src\kan-tag-manager\src\types\interfaces.ts[24m[0m
+[0m   [2m27:15[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m   [2m28:13[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m105:14[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m122:18[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m123:18[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[31m[1m✖ 7 problems (7 errors, 0 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

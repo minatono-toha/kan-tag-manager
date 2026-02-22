@@ -18,7 +18,10 @@ export function useTheme() {
       theme.value = savedTheme
       applyThemeToBody(savedTheme)
     } else {
-      applyThemeToBody('light')
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      const defaultTheme = isDark ? 'dark' : 'light'
+      theme.value = defaultTheme
+      applyThemeToBody(defaultTheme)
     }
   }
 

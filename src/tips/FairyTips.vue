@@ -19,7 +19,7 @@
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue';
-import { TIPS_DATA, EXHAUSTED_MESSAGE } from './tipsData';
+import { TIPS_DATA, EXHAUSTED_MESSAGE, PRE_EXHAUSTED_MESSAGE } from './tipsData';
 import { TWEET_DATA } from './tweetData';
 
 export default defineComponent({
@@ -46,9 +46,17 @@ export default defineComponent({
         const availableIndices = dataSource.map((_, i) => i).filter(i => !shownSet.has(i));
 
         if (availableIndices.length > 0) {
-          const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-          activeTip.value = dataSource[randomIndex];
-          shownSet.add(randomIndex);
+          // If we are in regular (TIPS_DATA) mode and exactly 1 tip remains unshown:
+          if (!isTweetMode.value && availableIndices.length === 1) {
+            const lastIndex = availableIndices[0];
+            activeTip.value = PRE_EXHAUSTED_MESSAGE;
+            // Mark the last real tip as shown so next click shows EXHAUSTED_MESSAGE
+            shownSet.add(lastIndex);
+          } else {
+            const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+            activeTip.value = dataSource[randomIndex];
+            shownSet.add(randomIndex);
+          }
         } else {
           activeTip.value = EXHAUSTED_MESSAGE;
         }
