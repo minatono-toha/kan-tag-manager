@@ -2,8 +2,12 @@
   <div class="fairy-tips-container">
     <!-- フキダシ -->
     <transition name="fade">
-      <div v-if="isVisible" class="speech-bubble" :class="{ 'tweet-mode': isTweetMode }" v-html="activeTip">
-      </div>
+      <div
+        v-if="isVisible"
+        class="speech-bubble"
+        :class="{ 'tweet-mode': isTweetMode }"
+        v-html="activeTip"
+      ></div>
     </transition>
 
     <!-- キャラクター本体（左クリックで表示、右クリックでモード切替） -->
@@ -18,81 +22,82 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
-import { TIPS_DATA, EXHAUSTED_MESSAGE, PRE_EXHAUSTED_MESSAGE } from './tipsData';
-import { TWEET_DATA } from './tweetData';
+import { defineComponent, ref } from 'vue'
+import { TIPS_DATA, EXHAUSTED_MESSAGE, PRE_EXHAUSTED_MESSAGE } from './tipsData'
+import { TWEET_DATA } from './tweetData'
 
 export default defineComponent({
   name: 'FairyTips',
   setup() {
-    const isTweetMode = ref(false);
-    const shownTipsIndices = ref<Set<number>>(new Set());
-    const shownTweetsIndices = ref<Set<number>>(new Set());
+    const isTweetMode = ref(false)
+    const shownTipsIndices = ref<Set<number>>(new Set())
+    const shownTweetsIndices = ref<Set<number>>(new Set())
 
-    const activeTip = ref('');
-    const isVisible = ref(false);
-    const lastClickTime = ref(0);
-    const CLICK_COOLDOWN = 500;
-    let timer: number | null = null;
+    const activeTip = ref('')
+    const isVisible = ref(false)
+    const lastClickTime = ref(0)
+    const CLICK_COOLDOWN = 500
+    let timer: number | null = null
 
     const showNextTip = (forceMessage?: string) => {
       if (forceMessage) {
-        activeTip.value = forceMessage;
+        activeTip.value = forceMessage
       } else {
-        const dataSource = isTweetMode.value ? TWEET_DATA : TIPS_DATA;
-        const shownSet = isTweetMode.value ? shownTweetsIndices.value : shownTipsIndices.value;
+        const dataSource = isTweetMode.value ? TWEET_DATA : TIPS_DATA
+        const shownSet = isTweetMode.value ? shownTweetsIndices.value : shownTipsIndices.value
 
         // 未表示のチップを選択
-        const availableIndices = dataSource.map((_, i) => i).filter(i => !shownSet.has(i));
+        const availableIndices = dataSource.map((_, i) => i).filter((i) => !shownSet.has(i))
 
         if (availableIndices.length > 0) {
           // If we are in regular (TIPS_DATA) mode and exactly 1 tip remains unshown:
           if (!isTweetMode.value && availableIndices.length === 1) {
-            const lastIndex = availableIndices[0];
-            activeTip.value = PRE_EXHAUSTED_MESSAGE;
+            const lastIndex = availableIndices[0]
+            activeTip.value = PRE_EXHAUSTED_MESSAGE
             // Mark the last real tip as shown so next click shows EXHAUSTED_MESSAGE
-            shownSet.add(lastIndex);
+            shownSet.add(lastIndex)
           } else {
-            const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-            activeTip.value = dataSource[randomIndex];
-            shownSet.add(randomIndex);
+            const randomIndex =
+              availableIndices[Math.floor(Math.random() * availableIndices.length)]
+            activeTip.value = dataSource[randomIndex]
+            shownSet.add(randomIndex)
           }
         } else {
-          activeTip.value = EXHAUSTED_MESSAGE;
+          activeTip.value = EXHAUSTED_MESSAGE
         }
       }
 
-      isVisible.value = true;
+      isVisible.value = true
 
-      if (timer) clearTimeout(timer);
+      if (timer) clearTimeout(timer)
       timer = window.setTimeout(() => {
-        isVisible.value = false;
-        timer = null;
-      }, 3000);
-    };
+        isVisible.value = false
+        timer = null
+      }, 3000)
+    }
 
     const handleCharacterClick = () => {
-      const now = Date.now();
-      if (now - lastClickTime.value < CLICK_COOLDOWN) return;
-      lastClickTime.value = now;
-      showNextTip();
-    };
+      const now = Date.now()
+      if (now - lastClickTime.value < CLICK_COOLDOWN) return
+      lastClickTime.value = now
+      showNextTip()
+    }
 
     const handleRightClick = () => {
-      isTweetMode.value = !isTweetMode.value;
+      isTweetMode.value = !isTweetMode.value
       // モード切り替えを知らせる
-      showNextTip(`管理人つぶやきモード: ${isTweetMode.value ? 'ON' : 'OFF'}`);
-    };
+      showNextTip(`管理人つぶやきモード: ${isTweetMode.value ? 'ON' : 'OFF'}`)
+    }
 
     return {
       activeTip,
       isVisible,
       isTweetMode,
       handleCharacterClick,
-      handleRightClick
-    };
-  }
-});
+      handleRightClick,
+    }
+  },
+})
 </script>
 
 <style scoped>
@@ -140,7 +145,9 @@ export default defineComponent({
   position: relative;
   pointer-events: auto;
   word-wrap: break-word;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 /* つぶやきモード時の視覚的変化（オプション：少し色味を変える） */
@@ -168,7 +175,9 @@ export default defineComponent({
 /* アニメーション */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .fade-enter-from,
@@ -176,29 +185,31 @@ export default defineComponent({
   opacity: 0;
   transform: translateY(5px);
 }
+</style>
 
+<style>
 /* ダークテーマ系の調整 */
-:global(.theme-dark) .speech-bubble,
-:global(.theme-gradient) .speech-bubble {
+.theme-dark .speech-bubble,
+.theme-gradient .speech-bubble {
   background: rgba(31, 41, 55, 0.9);
   border-color: rgba(255, 255, 255, 0.2);
   color: #f9fafb;
 }
 
-:global(.theme-dark) .speech-bubble::after,
-:global(.theme-gradient) .speech-bubble::after {
+.theme-dark .speech-bubble::after,
+.theme-gradient .speech-bubble::after {
   border-top-color: rgba(31, 41, 55, 0.9);
 }
 
 /* ダークテーマかつツイートモード */
-:global(.theme-dark) .speech-bubble.tweet-mode,
-:global(.theme-gradient) .speech-bubble.tweet-mode {
+.theme-dark .speech-bubble.tweet-mode,
+.theme-gradient .speech-bubble.tweet-mode {
   background: rgba(30, 58, 138, 0.9);
   border-color: rgba(99, 102, 241, 0.4);
 }
 
-:global(.theme-dark) .speech-bubble.tweet-mode::after,
-:global(.theme-gradient) .speech-bubble.tweet-mode::after {
+.theme-dark .speech-bubble.tweet-mode::after,
+.theme-gradient .speech-bubble.tweet-mode::after {
   border-top-color: rgba(30, 58, 138, 0.9);
 }
 </style>
