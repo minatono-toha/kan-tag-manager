@@ -2,10 +2,10 @@
   <div>
     <div v-if="loading">読み込み中...</div>
     <table v-else class="w-full text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100 sticky top-0 z-10">
+      <thead class="bg-gray-100 sticky top-0 z-10" :style="theadStyle">
         <tr>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="shipTypeFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="shipTypeFilter.length > 0 ? 'filter-active' : 'bg-gray-100'">
             <div>艦種</div>
             <span
               @click="toggleShipTypeFilter($event)"
@@ -17,7 +17,7 @@
               <FilterIcon v-else />
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '250px', minWidth: '250px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, width: '250px', minWidth: '250px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'filter-active' : 'bg-gray-100'">
             <div>艦名</div>
             <span
               @click="toggleSearch($event)"
@@ -29,7 +29,7 @@
               <FilterIcon v-else />
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '165px', minWidth: '165px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '165px', minWidth: '165px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'filter-active' : 'bg-gray-100'">
             <div>艦型・艦番</div>
             <span
               @click="toggleClassSearch($event)"
@@ -41,7 +41,7 @@
               <FilterIcon v-else />
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '55px', minWidth: '55px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'bg-gray-300' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '55px', minWidth: '55px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'filter-active' : 'bg-gray-100'">
             <div>速力</div>
             <span
               @click="toggleSpeedFilter($event)"
@@ -558,39 +558,94 @@ const cellStyle = {
   whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
-const headerStyle = computed(() => ({
+const headerStyle = computed<CSSProperties>(() => {
+  const h = props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`
+  return {
+    height: h,
+    minHeight: h,
+    fontSize: TABLE_STYLE.fontSize,
+    boxSizing: 'border-box',
+  }
+})
+
+const theadStyle = computed<CSSProperties>(() => ({
   height: props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`,
-  fontSize: TABLE_STYLE.fontSize,
 }))
 
 </script>
 
 <style scoped>
+/* Refined: horizontal row dividers only, zebra striping, no vertical borders */
 table {
-  border-collapse: separate !important;
-  border-spacing: 0;
-  border-top: 1px solid #d1d5db !important;
-  border-left: 1px solid #d1d5db !important;
-  border-right: 0 !important;
-  border-bottom: 0 !important;
+  border-collapse: collapse !important;
+  border: 0 !important;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--table-border, #e5e7eb);
 }
 
 th, td {
-  border-top: 0 !important;
-  border-left: 0 !important;
-  border-right: 1px solid #d1d5db !important;
-  border-right: 1px solid #d1d5db !important;
-  border-bottom: 1px solid #d1d5db !important;
+  border: 0 !important;
+}
+
+/* Header bottom edge — drawn via inset shadow so sticky scroll keeps it intact */
+thead th {
+  box-shadow: inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+thead th:not(:last-child) {
+  box-shadow:
+    inset 0 -1px 0 var(--table-border, #e5e7eb),
+    inset -1px 0 0 var(--table-border, #e5e7eb);
+}
+
+/* Horizontal row separators */
+tbody tr {
+  box-shadow: inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+tbody tr:last-child {
+  box-shadow: none;
+}
+
+/* Faint vertical column separators (skip last column to avoid doubling table edge) */
+tbody td:not(:last-child) {
+  box-shadow: inset -1px 0 0 var(--table-border, #e5e7eb);
+}
+
+/* Zebra striping for additional column tracking */
+tbody tr:nth-child(even):not(.row-assigned):not(.row-preserve) {
+  background-color: var(--table-zebra-bg, #fafbfc);
 }
 
 .row-assigned {
   background-color: var(--bg-row-assigned) !important;
   color: var(--text-row-assigned) !important;
+  box-shadow:
+    inset 3px 0 0 var(--table-accent, #6366f1),
+    inset 0 -1px 0 var(--table-border, #e5e7eb) !important;
 }
 
 .row-preserve {
   background-color: var(--bg-row-preserve) !important;
   color: var(--text-row-preserve) !important;
+  box-shadow:
+    inset 3px 0 0 #3b82f6,
+    inset 0 -1px 0 var(--table-border, #e5e7eb) !important;
+}
+
+/* Active filter column: top accent bar instead of full-cell shading */
+thead th.filter-active {
+  box-shadow:
+    inset 0 2px 0 var(--table-accent, #6366f1),
+    inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+thead th.filter-active:not(:last-child) {
+  box-shadow:
+    inset 0 2px 0 var(--table-accent, #6366f1),
+    inset 0 -1px 0 var(--table-border, #e5e7eb),
+    inset -1px 0 0 var(--table-border, #e5e7eb);
 }
 
 .popup-container {

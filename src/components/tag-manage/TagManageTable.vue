@@ -6,12 +6,12 @@
       class="text-sm border-collapse border border-gray-300"
       :style="{ tableLayout: 'fixed', width: displayMode === 'detail' ? '410px' : '120px' }"
     >
-      <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef">
+      <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef" :style="theadStyle">
         <tr>
           <th
             :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }"
             class="border text-left align-top relative pb-6"
-            :class="assignedFilter !== null ? 'bg-gray-300' : 'bg-gray-100'"
+            :class="assignedFilter !== null ? 'filter-active' : 'bg-gray-100'"
           >
             割当済
             <span
@@ -27,7 +27,7 @@
           <th
             :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }"
             class="border text-left align-top relative pb-6"
-            :class="preserveFilter !== null ? 'bg-gray-300' : 'bg-gray-100'"
+            :class="preserveFilter !== null ? 'filter-active' : 'bg-gray-100'"
           >
             温存
             <span
@@ -44,7 +44,7 @@
             v-if="displayMode === 'detail'"
             :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }"
             class="border text-left align-top relative pb-6"
-            :class="targetStageFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'"
+            :class="targetStageFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
           >
             割当先
             <span
@@ -61,7 +61,7 @@
             v-if="displayMode === 'detail'"
             :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px' }"
             class="border text-left align-top relative pb-6"
-            :class="assignedTagFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'"
+            :class="assignedTagFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
           >
             割当札
             <span
@@ -78,7 +78,7 @@
             v-if="displayMode === 'detail'"
             :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }"
             class="border text-left align-top relative pb-6"
-            :class="commentFilter.length > 0 ? 'bg-gray-300' : 'bg-gray-100'"
+            :class="commentFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
           >
             コメント
             <span
@@ -1133,31 +1133,77 @@ const cellStyle = {
   whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
-const headerStyle = computed(() => ({
+const headerStyle = computed<CSSProperties>(() => {
+  const h = props.targetHeaderHeight
+    ? `${props.targetHeaderHeight}px`
+    : `${TABLE_STYLE.headerHeight}px`
+  return {
+    height: h,
+    minHeight: h,
+    fontSize: TABLE_STYLE.fontSize,
+    boxSizing: 'border-box',
+  }
+})
+
+const theadStyle = computed<CSSProperties>(() => ({
   height: props.targetHeaderHeight
     ? `${props.targetHeaderHeight}px`
     : `${TABLE_STYLE.headerHeight}px`,
-  fontSize: TABLE_STYLE.fontSize,
 }))
 </script>
 
 <style scoped>
-/* Fix properties for Firefox sticky header compatibility */
+/* Refined: horizontal row dividers only, zebra striping, no vertical borders */
 table {
-  border-collapse: separate !important;
-  border-spacing: 0;
-  border-top: 1px solid #d1d5db !important;
-  border-left: 1px solid #d1d5db !important;
-  border-right: 0 !important;
-  border-bottom: 0 !important;
+  border-collapse: collapse !important;
+  border: 0 !important;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--table-border, #e5e7eb);
 }
 
 th,
 td {
-  border-top: 0 !important;
-  border-left: 0 !important;
-  border-right: 1px solid #d1d5db !important;
-  border-bottom: 1px solid #d1d5db !important;
+  border: 0 !important;
+}
+
+thead th {
+  box-shadow: inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+thead th:not(:last-child) {
+  box-shadow:
+    inset 0 -1px 0 var(--table-border, #e5e7eb),
+    inset -1px 0 0 var(--table-border, #e5e7eb);
+}
+
+tbody tr {
+  box-shadow: inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+tbody tr:last-child {
+  box-shadow: none;
+}
+
+tbody td:not(:last-child) {
+  box-shadow: inset -1px 0 0 var(--table-border, #e5e7eb);
+}
+
+tbody tr:nth-child(even):not(.row-assigned):not(.row-preserve) {
+  background-color: var(--table-zebra-bg, #fafbfc);
+}
+
+thead th.filter-active {
+  box-shadow:
+    inset 0 2px 0 var(--table-accent, #6366f1),
+    inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+thead th.filter-active:not(:last-child) {
+  box-shadow:
+    inset 0 2px 0 var(--table-accent, #6366f1),
+    inset 0 -1px 0 var(--table-border, #e5e7eb),
+    inset -1px 0 0 var(--table-border, #e5e7eb);
 }
 
 select:focus,
@@ -1173,11 +1219,17 @@ input[type='checkbox'].pointer-events-none {
 .row-assigned {
   background-color: var(--bg-row-assigned) !important;
   color: var(--text-row-assigned) !important;
+  box-shadow:
+    inset 3px 0 0 var(--table-accent, #6366f1),
+    inset 0 -1px 0 var(--table-border, #e5e7eb) !important;
 }
 
 .row-preserve {
   background-color: var(--bg-row-preserve) !important;
   color: var(--text-row-preserve) !important;
+  box-shadow:
+    inset 3px 0 0 #3b82f6,
+    inset 0 -1px 0 var(--table-border, #e5e7eb) !important;
 }
 
 .popup-container {

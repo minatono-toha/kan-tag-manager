@@ -51,8 +51,10 @@ a,
   --border-color: #d1d5db;
   --header-bg: #f3f4f6;
   --header-text: #374151;
-  --hover-bg: #f3f4f6;
-  --table-border: #d1d5db;
+  --hover-bg: #eef2ff;
+  --table-border: #e5e7eb;
+  --table-zebra-bg: #fafbfc;
+  --table-accent: #6366f1;
   --tab-grayed-text: #374151;
 
   /* Semantic Colors */
@@ -84,8 +86,10 @@ a,
   --border-color: #4b5563;
   --header-bg: #374151;
   --header-text: #f9fafb;
-  --hover-bg: #4b5563;
-  --table-border: #4b5563;
+  --hover-bg: #3b4252;
+  --table-border: #374151;
+  --table-zebra-bg: #1b2230;
+  --table-accent: #818cf8;
   --tab-grayed-text: #111827;
 
   /* Semantic Colors */
@@ -221,7 +225,9 @@ body {
   color: var(--tab-grayed-text) !important;
 }
 
-/* Tables */
+/* Tables — refined modern styling
+   ShipListTable / TagManageTable: horizontal row dividers + zebra (no vertical borders)
+   AttackTable (.sp-attack-table): full grid retained for column tracking */
 .theme-light table,
 .theme-dark table,
 .theme-gradient table {
@@ -242,6 +248,8 @@ body {
   background-color: var(--header-bg) !important;
   color: var(--header-text) !important;
   border-color: var(--table-border) !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 /* AttackTable cells keep black text in all themes */
@@ -264,6 +272,7 @@ body {
 .theme-dark tbody tr:hover,
 .theme-gradient tbody tr:hover {
   background-color: var(--hover-bg) !important;
+  transition: background-color 80ms ease;
 }
 
 /* Borders and inputs */

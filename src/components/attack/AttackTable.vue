@@ -38,7 +38,7 @@
                   <th
                     :colspan="group.maps.length"
                     :style="cellStyle"
-                    class="border sp-col text-center align-top bg-gray-100"
+                    class="border sp-col sp-col-collapsed text-center align-top bg-gray-100"
                     :key="'stageNum-colspan-' + group.stageNum"
                   >
                     <!-- mapId非表示 -->
@@ -69,7 +69,7 @@
                   <th
                     :colspan="group.maps.length"
                     :style="cellStyle"
-                    class="border sp-col text-center align-top bg-gray-100"
+                    class="border sp-col sp-col-collapsed text-center align-top bg-gray-100"
                     :key="'tagId-colspan-' + group.stageNum"
                   >
                     <!-- tagId非表示 -->
@@ -113,7 +113,7 @@
                   <th
                     :colspan="group.maps.length"
                     :style="cellStyle"
-                    class="border sp-col text-center align-top"
+                    class="border sp-col sp-col-collapsed text-center align-top"
                     :key="'tagGroup-colspan-' + group.tagId"
                   >
                     <!-- mapId非表示 -->
@@ -146,7 +146,7 @@
                 <template v-else>
                   <td
                     :colspan="group.maps.length"
-                    class="border sp-col text-center"
+                    class="border sp-col sp-col-collapsed text-center"
                     :key="'cell-colspan-' + ship.orig + '-' + group.stageNum"
                   >
                     <!-- mapId非表示 -->
@@ -171,7 +171,7 @@
                 <template v-else>
                   <td
                     :colspan="group.maps.length"
-                    class="border sp-col text-center"
+                    class="border sp-col sp-col-collapsed text-center"
                     :key="'cell-tag-colspan-' + ship.orig + '-' + group.tagId"
                   >
                     <!-- mapId非表示 -->
@@ -254,7 +254,8 @@ export default defineComponent({
 
     const emitHeaderHeight = () => {
       if (theadRef.value) {
-        emit('header-height-change', theadRef.value.getBoundingClientRect().height)
+        // Math.ceil avoids subpixel undershoot that leaves the receiver's bottom edge 1px short
+        emit('header-height-change', Math.ceil(theadRef.value.getBoundingClientRect().height))
       }
     }
 
@@ -268,12 +269,17 @@ export default defineComponent({
       }
 
       if (theadRef.value) {
-        resizeObserver = new ResizeObserver((entries) => {
-          for (const entry of entries) {
-            emit('header-height-change', entry.contentRect.height)
-          }
+        resizeObserver = new ResizeObserver(() => {
+          // Re-measure via getBoundingClientRect to include subpixel-rounded outer height
+          emitHeaderHeight()
         })
         resizeObserver.observe(theadRef.value)
+      }
+
+      // Ensure correct height after fonts/styles fully settle
+      nextTick(() => emitHeaderHeight())
+      if (typeof document !== 'undefined' && document.fonts) {
+        document.fonts.ready.then(() => emitHeaderHeight())
       }
     })
 
@@ -410,20 +416,64 @@ export default defineComponent({
 </script>
 
 <style scoped>
-/* Fix properties for Firefox sticky header compatibility */
-table {
-  border-collapse: separate !important;
-  border-spacing: 0;
-  border-top: 1px solid #d1d5db !important;
-  border-left: 1px solid #d1d5db !important;
-  border-right: 0 !important;
-  border-bottom: 0 !important;
+/* Refined: full grid retained for column tracking, but with collapse to eliminate
+   subpixel border misalignment. Sticky header borders are drawn via inset
+   box-shadow so they don't detach during scroll. */
+table.sp-attack-table {
+  border-collapse: collapse !important;
+  border: 0 !important;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--table-border, #e5e7eb);
+  /* Auto width based on summed column widths so it doesn't expand to viewport edge */
+  width: auto !important;
+  table-layout: auto;
 }
 
-th, td {
-  border-top: 0 !important;
-  border-left: 0 !important;
-  border-right: 1px solid #d1d5db !important;
-  border-bottom: 1px solid #d1d5db !important;
+table.sp-attack-table th,
+table.sp-attack-table td {
+  border: 0 !important;
+  /* Single shared grid via inset shadows — no double-border or misalignment */
+  box-shadow:
+    inset -1px 0 0 var(--table-border, #e5e7eb),
+    inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+table.sp-attack-table thead th {
+  /* Sticky-safe: header keeps full edges even while scrolling */
+  box-shadow:
+    inset -1px 0 0 var(--table-border, #e5e7eb),
+    inset 0 -1px 0 var(--table-border, #e5e7eb),
+    inset 0 1px 0 var(--table-border, #e5e7eb);
+}
+
+/* Compact, stable column widths — prevents expand/collapse from inflating cells.
+   :not([colspan]) excludes parent group headers (E-X, tagName) so they auto-size
+   to the sum of their leaf columns. */
+table.sp-attack-table th.sp-col:not([colspan]),
+table.sp-attack-table td.sp-col:not([colspan]) {
+  min-width: 56px;
+  box-sizing: border-box;
+  word-break: keep-all;
+}
+
+/* Body cells hold short numeric values — cap them to keep columns compact */
+table.sp-attack-table td.sp-col:not([colspan]) {
+  max-width: 56px;
+  overflow: hidden;
+}
+
+/* Header tag-pill cells: let the column grow just enough to fit pill labels */
+table.sp-attack-table thead th.sp-col:not([colspan]) {
+  white-space: nowrap;
+}
+
+/* Collapsed group placeholders: keep the whole column group minimal */
+table.sp-attack-table th.sp-col-collapsed,
+table.sp-attack-table td.sp-col-collapsed {
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  padding: 0 !important;
 }
 </style>
