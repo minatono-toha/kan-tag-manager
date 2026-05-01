@@ -212,7 +212,8 @@ import FilterPopup from '@/components/common/FilterPopup.vue'
 import SearchIcon from '@/components/common/SearchIcon.vue'
 import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
-import { SP_ATTACK_EXCEPTION_SHIPS } from '@/components/attack/SPAttackException'
+import { useFocusTrap } from '@/composables/useFocusTrap'
+import { isVariantDisabled } from '@/components/attack/SPAttackException'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -369,14 +370,6 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
 }
 
 
-const isVariantDisabled = (rowShipName: string, variantName: string): boolean => {
-  // 例外リストに含まれる艦の場合、名称が部分一致しないバリエーションは選択不可とする
-  if (SP_ATTACK_EXCEPTION_SHIPS.some(ex => rowShipName.includes(ex))) {
-    return !variantName.includes(rowShipName)
-  }
-  return false
-}
-
 const selectVariant = (variant: Ship) => {
   if (currentTarget.value) {
     const rowShip = currentTarget.value.ship
@@ -439,53 +432,30 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  document.removeEventListener('keydown', handleKeydown)
 })
 
-const handleKeydown = (event: KeyboardEvent) => {
-  if (showVariantPopup.value && variantPopupRef.value) {
-    if (event.key === 'Escape') {
-      showVariantPopup.value = false
-    } else if (event.key === 'Tab') {
-      const focusable = Array.from(variantPopupRef.value.querySelectorAll('[tabindex="0"]')) as HTMLElement[]
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (event.shiftKey) {
-        if (document.activeElement === first) {
-          event.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          event.preventDefault()
-          first.focus()
-        }
-      }
-    }
-  }
-}
+useFocusTrap(showVariantPopup, {
+  getFocusable: () =>
+    variantPopupRef.value
+      ? (Array.from(variantPopupRef.value.querySelectorAll('[tabindex="0"]')) as HTMLElement[])
+      : [],
+  onEscape: () => { showVariantPopup.value = false },
+})
 
 watch(showVariantPopup, (newShow) => {
-  if (newShow) {
-    document.addEventListener('keydown', handleKeydown)
-    setTimeout(() => {
-      if (variantPopupRef.value && currentTarget.value) {
-        const currentShipId = getDisplayShip(currentTarget.value.ship).id
-        const targetEl = variantPopupRef.value.querySelector(`[data-variant-id="${currentShipId}"]`) as HTMLElement
-        if (targetEl) {
-          targetEl.focus()
-        } else {
-          const first = variantPopupRef.value.querySelector('[tabindex="0"]') as HTMLElement
-          first?.focus()
-        }
+  if (!newShow) return
+  setTimeout(() => {
+    if (variantPopupRef.value && currentTarget.value) {
+      const currentShipId = getDisplayShip(currentTarget.value.ship).id
+      const targetEl = variantPopupRef.value.querySelector(`[data-variant-id="${currentShipId}"]`) as HTMLElement
+      if (targetEl) {
+        targetEl.focus()
+      } else {
+        const first = variantPopupRef.value.querySelector('[tabindex="0"]') as HTMLElement
+        first?.focus()
       }
-    }, 0)
-  } else {
-    document.removeEventListener('keydown', handleKeydown)
-  }
+    }
+  }, 0)
 })
 
 const emptyStateMessage = computed(() => {

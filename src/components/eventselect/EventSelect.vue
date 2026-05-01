@@ -98,6 +98,7 @@ import { defineComponent, ref, computed, onMounted, watch, onUnmounted, type Pro
 import { useEvents } from '@/composables/useEvents'
 import ChangelogDisplay from './ChangelogDisplay.vue'
 import QASheetModal from '../common/QASheetModal.vue'
+import { toJsDate } from '@/utils/date'
 
 export default defineComponent({
   name: 'EventSelect',
@@ -133,25 +134,9 @@ export default defineComponent({
       return events.value.find((event) => event.eventId === localSelectedEventId.value)
     })
 
-    // 日付フォーマット関数
     const formatDate = (date: unknown) => {
-      if (!date) return '未設定'
-
-      let d: Date
-      // Firestore Timestampの場合
-      if (date && typeof (date as { toDate?: () => Date }).toDate === 'function') {
-        d = (date as { toDate: () => Date }).toDate()
-      } else if (date instanceof Date) {
-        d = date
-      } else {
-        d = new Date(date as string | number | Date)
-      }
-
-      // 無効な日付の場合は未設定を返す
-      if (isNaN(d.getTime())) {
-        return '未設定'
-      }
-
+      const d = toJsDate(date)
+      if (!d) return '未設定'
       const year = d.getFullYear()
       const month = String(d.getMonth() + 1).padStart(2, '0')
       const day = String(d.getDate()).padStart(2, '0')
@@ -159,20 +144,7 @@ export default defineComponent({
       return `${year}/${month}/${day} (${dayOfWeek})`
     }
 
-    // 日付をDateオブジェクトに変換するヘルパー関数
-    const convertToDate = (date: unknown): Date | null => {
-      if (!date) return null
-
-      // Firestore Timestampの場合
-      if (date && typeof (date as { toDate?: () => Date }).toDate === 'function') {
-        return (date as { toDate: () => Date }).toDate()
-      } else if (date instanceof Date) {
-        return date
-      } else {
-        const d = new Date(date as string | number | Date)
-        return isNaN(d.getTime()) ? null : d
-      }
-    }
+    const convertToDate = toJsDate
 
     // イベントステータス
     const eventStatus = computed(() => {

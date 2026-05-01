@@ -418,10 +418,9 @@
         width: '140px',
       }"
       @click.stop
-      @mouseenter="cancelCloseSubMenu"
     >
       <div
-        v-for="stage in getStagesForArea(hoveredArea)"
+        v-for="stage in [hoveredArea]"
         :key="stage"
         @click="handleStageClick($event, stage)"
         @keydown.enter="handleStageClick($event, stage)"
@@ -497,6 +496,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import SearchIcon from '@/components/common/SearchIcon.vue'
 import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
+import { resolveTagId } from '@/utils/tagAssignment'
 
 const props = withDefaults(
   defineProps<{
@@ -674,22 +674,7 @@ const uniqueAssignedTags = computed(() => {
   return Array.from(tags).sort()
 })
 
-// Displayed ships (for the table UI)
-const displayedShips = computed(() => {
-  // We don't apply filters here because the parent component (App.vue)
-  // is expected to pass the filtered list back to us as `props.ships`.
-  // However, we might want to apply local display logic if needed.
-  // For now, we trust props.ships is what we should display.
-  // Wait, if we stop filtering locally for display, we break the immediate UI feedback loop?
-  //
-  // The architectural pattern we want is:
-  // 1. TagManageTable calculates filters based on `sourceShips` and emits `filter-change`.
-  // 2. App.vue receives `filter-change`, updates `filteredShipsFromTagTable`.
-  // 3. App.vue passes `filteredShipsFromTagTable` (or potentially sorted version from AttackTable) back to `TagManageTable` as `props.ships`.
-  //
-  // So, `displayedShips` should strictly reflect `props.ships`.
-  return props.ships
-})
+const displayedShips = computed(() => props.ships)
 
 // Filtered ships for EMIT (based on sourceShips + local filters)
 const filteredShipsForEmit = computed(() => {
@@ -803,27 +788,11 @@ const togglePreserve = (orig: number, shipIndex: number) => {
 
 const executeStageChange = (orig: number, shipIndex: number, value: string, tagId: number = 0) => {
   const current = getTagData(orig, shipIndex)
-
-  // Safety inference: If tagId is 0 but value has (TagName), try to find tagId
-  let finalTagId = tagId
-  if (finalTagId === 0 && value) {
-    const parsed = parseTagFromTargetStage(value)
-    if (parsed && parsed.tagName) {
-      const tagEntry = Object.values(props.tagMap).find((t) => t.tagName === parsed.tagName)
-      if (tagEntry) {
-        finalTagId = tagEntry.tagId
-        console.log(`[tagId Inference] Inferred tagId ${finalTagId} from "${value}"`)
-      }
-    }
-  }
-
   const updated: TagManagement = {
     ...current,
     targetStage: value,
-    tagId: finalTagId,
+    tagId: resolveTagId(tagId, value, props.tagMap),
   }
-
-
   props.updateTagManagement(updated)
 }
 
@@ -859,21 +828,6 @@ const toggleCommentFilter = (event: MouseEvent) => {
   commentPopup.toggle(event)
 }
 
-// Extract tag info from targetStage string: "E-1-1 (TagName)" -> { stage: "E-1-1", tagName: "TagName" }
-const parseTagFromTargetStage = (targetStage: string) => {
-  if (!targetStage) return null
-  const match = targetStage.match(/^(.+?)\s*\((.+)\)$/)
-  if (match) {
-    return {
-      stage: match[1],
-      tagName: match[2],
-    }
-  }
-  return {
-    stage: targetStage,
-    tagName: null,
-  }
-}
 
 const getStageOnlyFromTargetStage = (orig: number, shipIndex: number) => {
   const data = getTagData(orig, shipIndex)
@@ -900,10 +854,6 @@ const uniqueAreas = computed(() => {
   if (!props.stageTagMap) return []
   return Object.keys(props.stageTagMap)
 })
-
-const getStagesForArea = (area: string) => {
-  return [area]
-}
 
 const getTagsForStage = (stage: string) => {
   return props.stageTagMap[stage] || []
@@ -968,11 +918,6 @@ const handleStageHover = (event: MouseEvent | KeyboardEvent, stage: string) => {
   }
 }
 
-const cancelCloseSubMenu = () => {
-  // Helper to keep sub menu open when moving mouse
-}
-
-// Apply Logic
 const applyTagSelection = (stage: string, tagName: string) => {
   // Find tagId
   const tags = props.stageTagMap[stage]

@@ -204,6 +204,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { parseTagFromTargetStage } from '@/utils/tagStage'
+import { resolveTagId } from '@/utils/tagAssignment'
+import { uniqueAreasFromStages, parseStage } from '@/utils/stageUtils'
+import { useTooltip } from '@/composables/useTooltip'
 
 const props = defineProps<{
   ship: Ship
@@ -248,27 +252,11 @@ const confirmMessage =
 const showUnassignConfirm = ref(false)
 const unassignConfirmMessage = '割当済チェックを外しますか'
 
-// Custom Tooltip State
-const tooltipState = ref({
-  show: false,
-  content: '',
-  x: 0,
-  y: 0,
-})
-
-const handleMouseEnterWarning = (e: MouseEvent, content: string) => {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  tooltipState.value = {
-    show: true,
-    content,
-    x: rect.left + rect.width / 2,
-    y: rect.top - 5, // Position just above the element
-  }
-}
-
-const handleMouseLeaveWarning = () => {
-  tooltipState.value.show = false
-}
+const {
+  state: tooltipState,
+  show: handleMouseEnterWarning,
+  hide: handleMouseLeaveWarning,
+} = useTooltip()
 
 // Toggle functions
 const toggleAssigned = () => {
@@ -284,19 +272,10 @@ const toggleAssigned = () => {
     return
   }
 
-  let finalTagId = tagData.value.tagId
-  if (finalTagId === 0 && tagData.value.targetStage) {
-    const parsed = parseTagFromTargetStage(tagData.value.targetStage)
-    if (parsed && parsed.tagName) {
-      const tagEntry = Object.values(props.tagMap).find((t) => t.tagName === parsed.tagName)
-      if (tagEntry) finalTagId = tagEntry.tagId
-    }
-  }
-
   const updated: TagManagement = {
     ...tagData.value,
     assigned: !tagData.value.assigned,
-    tagId: finalTagId,
+    tagId: resolveTagId(tagData.value.tagId, tagData.value.targetStage, props.tagMap),
   }
   props.updateTagManagement(updated)
 }
@@ -326,33 +305,13 @@ const selectedArea = ref<string | null>(null)
 const hoveredStage = ref<string | null>(null)
 const tagMenuPosition = ref({ x: 0, y: 0 })
 
-const uniqueAreas = computed(() => {
-  const areas = new Set<string>()
-  props.stageOptions.forEach((stage) => {
-    const parts = stage.split('-')
-    if (parts.length >= 2) {
-      const area = `${parts[0]}-${parts[1]}`
-      areas.add(area)
-    } else {
-      areas.add(stage)
-    }
-  })
-  return Array.from(areas).sort((a, b) => {
-    const aNum = parseInt(a.replace('E-', '')) || 0
-    const bNum = parseInt(b.replace('E-', '')) || 0
-    return aNum - bNum
-  })
-})
+const uniqueAreas = computed(() => uniqueAreasFromStages(props.stageOptions))
 
 const currentStageArea = computed(() => {
   if (!tagData.value.targetStage) return null
   const stage =
     parseTagFromTargetStage(tagData.value.targetStage)?.stage || tagData.value.targetStage
-  const parts = stage.split('-')
-  if (parts.length >= 2) {
-    return `${parts[0]}-${parts[1]}`
-  }
-  return null
+  return parseStage(stage).area
 })
 
 const stagesForSelectedArea = computed(() => {
@@ -407,22 +366,11 @@ const applyStageSelection = (stage: string, tagId: number = 0) => {
 }
 
 const executeStageSelection = (stage: string, tagId: number = 0) => {
-  let finalTagId = tagId
-  if (finalTagId === 0 && stage) {
-    const parsed = parseTagFromTargetStage(stage)
-    if (parsed && parsed.tagName) {
-      const tagEntry = Object.values(props.tagMap).find((t) => t.tagName === parsed.tagName)
-      if (tagEntry) finalTagId = tagEntry.tagId
-    }
-  }
-
   const updated: TagManagement = {
     ...tagData.value,
     targetStage: stage,
-    tagId: finalTagId,
+    tagId: resolveTagId(tagId, stage, props.tagMap),
   }
-
-
   props.updateTagManagement(updated)
   showStagePopup.value = false
   selectedArea.value = null
@@ -484,23 +432,6 @@ const handleConfirm = () => {
   }
 }
 
-// Parse tag from targetStage
-const parseTagFromTargetStage = (targetStage: string) => {
-  if (!targetStage) return null
-  const match = targetStage.match(/^(.+?)\s*\((.+)\)$/)
-  if (match) {
-    return {
-      stage: match[1],
-      tagName: match[2],
-    }
-  }
-  return {
-    stage: targetStage,
-    tagName: null,
-  }
-}
-
-// Get assigned tag info
 const assignedTagName = computed(() => {
   if (!tagData.value.targetStage) return ''
   const parsed = parseTagFromTargetStage(tagData.value.targetStage)
@@ -522,25 +453,16 @@ const handleCommentChange = (value: string) => {
   props.updateTagManagement(updated)
 }
 
-// Close popup when clicking outside
 const handleClickOutside = (event: MouseEvent) => {
-  if (stagePopupRef.value && !stagePopupRef.value.contains(event.target as Node)) {
-    const target = event.target as HTMLElement
-    if (!target.closest('.modal-tag-management button')) {
-      showStagePopup.value = false
-      selectedArea.value = null
-      hoveredStage.value = null
-    }
-  }
+  if (!stagePopupRef.value || stagePopupRef.value.contains(event.target as Node)) return
+  if ((event.target as HTMLElement).closest('.modal-tag-management button')) return
+  showStagePopup.value = false
+  selectedArea.value = null
+  hoveredStage.value = null
 }
 
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+onMounted(() => document.addEventListener('click', handleClickOutside))
+onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 </script>
 
 <style scoped>

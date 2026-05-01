@@ -3,6 +3,8 @@ import { db } from '@/firebase'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import type { ShipWithSpAttack, Event, ExpandedShip } from '@/types/interfaces'
 import type { Ref } from 'vue'
+import { compareShipsByFilterAndLibrary } from '@/utils/shipSort'
+import type { AttackSortMode, SortOrder } from '@/types/ui'
 
 export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqueOrigs: Ref<ExpandedShip[]>) {
   const eventMaps = ref<Event[]>([])
@@ -13,8 +15,8 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
 
   // Sorting
   const sortKey = ref<string | null>(null)
-  const sortOrder = ref<'asc' | 'desc'>('desc')
-  const sortByMode = ref<'area' | 'tag'>('area')
+  const sortOrder = ref<SortOrder>('desc')
+  const sortByMode = ref<AttackSortMode>('area')
 
   // Expansion states
   const expandedStageNums = ref<number[]>([])
@@ -50,14 +52,15 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
     if (!selectedEventId.value) return
     loading.value = true
     try {
-      await fetchEventMaps()
-      await fetchTags()
-      const q = query(collection(db, 'maintable'), where('eventId', '==', selectedEventId.value))
-      const snap = await getDocs(q)
+      const mainQ = query(collection(db, 'maintable'), where('eventId', '==', selectedEventId.value))
+      const [, , snap] = await Promise.all([
+        fetchEventMaps(),
+        fetchTags(),
+        getDocs(mainQ),
+      ])
       const results: Record<number, Record<string, number>> = {}
       snap.forEach((doc) => {
         const data = doc.data()
-        // No need to check eventId here as query already filtered it
         const orig: number = data.orig
         results[orig] = {}
         for (const map of eventMaps.value) {
@@ -83,12 +86,7 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
 
   const sortedShips = computed(() => {
     if (!sortKey.value) {
-      return [...shipsWithSpAttack.value].sort((a, b) => {
-        const fa = a.filterId ?? 0
-        const fb = b.filterId ?? 0
-        if (fa !== fb) return fa - fb
-        return (a.libraryId || 0) - (b.libraryId || 0)
-      })
+      return [...shipsWithSpAttack.value].sort(compareShipsByFilterAndLibrary)
     }
     return [...shipsWithSpAttack.value].sort((a, b) => {
       const aVal = a.spAttackData[sortKey.value!]
@@ -117,27 +115,30 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
   })
 
   const tagGroups = computed(() => {
-    const groups: { tagId: number; tagName: string; tagColor: string; maps: Event[] }[] = []
-    const tagIds = Object.keys(tagMap.value).map(Number).sort((a, b) => a - b)
-
-    for (const tagId of tagIds) {
-      const mapsForTag = eventMaps.value.filter(map => {
-         return [map.tagId1, map.tagId2, map.tagId3, map.tagId4].includes(tagId)
-      })
-
-      if (mapsForTag.length > 0) {
-         mapsForTag.sort((a, b) => {
-           if (a.stageNum !== b.stageNum) return a.stageNum - b.stageNum
-           return a.mapId - b.mapId
-         })
-
-         groups.push({
-           tagId,
-           tagName: tagMap.value[tagId].tagName,
-           tagColor: tagMap.value[tagId].tagColor,
-           maps: mapsForTag
-         })
+    const mapsByTag = new Map<number, Event[]>()
+    for (const map of eventMaps.value) {
+      const ids = [map.tagId1, map.tagId2, map.tagId3, map.tagId4]
+      const seen = new Set<number>()
+      for (const tagId of ids) {
+        if (!tagId || seen.has(tagId) || !tagMap.value[tagId]) continue
+        seen.add(tagId)
+        const arr = mapsByTag.get(tagId)
+        if (arr) arr.push(map)
+        else mapsByTag.set(tagId, [map])
       }
+    }
+
+    const groups: { tagId: number; tagName: string; tagColor: string; maps: Event[] }[] = []
+    const tagIds = Array.from(mapsByTag.keys()).sort((a, b) => a - b)
+    for (const tagId of tagIds) {
+      const maps = mapsByTag.get(tagId)!
+      maps.sort((a, b) => (a.stageNum !== b.stageNum ? a.stageNum - b.stageNum : a.mapId - b.mapId))
+      groups.push({
+        tagId,
+        tagName: tagMap.value[tagId].tagName,
+        tagColor: tagMap.value[tagId].tagColor,
+        maps,
+      })
     }
     return groups
   })

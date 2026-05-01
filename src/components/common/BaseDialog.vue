@@ -54,7 +54,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, toRef, watch } from 'vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 const props = withDefaults(defineProps<{
   show: boolean
@@ -91,73 +92,25 @@ const handleCancel = () => {
   emit('update:show', false)
 }
 
-const getFocusableElements = (): HTMLElement[] => {
-  if (props.type === 'confirm') {
-    return [cancelButton.value, okButton.value].filter(el => !!el) as HTMLElement[]
-  } else {
-    return [closeButton.value].filter(el => !!el) as HTMLElement[]
-  }
-}
+const getFocusable = (): HTMLElement[] =>
+  (props.type === 'confirm'
+    ? [cancelButton.value, okButton.value]
+    : [closeButton.value]
+  ).filter((el): el is HTMLElement => !!el)
 
-const handleKeydown = (event: KeyboardEvent) => {
-  if (!props.show) return
+useFocusTrap(toRef(props, 'show'), {
+  getFocusable,
+  onEscape: handleCancel,
+  onEnter: () => (props.type === 'alert' ? handleCancel() : handleConfirm()),
+})
 
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    handleCancel()
-  } else if (event.key === 'Enter' || (props.type === 'alert' && event.key === ' ')) {
-    // For alert, Space/Enter closes. For confirm, Enter triggers OK unless another button is focused.
-    if (props.type === 'alert') {
-      event.preventDefault()
-      handleCancel()
-    } else if (document.activeElement !== cancelButton.value && document.activeElement !== okButton.value) {
-      event.preventDefault()
-      handleConfirm()
-    }
-  } else if (event.key === 'Tab') {
-    const focusable = getFocusableElements()
+watch(() => props.show, (isOpen) => {
+  if (!isOpen) return
+  setTimeout(() => {
+    const focusable = getFocusable()
     if (focusable.length === 0) return
-
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-
-    if (event.shiftKey) {
-      if (document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      }
-    } else {
-      if (document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-  }
-}
-
-watch(() => props.show, (newVal) => {
-  if (newVal) {
-    document.addEventListener('keydown', handleKeydown)
-    setTimeout(() => {
-      const focusable = getFocusableElements()
-      if (focusable.length > 0) {
-        // For confirm, default to OK button. For alert, default to Close.
-        const defaultFocus = props.type === 'confirm' ? okButton.value : closeButton.value
-        defaultFocus?.focus()
-      }
-    }, 0)
-  } else {
-    document.removeEventListener('keydown', handleKeydown)
-  }
-})
-
-onMounted(() => {
-  if (props.show) {
-    document.addEventListener('keydown', handleKeydown)
-  }
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
+    const defaultFocus = props.type === 'confirm' ? okButton.value : closeButton.value
+    defaultFocus?.focus()
+  }, 0)
 })
 </script>

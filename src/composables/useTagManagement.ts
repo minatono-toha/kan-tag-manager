@@ -8,6 +8,7 @@ import {
   saveTagManagement,
   getAllTagManagementForEvent
 } from '@/utils/indexedDB'
+import { compareStages } from '@/utils/stageUtils'
 
 export interface TagDef {
   tagId: number
@@ -81,18 +82,7 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
 
       stageTagMap.value = sTagMap
 
-      // Sort stages (E-1, E-2-1, E-2-2, etc.)
-      stageOptions.value = Array.from(stages).sort((a, b) => {
-        const aParts = a.replace('E-', '').split('-').map(Number)
-        const bParts = b.replace('E-', '').split('-').map(Number)
-
-        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-          const aVal = aParts[i] || 0
-          const bVal = bParts[i] || 0
-          if (aVal !== bVal) return aVal - bVal
-        }
-        return 0
-      })
+      stageOptions.value = Array.from(stages).sort(compareStages)
     } catch (error) {
       console.error('Error fetching stage and tag options:', error)
     } finally {
@@ -154,9 +144,6 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
 
   // Update tag management data (Immediate UI feedback + debounced DB save)
   const updateTagManagement = async (data: TagManagement) => {
-    console.log(`[useTagManagement] updateTagManagement: key=${data.orig}_${data.shipIndex}, tagId=${data.tagId}, assigned=${data.assigned}`)
-
-    // 1. Update local state immediately for instant UI feedback
     const key = `${data.orig}_${data.shipIndex}`
     // Create a new map reference to trigger reactivity if using ref(Map)
     const newMap = new Map(tagManagementData.value)

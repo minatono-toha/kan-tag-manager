@@ -115,7 +115,7 @@ import { ref, watch, computed } from 'vue'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import ShipCard from './ShipCard.vue'
 import ModalTagManagement from './ModalTagManagement.vue'
-import { SP_ATTACK_EXCEPTION_SHIPS } from '@/components/attack/SPAttackException'
+import { isVariantDisabled } from '@/components/attack/SPAttackException'
 import { useTheme } from '@/composables/useTheme'
 
 const props = withDefaults(defineProps<{
@@ -136,14 +136,6 @@ const props = withDefaults(defineProps<{
 })
 
 const { theme } = useTheme()
-
-const isVariantDisabled = (rowShipName: string, variantName: string): boolean => {
-  // 例外リストに含まれる艦の場合、名称が部分一致しないバリエーションは選択不可とする
-  if (SP_ATTACK_EXCEPTION_SHIPS.some(ex => rowShipName.includes(ex))) {
-    return !variantName.includes(rowShipName)
-  }
-  return false
-}
 
 const emit = defineEmits(['close', 'select-variant'])
 
@@ -201,24 +193,18 @@ const handleBannerClick = (event: MouseEvent, ship: Ship) => {
     return
   }
 
-  console.log('[ShipModal] Banner clicked, emitting:', ship.orig, ship.id)
   emit('select-variant', ship.orig, ship.id)
 }
 
 const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
-  console.log('[ShipModal] Clicked:', ship.name, ship.id, 'Disabled?', selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name))
-  // Check if disabled
   if (selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name)) {
     return
   }
 
-  // Check if the click originated from the banner area (image or link)
   const target = event.target as HTMLElement
   const isBannerClick = target.closest('.ship-banner') !== null
 
   if (!isBannerClick) {
-    // Clicked on the ship info area - update the variant in the ship list table
-    console.log('[ShipModal] Emitting select-variant:', ship.orig, ship.id)
     emit('select-variant', ship.orig, ship.id)
   }
 }

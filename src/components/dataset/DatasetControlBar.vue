@@ -172,6 +172,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useDatasetStore } from '@/stores/datasetStore'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
+import { useTooltip } from '@/composables/useTooltip'
 import ImportDestinationModal from './ImportDestinationModal.vue'
 import ImportResultModal from './ImportResultModal.vue'
 
@@ -198,27 +199,7 @@ export default defineComponent({
     const codeText = ref('')
     const fileInput = ref<HTMLInputElement | null>(null)
 
-    // Custom Tooltip State
-    const tooltipState = ref({
-      show: false,
-      content: '',
-      x: 0,
-      y: 0,
-    })
-
-    const handleMouseEnter = (e: MouseEvent, content: string) => {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-      tooltipState.value = {
-        show: true,
-        content,
-        x: rect.left + rect.width / 2,
-        y: rect.top - 5, // Position just above the element
-      }
-    }
-
-    const handleMouseLeave = () => {
-      tooltipState.value.show = false
-    }
+    const { state: tooltipState, show: handleMouseEnter, hide: handleMouseLeave } = useTooltip()
 
     // CSV Import State
     const showDestinationModal = ref(false)
@@ -368,16 +349,15 @@ export default defineComponent({
             sTagMap[k] = v.map((t) => ({ tagId: t.tagId, tagName: t.tagName }))
           }
 
-          await datasetStore.importDataset(
-            codeText.value,
-            name || '',
-            allShips.value,
-            props.selectedEventId,
-            tMap,
-            sTagMap,
-            mode, // Added mode parameter to importDataset if it supports it, OR we need to handle it in the store
-          )
-          // For JSON import, we reload immediately if successful (same as current behavior)
+          await datasetStore.importDataset({
+            fileContent: codeText.value,
+            newDatasetName: name || '',
+            allShips: allShips.value,
+            selectedEventId: props.selectedEventId,
+            tagMap: tMap,
+            stageTagMap: sTagMap,
+            mode,
+          })
           window.location.reload()
         }
       } catch (error) {

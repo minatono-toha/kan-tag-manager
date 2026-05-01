@@ -201,6 +201,7 @@ import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick
 import { TABLE_STYLE } from '@/constants/tableStyle'
 import type { Event, ExpandedShip } from '@/types/interfaces'
 import { useAttackData } from '@/composables/useAttackData'
+import { contrastingTextColor } from '@/utils/color'
 
 export default defineComponent({
   name: 'AttackTable',
@@ -246,31 +247,7 @@ export default defineComponent({
     const getTagIds = (map: Event): number[] => {
       return [map.tagId1, map.tagId2, map.tagId3, map.tagId4].filter(id => typeof id === 'number' && id >= 1)
     }
-    // タグ色の明度に応じて文字色を決定
-    const getTextColor = (bgColor: string | undefined): string => {
-      if (!bgColor) return '#000';
-      // RGB形式
-      const rgbMatch = bgColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-      if (rgbMatch) {
-        const r = parseInt(rgbMatch[1], 10);
-        const g = parseInt(rgbMatch[2], 10);
-        const b = parseInt(rgbMatch[3], 10);
-        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-        return luminance < 128 ? '#fff' : '#000';
-      }
-      // HEX形式
-      const hexMatch = bgColor.match(/^#([0-9a-fA-F]{6})$/);
-      if (hexMatch) {
-        const hex = hexMatch[1];
-        const r = parseInt(hex.substring(0,2), 16);
-        const g = parseInt(hex.substring(2,4), 16);
-        const b = parseInt(hex.substring(4,6), 16);
-        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-        return luminance < 128 ? '#fff' : '#000';
-      }
-      // その他は黒文字
-      return '#000';
-    }
+    const getTextColor = contrastingTextColor
 
     const theadRef = ref<HTMLElement | null>(null)
     let resizeObserver: ResizeObserver | null = null
@@ -332,7 +309,6 @@ export default defineComponent({
           emitHeaderHeight()
         })
       },
-      { deep: true }
     )
 
     // Emit loading state
@@ -352,10 +328,7 @@ export default defineComponent({
     watch(
       () => sortedShips.value,
       (newSortedShips) => {
-        emit(
-          'update-sorted-ships',
-          newSortedShips.map((ship) => ({ ...ship })),
-        )
+        emit('update-sorted-ships', newSortedShips)
       },
       { immediate: true },
     )

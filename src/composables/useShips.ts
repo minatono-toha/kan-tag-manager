@@ -7,9 +7,11 @@ import {
   getAllUserShips,
   deleteUserShip
 } from '@/utils/indexedDB'
+import { compareShipsByFilterAndLibrary } from '@/utils/shipSort'
 
 // --- Singleton State ---
 const allShips = ref<Ship[]>([])
+const shipById = ref<Map<number, Ship>>(new Map())
 const uniqueOrigs = ref<Ship[]>([])
 const filters = ref<{ id: number; label: string }[]>([])
 const selectedFilterIds = ref<number[]>([])
@@ -30,10 +32,11 @@ export function useShips() {
     if (!force && allShips.value.length > 0) return
 
     const snap = await getDocs(collection(db, 'shiplist'))
-    allShips.value = snap.docs.map((doc) => {
-      const ship = doc.data() as Ship
-      return { ...ship }
-    })
+    const list = snap.docs.map((doc) => ({ ...(doc.data() as Ship) }))
+    allShips.value = list
+    const idIndex = new Map<number, Ship>()
+    for (const ship of list) idIndex.set(ship.id, ship)
+    shipById.value = idIndex
     getUniqueOrigs()
   }
 
@@ -57,11 +60,7 @@ export function useShips() {
         map.set(ship.orig, ship)
       }
     }
-    uniqueOrigs.value = Array.from(map.values()).sort((a, b) => {
-      const fa = a.filterId ?? 0
-      const fb = b.filterId ?? 0
-      return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
-    })
+    uniqueOrigs.value = Array.from(map.values()).sort(compareShipsByFilterAndLibrary)
   }
 
   // Load UserShips from IndexedDB
@@ -109,11 +108,16 @@ export function useShips() {
     const newIndex = currentCount // 0-based index
     const newUserShip = createDefaultUserShip(orig, newIndex)
 
-    await saveUserShip(JSON.parse(JSON.stringify(newUserShip)))
+    await saveUserShip(newUserShip)
 
-    // Update local state
-    userShipMap.value.set(`${orig}_${newIndex}`, newUserShip)
-    ownershipCountMap.value.set(orig, currentCount + 1)
+    // Update local state with fresh Map identities so consumers re-evaluate
+    const newUserMap = new Map(userShipMap.value)
+    newUserMap.set(`${orig}_${newIndex}`, newUserShip)
+    userShipMap.value = newUserMap
+
+    const newCountMap = new Map(ownershipCountMap.value)
+    newCountMap.set(orig, currentCount + 1)
+    ownershipCountMap.value = newCountMap
   }
 
   // Decrement ship count (min 0)
@@ -124,9 +128,13 @@ export function useShips() {
     const lastIndex = currentCount - 1
     await deleteUserShip(orig, lastIndex)
 
-    // Update local state
-    userShipMap.value.delete(`${orig}_${lastIndex}`)
-    ownershipCountMap.value.set(orig, currentCount - 1)
+    const newUserMap = new Map(userShipMap.value)
+    newUserMap.delete(`${orig}_${lastIndex}`)
+    userShipMap.value = newUserMap
+
+    const newCountMap = new Map(ownershipCountMap.value)
+    newCountMap.set(orig, currentCount - 1)
+    ownershipCountMap.value = newCountMap
   }
 
   // Update ship variant
@@ -136,17 +144,15 @@ export function useShips() {
 
     if (existing) {
       const updated = { ...existing, variantId }
-      await saveUserShip(JSON.parse(JSON.stringify(updated)))
-      // trigger reactivity by creating new Map
+      await saveUserShip(updated)
       const newMap = new Map(userShipMap.value)
       newMap.set(key, updated)
       userShipMap.value = newMap
     } else {
-      // Should not happen if strictly counting, but safety fallback
+      // Safety fallback if no UserShip record exists yet for this slot
       const newUserShip = createDefaultUserShip(orig, shipIndex)
       newUserShip.variantId = variantId
-      await saveUserShip(JSON.parse(JSON.stringify(newUserShip)))
-      // trigger reactivity
+      await saveUserShip(newUserShip)
       const newMap = new Map(userShipMap.value)
       newMap.set(key, newUserShip)
       userShipMap.value = newMap
@@ -202,7 +208,7 @@ export function useShips() {
              const key = `${ship.orig}_${i}`
              const userShip = userShipMap.value.get(key)
              if (userShip) {
-               const variant = allShips.value.find(s => s.id === userShip.variantId)
+               const variant = shipById.value.get(userShip.variantId)
                if (variant && selectedFilterIds.value.includes(variant.filterId)) {
                  return true
                }
@@ -211,11 +217,7 @@ export function useShips() {
         }
         return false
       })
-      .sort((a, b) => {
-        const fa = a.filterId ?? 0
-        const fb = b.filterId ?? 0
-        return fa !== fb ? fa - fb : (a.libraryId || 0) - (b.libraryId || 0)
-      })
+      .sort(compareShipsByFilterAndLibrary)
   })
 
   // Expanded ships for display
@@ -231,8 +233,7 @@ export function useShips() {
       const userShip = userShipMap.value.get(key)
 
       if (userShip) {
-        // Check local override
-        const variant = allShips.value.find(s => s.id === userShip.variantId)
+        const variant = shipById.value.get(userShip.variantId)
         if (variant) {
           currentFilterId = variant.filterId
         }
@@ -276,6 +277,7 @@ export function useShips() {
 
   return {
     allShips,
+    shipById,
     uniqueOrigs,
     filters,
     selectedFilterIds,

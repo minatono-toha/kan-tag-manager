@@ -45,58 +45,14 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { db } from '@/firebase'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import type { Changelog } from '@/types/interfaces'
+import { formatDate } from '@/utils/date'
 
-/*
-Scrolling unification plan:
-- [x] Split Feedback Link and Changelog into separate absolute/relative containers for better alignment.
-- [x] Align Changelog top edge with Event Selection input top edge (~33px).
-- [x] Remove internal separator in Changelog when expanded.
-- [ ] Refactor Changelog scrolling to scroll the entire list (items 1-N) when expanded, instead of separate scroll for items 3-N.
-  - Use a single `v-for` for all logs.
-  - Apply `max-height` and `overflow-y-auto` to the list container when expanded.
-  - Keep Title static.
-*/
 const changelogs = ref<Changelog[]>([])
 const loading = ref(true)
 const isExpanded = ref(false)
 const changelogRef = ref<HTMLElement | null>(null)
 
-// Display only the latest 2 logs initially
-const displayedLogs = computed(() => {
-  return changelogs.value.slice(0, 2)
-})
-
-
-
-// Format date as yyyy/mm/dd
-const formatDate = (date: unknown): string => {
-  if (!date) return '-'
-
-  let d: Date
-  // Firestore Timestamp
-  if (
-    date &&
-    typeof date === 'object' &&
-    'toDate' in date &&
-    typeof (date as { toDate: unknown }).toDate === 'function'
-  ) {
-    d = (date as { toDate: () => Date }).toDate()
-  } else if (date instanceof Date) {
-    d = date
-  } else {
-    // Try to parse string or number
-    d = new Date(date as string | number)
-  }
-
-  if (isNaN(d.getTime())) {
-    return '-'
-  }
-
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}/${month}/${day}`
-}
+const displayedLogs = computed(() => changelogs.value.slice(0, 2))
 
 const fetchChangelogs = async () => {
   try {

@@ -147,6 +147,7 @@ export default defineComponent({
         await datasetStore.switchDataset(switchTargetId.value)
         showSwitchModal.value = false
         switchTargetId.value = null
+        window.location.reload()
       }
     }
 
@@ -172,9 +173,10 @@ export default defineComponent({
 
     const handleDeleteDataset = async () => {
       if (deleteTargetId.value) {
-        await datasetStore.deleteDataset(deleteTargetId.value)
+        const reloadNeeded = await datasetStore.deleteDataset(deleteTargetId.value)
         showDeleteModal.value = false
         deleteTargetId.value = null
+        if (reloadNeeded) window.location.reload()
       }
     }
 

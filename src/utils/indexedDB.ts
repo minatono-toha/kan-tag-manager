@@ -150,8 +150,37 @@ export async function getTagManagementForShip(
   orig: number
 ): Promise<TagManagement[]> {
   const db = await initDB()
-  const allRecords = await db.getAll(TAG_STORE_NAME)
-  return allRecords.filter((record) => record.eventId === eventId && record.orig === orig)
+  const eventRecords = await db.getAllFromIndex(TAG_STORE_NAME, 'eventId', eventId)
+  return eventRecords.filter((record) => record.orig === orig)
+}
+
+export async function saveUserShipsBulk(items: UserShip[]): Promise<void> {
+  if (items.length === 0) return
+  const db = await initDB()
+  const tx = db.transaction(USER_SHIP_STORE_NAME, 'readwrite')
+  await Promise.all(
+    items.map((data) =>
+      tx.store.put({ ...data, id: generateUserShipId(data.orig, data.shipIndex) })
+    )
+  )
+  await tx.done
+}
+
+export async function saveTagManagementBulk(items: TagManagement[]): Promise<void> {
+  if (items.length === 0) return
+  const db = await initDB()
+  const tx = db.transaction(TAG_STORE_NAME, 'readwrite')
+  await Promise.all(
+    items.map((data) =>
+      tx.store.put({ ...data, id: generateTagId(data.eventId, data.orig, data.shipIndex) })
+    )
+  )
+  await tx.done
+}
+
+export async function clearStores(stores: ('tagManagement' | 'userShips')[]): Promise<void> {
+  const db = await initDB()
+  await Promise.all(stores.map((s) => db.clear(s)))
 }
 
 export async function getAllTagManagementForEvent(eventId: number): Promise<TagManagement[]> {
