@@ -63,7 +63,7 @@
             ship.orig,
             ship.shipIndex,
             ship.ownershipCount,
-            getDisplayShip(ship).id,
+            getDisplayShip(ship).bannerId,
             displayMode,
             theme,
             getRowClass(ship.orig, ship.shipIndex)
@@ -183,14 +183,14 @@
     >
       <div
         v-for="variant in currentVariants"
-        :key="variant.id"
+        :key="variant.bannerId"
         class="cursor-pointer p-1 rounded whitespace-nowrap focus:outline-none focus:ring-1 focus:ring-blue-500"
         :class="[
           'popup-item',
           { 'opacity-50 cursor-not-allowed': currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) }
         ]"
         :title="currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) ? '改装元と特攻倍率が異なるため、改装後の行を参照してください' : ''"
-        :data-variant-id="variant.id"
+        :data-variant-id="variant.bannerId"
         tabindex="0"
         @click="selectVariant(variant)"
         @keydown.enter="selectVariant(variant)"
@@ -324,7 +324,7 @@ const getDisplayShip = (ship: ExpandedShip): Ship => {
   const key = `${ship.orig}_${ship.shipIndex}`
   const variantId = props.variantMap.get(key)
   if (variantId) {
-    const variant = props.allShips.find(s => s.id === variantId)
+    const variant = props.allShips.find(s => s.bannerId === variantId)
     if (variant) return variant
   }
   return ship
@@ -376,7 +376,7 @@ const selectVariant = (variant: Ship) => {
     if (isVariantDisabled(getDisplayShip(rowShip).name, variant.name)) {
       return
     }
-    emit('update-variant', currentTarget.value.orig, currentTarget.value.shipIndex, variant.id)
+    emit('update-variant', currentTarget.value.orig, currentTarget.value.shipIndex, variant.bannerId)
   }
   showVariantPopup.value = false
   currentTarget.value = null
@@ -446,7 +446,7 @@ watch(showVariantPopup, (newShow) => {
   if (!newShow) return
   setTimeout(() => {
     if (variantPopupRef.value && currentTarget.value) {
-      const currentShipId = getDisplayShip(currentTarget.value.ship).id
+      const currentShipId = getDisplayShip(currentTarget.value.ship).bannerId
       const targetEl = variantPopupRef.value.querySelector(`[data-variant-id="${currentShipId}"]`) as HTMLElement
       if (targetEl) {
         targetEl.focus()

@@ -11,7 +11,9 @@ import { compareShipsByFilterAndLibrary } from '@/utils/shipSort'
 
 // --- Singleton State ---
 const allShips = ref<Ship[]>([])
-const shipById = ref<Map<number, Ship>>(new Map())
+// 艦の同一性は bannerId（＝ゲーム艦ID / 艦隊分析コードの ship_id）で統一する。
+// 旧 body `id` フィールドは一部の艦（新規追加分）に存在せず信頼できないため使わない。
+const shipByBannerId = ref<Map<number, Ship>>(new Map())
 const uniqueOrigs = ref<Ship[]>([])
 const filters = ref<{ id: number; label: string }[]>([])
 const selectedFilterIds = ref<number[]>([])
@@ -34,9 +36,9 @@ export function useShips() {
     const snap = await getDocs(collection(db, 'shiplist'))
     const list = snap.docs.map((doc) => ({ ...(doc.data() as Ship) }))
     allShips.value = list
-    const idIndex = new Map<number, Ship>()
-    for (const ship of list) idIndex.set(ship.id, ship)
-    shipById.value = idIndex
+    const bannerIndex = new Map<number, Ship>()
+    for (const ship of list) bannerIndex.set(ship.bannerId, ship)
+    shipByBannerId.value = bannerIndex
     getUniqueOrigs()
   }
 
@@ -56,7 +58,8 @@ export function useShips() {
   const getUniqueOrigs = () => {
     const map = new Map<number, Ship>()
     for (const ship of allShips.value) {
-      if (!map.has(ship.orig) || ship.id < (map.get(ship.orig)?.id ?? Infinity)) {
+      // 各系統(orig)の代表(基本艦)は bannerId 最小の艦とする。
+      if (!map.has(ship.orig) || ship.bannerId < (map.get(ship.orig)?.bannerId ?? Infinity)) {
         map.set(ship.orig, ship)
       }
     }
@@ -86,7 +89,7 @@ export function useShips() {
   const createDefaultUserShip = (orig: number, index: number): UserShip => {
     // Find default variant (base ship)
     const baseShip = uniqueOrigs.value.find(s => s.orig === orig)
-    const variantId = baseShip ? baseShip.id : orig
+    const variantId = baseShip ? baseShip.bannerId : orig
 
     return {
       orig,
@@ -208,7 +211,7 @@ export function useShips() {
              const key = `${ship.orig}_${i}`
              const userShip = userShipMap.value.get(key)
              if (userShip) {
-               const variant = shipById.value.get(userShip.variantId)
+               const variant = shipByBannerId.value.get(userShip.variantId)
                if (variant && selectedFilterIds.value.includes(variant.filterId)) {
                  return true
                }
@@ -233,7 +236,7 @@ export function useShips() {
       const userShip = userShipMap.value.get(key)
 
       if (userShip) {
-        const variant = shipById.value.get(userShip.variantId)
+        const variant = shipByBannerId.value.get(userShip.variantId)
         if (variant) {
           currentFilterId = variant.filterId
         }
@@ -277,7 +280,7 @@ export function useShips() {
 
   return {
     allShips,
-    shipById,
+    shipByBannerId,
     uniqueOrigs,
     filters,
     selectedFilterIds,

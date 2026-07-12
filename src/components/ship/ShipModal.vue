@@ -26,12 +26,12 @@
       <ul class="ship-list">
         <li
           v-for="ship in displayShips"
-          :key="ship.id"
+          :key="ship.bannerId"
           class="ship-item cursor-pointer"
           :class="[
             shipItemClass,
             {
-              'selected-variant': ship.id === currentVariantId,
+              'selected-variant': ship.bannerId === currentVariantId,
               'opacity-50 cursor-not-allowed': selectedShip && isVariantDisabled(selectedShip.name, ship.name)
             }
           ]"
@@ -164,7 +164,7 @@ const safeWikiUrl = (url?: string): string | undefined => {
 
 const displayShips = computed(() => {
   if (showOnlySelected.value && props.currentVariantId !== null) {
-    return filteredShips.value.filter((s) => s.id === props.currentVariantId)
+    return filteredShips.value.filter((s) => s.bannerId === props.currentVariantId)
   }
   return filteredShips.value
 })
@@ -201,7 +201,7 @@ const handleBannerClick = (event: MouseEvent, ship: Ship) => {
     return
   }
 
-  emit('select-variant', ship.orig, ship.id)
+  emit('select-variant', ship.orig, ship.bannerId)
 }
 
 const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
@@ -213,7 +213,7 @@ const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
   const isBannerClick = target.closest('.ship-banner') !== null
 
   if (!isBannerClick) {
-    emit('select-variant', ship.orig, ship.id)
+    emit('select-variant', ship.orig, ship.bannerId)
   }
 }
 

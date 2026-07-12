@@ -1,5 +1,7 @@
 export interface Ship {
-  id: number
+  // 旧内部ID。新規追加艦には存在せず信頼できないため、艦の同一性判定には使わない。
+  // 同一性は bannerId（＝ゲーム艦ID / 艦隊分析コードの ship_id）で行う。
+  id?: number
   libraryId: number
   shipType: string
   shipTypeCategory: string
@@ -85,7 +87,7 @@ export interface UserShip {
   uniqueId?: number // オリジナルの艦隊分析コードのid (情報のロストを防ぐため)
   orig: number // 艦ID (系統)
   shipIndex: number // 何隻目か (0-29)
-  variantId: number // 現在の改造段階ID (shipId)
+  variantId: number // 現在の改造段階の bannerId (＝ゲーム艦ID / 艦隊分析コードの ship_id)
   lv: number
   st: number[]
   exp: number[]
@@ -111,7 +113,7 @@ export interface ShipVariantOverride {
   id?: string // `${orig}_${shipIndex}`
   orig: number
   shipIndex: number
-  variantId: number // Selected Ship.id
+  variantId: number // Selected Ship.bannerId
 }
 
 // 公開QAデータ

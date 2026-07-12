@@ -196,7 +196,7 @@
       :modalVisible="modalVisible"
       :selectedShipOrig="modalShips.length ? modalShips[0].orig : null"
       :modalShipIndex="modalShipIndex"
-      :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].orig}_${modalShipIndex}`) || modalShips[0].id) : null"
+      :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].orig}_${modalShipIndex}`) || modalShips[0].bannerId) : null"
       :isUnowned="isModalShipUnowned"
       :selectedEventId="selectedEventId"
       :tagManagementData="tagManagementData"
@@ -345,13 +345,13 @@ export default defineComponent({
       const key = `${orig}_${shipIndex}`
       const currentVariantId = shipVariantMap.value.get(key)
       if (currentVariantId) {
-        const v = allShips.value.find(s => s.id === currentVariantId)
+        const v = allShips.value.find(s => s.bannerId === currentVariantId)
         if (v) currentFilterId = v.filterId
       }
 
       // Determine new filterId
       let newFilterId = ship.filterId
-      const newVariant = allShips.value.find(s => s.id === variantId)
+      const newVariant = allShips.value.find(s => s.bannerId === variantId)
       if (newVariant) {
         newFilterId = newVariant.filterId
       }

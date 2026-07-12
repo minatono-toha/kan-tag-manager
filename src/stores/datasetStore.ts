@@ -297,7 +297,7 @@ export const useDatasetStore = defineStore('dataset', () => {
       const ship = nameToShip.get(name)
       if (ship) {
         const list = shipVariantsByOrig.get(ship.orig) || []
-        list.push(ship.id)
+        list.push(ship.bannerId)
         shipVariantsByOrig.set(ship.orig, list)
         successCount++
       } else {
