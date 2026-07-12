@@ -46,8 +46,20 @@ export const useDatasetStore = defineStore('dataset', () => {
 
   const loadDatasets = () => {
     const stored = localStorage.getItem(STORAGE_KEY_DATASETS)
+    let restored: Dataset[] | null = null
     if (stored) {
-      datasets.value = JSON.parse(stored)
+      // 値が壊れていてもアプリが起動不能にならないようにする
+      try {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          restored = parsed
+        }
+      } catch (e) {
+        console.error('datasetStore: Failed to parse stored dataset list, resetting', e)
+      }
+    }
+    if (restored) {
+      datasets.value = restored
     } else {
       const defaultDs = { id: 'KanTagManagerDB', name: 'Default', createdAt: Date.now() }
       datasets.value = [defaultDs]

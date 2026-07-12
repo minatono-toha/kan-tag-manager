@@ -28,5 +28,6 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+eslint-results.txt
 
 .claude/

@@ -1,5 +1,19 @@
 <template>
   <div class="app-container h-screen flex flex-col overflow-hidden" :class="`theme-${theme}`">
+    <!-- 小画面向けPC推奨バナー -->
+    <div
+      v-if="showMobileNotice"
+      class="flex-none flex items-center justify-between gap-2 bg-amber-100 text-amber-900 text-sm px-3 py-2 border-b border-amber-300 z-[110]"
+    >
+      <span>本サイトはPCでの利用を想定しています。スマートフォン等の小さな画面では正しく表示されない場合があります。</span>
+      <button
+        class="flex-none px-2 py-0.5 rounded border border-amber-400 hover:bg-amber-200"
+        aria-label="この案内を閉じる"
+        @click="dismissMobileNotice"
+      >
+        ✕
+      </button>
+    </div>
     <!-- 固定ヘッダーエリア -->
     <div class="flex-none bg-white z-[100] shadow-md border-b">
       <!-- Dataset Control Bar (Top) -->
@@ -297,6 +311,18 @@ export default defineComponent({
     // Dynamic scaling
     const scaleFactor = ref(1)
 
+    // 小画面向けPC推奨バナー(セッション中に一度閉じたら再表示しない)
+    const MOBILE_NOTICE_WIDTH = 768
+    const windowWidth = ref(window.innerWidth)
+    const mobileNoticeDismissed = ref(sessionStorage.getItem('mobile-notice-dismissed') === '1')
+    const showMobileNotice = computed(
+      () => windowWidth.value < MOBILE_NOTICE_WIDTH && !mobileNoticeDismissed.value,
+    )
+    const dismissMobileNotice = () => {
+      mobileNoticeDismissed.value = true
+      sessionStorage.setItem('mobile-notice-dismissed', '1')
+    }
+
     // Initialize tag management with expandedShips
     const { tagManagementData, stageOptions, stageTagMap, tagMap, updateTagManagement } = useTagManagement(selectedEventId, expandedShips)
 
@@ -477,14 +503,11 @@ export default defineComponent({
     }
 
     const handleVariantSelectFromModal = async (orig: number, variantId: number) => {
-      console.log('[App] handleVariantSelectFromModal:', orig, variantId)
-
       // Check ownership first
       const count = getOwnershipCount(orig)
       if (count === 0) {
         // Auto-arrive: Add ship first
         // Since we are adding the first ship, the index will be 0
-        console.log('[App] Unowned ship selected. Auto-arriving...')
         await incrementShipCount(orig)
         // After increment, we need to update the variant
         // Since it's the first ship (index 0), we use shipIndex 0
@@ -501,7 +524,6 @@ export default defineComponent({
       )
 
       if (targetShip) {
-        console.log('[App] Found target ship, updating...')
         // Update the variant for the clicked ship instance
         handleSafeUpdateVariant(orig, clickedShipIndex, variantId)
       } else {
@@ -523,6 +545,7 @@ export default defineComponent({
       const baseWidth = 1500
       const currentWidth = window.innerWidth
       scaleFactor.value = Math.max(0.7, Math.min(1, currentWidth / baseWidth))
+      windowWidth.value = currentWidth
     }
 
     onMounted(async () => {
@@ -556,6 +579,8 @@ export default defineComponent({
       scrollRef,
       scrollPositions,
       onScroll,
+      showMobileNotice,
+      dismissMobileNotice,
       sortedShipsFromAttackTable,
       handleSortedShipsUpdate,
       selectedEventId,

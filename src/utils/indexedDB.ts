@@ -31,14 +31,10 @@ export async function initDB(): Promise<IDBPDatabase> {
   const dbName = getActiveDBName()
 
   dbPromise = openDB(dbName, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion) {
-      console.log(`IndexedDB upgrade: v${oldVersion} -> v${newVersion}`)
-
+    upgrade(db, oldVersion) {
       // v7: Normalize DB. Consolidated shipOwnership and shipVariant into userShips.
       // User requested NO MIGRATION, just reset/init.
       if (oldVersion < 7) {
-        console.log('Upgrading to v7: Resetting and creating userShips store')
-
         // Delete deprecated stores
         const deprecatedStores = ['shipOwnership', 'shipVariant', 'externalMetadata']
         deprecatedStores.forEach(name => {
@@ -60,8 +56,6 @@ export async function initDB(): Promise<IDBPDatabase> {
          tagStore.createIndex('eventId', 'eventId', { unique: false })
          tagStore.createIndex('eventId_orig_shipIndex', ['eventId', 'orig', 'shipIndex'], { unique: true })
       }
-
-      console.log('IndexedDB initialization complete.')
     },
     blocked() {
       console.warn('IndexedDB upgrade blocked by another tab.')

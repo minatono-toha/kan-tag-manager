@@ -39,8 +39,8 @@
           @click="handleShipItemClick(ship, $event)"
         >
           <a
-            v-if="ship.wiki_url"
-            :href="ship.wiki_url"
+            v-if="safeWikiUrl(ship.wiki_url)"
+            :href="safeWikiUrl(ship.wiki_url)"
             target="_blank"
             rel="noopener noreferrer"
             class="ship-banner-link"
@@ -67,8 +67,8 @@
             <p>
               <strong>艦名:</strong>
               <a
-                v-if="ship.wiki_url"
-                :href="ship.wiki_url"
+                v-if="safeWikiUrl(ship.wiki_url)"
+                :href="safeWikiUrl(ship.wiki_url)"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="wiki-link"
@@ -153,6 +153,14 @@ const shipItemClass = computed(() => {
   }
   return 'hover:bg-blue-50 border-gray-200'
 })
+
+// Firestore由来のURLをそのままhrefに束縛しない(javascript:等のスキームを排除)
+const safeWikiUrl = (url?: string): string | undefined => {
+  if (url && /^https?:\/\//i.test(url)) {
+    return url
+  }
+  return undefined
+}
 
 const displayShips = computed(() => {
   if (showOnlySelected.value && props.currentVariantId !== null) {

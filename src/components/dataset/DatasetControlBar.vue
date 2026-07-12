@@ -89,6 +89,7 @@
           <a
             href="https://github.com/minatono-toha/kan-tag-manager"
             target="_blank"
+            rel="noopener noreferrer"
             class="flex items-center text-gray-500 hover:text-gray-700 transition-colors"
             title="GitHub リポジトリ"
           >
@@ -121,6 +122,7 @@
           <a
             href="https://tally.so/r/2EaBrD"
             target="_blank"
+            rel="noopener noreferrer"
             class="text-xs text-blue-600 hover:text-blue-800 hover:underline whitespace-nowrap"
           >
             ご意見箱
