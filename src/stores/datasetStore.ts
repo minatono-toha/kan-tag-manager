@@ -163,9 +163,10 @@ export const useDatasetStore = defineStore('dataset', () => {
         await clearStores(['tagManagement', 'userShips'])
       }
 
+      // 艦隊分析コードの ship_id(bannerId)→ グルーピングID(spGroupId) 対応。
       const bannerToOrig = new Map<number, number>()
       for (const s of allShips) {
-        if (s.bannerId) bannerToOrig.set(s.bannerId, s.orig)
+        if (s.bannerId) bannerToOrig.set(s.bannerId, s.spGroupId)
       }
 
       const globalIndexMap = new Map<number, number>()
@@ -296,9 +297,9 @@ export const useDatasetStore = defineStore('dataset', () => {
     for (const name of rawNames) {
       const ship = nameToShip.get(name)
       if (ship) {
-        const list = shipVariantsByOrig.get(ship.orig) || []
+        const list = shipVariantsByOrig.get(ship.spGroupId) || []
         list.push(ship.bannerId)
-        shipVariantsByOrig.set(ship.orig, list)
+        shipVariantsByOrig.set(ship.spGroupId, list)
         successCount++
       } else {
         unmatchedCounts.set(name, (unmatchedCounts.get(name) || 0) + 1)

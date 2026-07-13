@@ -201,7 +201,7 @@ const handleBannerClick = (event: MouseEvent, ship: Ship) => {
     return
   }
 
-  emit('select-variant', ship.orig, ship.bannerId)
+  emit('select-variant', ship.spGroupId, ship.bannerId)
 }
 
 const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
@@ -213,7 +213,7 @@ const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
   const isBannerClick = target.closest('.ship-banner') !== null
 
   if (!isBannerClick) {
-    emit('select-variant', ship.orig, ship.bannerId)
+    emit('select-variant', ship.spGroupId, ship.bannerId)
   }
 }
 
@@ -227,7 +227,7 @@ watch(
       return
     }
 
-    const filtered = props.ships.filter((s) => s.orig === newOrig)
+    const filtered = props.ships.filter((s) => s.spGroupId === newOrig)
     if (filtered.length > 0) {
       selectedShip.value = filtered[0]
       filteredShips.value = filtered.sort((a, b) => (a.updateLevel ?? 0) - (b.updateLevel ?? 0))

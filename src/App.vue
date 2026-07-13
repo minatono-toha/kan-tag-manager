@@ -194,9 +194,9 @@
       v-if="modalVisible"
       :ships="modalShips"
       :modalVisible="modalVisible"
-      :selectedShipOrig="modalShips.length ? modalShips[0].orig : null"
+      :selectedShipOrig="modalShips.length ? modalShips[0].spGroupId : null"
       :modalShipIndex="modalShipIndex"
-      :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].orig}_${modalShipIndex}`) || modalShips[0].bannerId) : null"
+      :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].spGroupId}_${modalShipIndex}`) || modalShips[0].bannerId) : null"
       :isUnowned="isModalShipUnowned"
       :selectedEventId="selectedEventId"
       :tagManagementData="tagManagementData"
@@ -489,10 +489,11 @@ export default defineComponent({
     }
 
     const openModal = (orig: number, shipIndex: number) => {
+      // orig はクリックされた行のグルーピングID(spGroupId)。同一グループの変種を集める。
       modalVisible.value = true
       modalShipIndex.value = shipIndex
       modalShips.value = allShips.value
-        .filter((ship) => ship.orig === orig)
+        .filter((ship) => ship.spGroupId === orig)
         .sort((a, b) => a.updateLevel - b.updateLevel)
     }
 

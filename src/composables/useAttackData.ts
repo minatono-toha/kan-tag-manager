@@ -61,12 +61,13 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
       const results: Record<number, Record<string, number>> = {}
       snap.forEach((doc) => {
         const data = doc.data()
-        const orig: number = data.orig
-        results[orig] = {}
+        // maintable も spGroupId 単位で特攻を持つ(未設定なら orig を既定値に=後方互換)。
+        const groupId: number = data.spGroupId ?? data.orig
+        results[groupId] = {}
         for (const map of eventMaps.value) {
           const mapKey = `mapId_${map.mapId}`
           if (typeof data[mapKey] === 'number') {
-            results[orig][mapKey] = data[mapKey]
+            results[groupId][mapKey] = data[mapKey]
           }
         }
       })

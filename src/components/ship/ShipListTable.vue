@@ -340,8 +340,8 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
     // Set target
     currentTarget.value = { orig: ship.orig, shipIndex: ship.shipIndex, ship }
 
-    // Find variants
-    const variants = props.allShips.filter(s => s.orig === ship.orig)
+    // Find variants (同一 spGroupId の艦のみ。ship.orig は ExpandedShip の spGroupId)
+    const variants = props.allShips.filter(s => s.spGroupId === ship.orig)
       .sort((a, b) => a.updateLevel - b.updateLevel)
 
     if (variants.length === 0) {

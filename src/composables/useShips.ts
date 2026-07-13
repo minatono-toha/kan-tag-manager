@@ -34,10 +34,35 @@ export function useShips() {
     if (!force && allShips.value.length > 0) return
 
     const snap = await getDocs(collection(db, 'shiplist'))
-    const list = snap.docs.map((doc) => ({ ...(doc.data() as Ship) }))
+    const list = snap.docs.map((doc) => {
+      const data = doc.data() as Ship
+      // spGroupId 未設定の艦は系統ID(orig)を既定値にする(後方互換)。
+      return { ...data, spGroupId: data.spGroupId ?? data.orig }
+    })
     allShips.value = list
+
+    // bannerId は艦の同一性キー。欠落/重複があると変種解決が別艦に化けるため検知する。
     const bannerIndex = new Map<number, Ship>()
-    for (const ship of list) bannerIndex.set(ship.bannerId, ship)
+    const missingBannerId: string[] = []
+    const duplicatedBannerId: string[] = []
+    for (const ship of list) {
+      if (ship.bannerId == null) {
+        missingBannerId.push(ship.name)
+        continue
+      }
+      const existing = bannerIndex.get(ship.bannerId)
+      if (existing) {
+        duplicatedBannerId.push(`bannerId=${ship.bannerId}: ${existing.name} / ${ship.name}`)
+      }
+      bannerIndex.set(ship.bannerId, ship)
+    }
+    if (missingBannerId.length > 0) {
+      console.warn('[useShips] bannerId が欠落した艦があります(艦種タブが誤表示されます):', missingBannerId)
+    }
+    if (duplicatedBannerId.length > 0) {
+      console.warn('[useShips] bannerId が重複しています(片方が別艦として解決されます):', duplicatedBannerId)
+    }
+
     shipByBannerId.value = bannerIndex
     getUniqueOrigs()
   }
@@ -58,9 +83,9 @@ export function useShips() {
   const getUniqueOrigs = () => {
     const map = new Map<number, Ship>()
     for (const ship of allShips.value) {
-      // 各系統(orig)の代表(基本艦)は bannerId 最小の艦とする。
-      if (!map.has(ship.orig) || ship.bannerId < (map.get(ship.orig)?.bannerId ?? Infinity)) {
-        map.set(ship.orig, ship)
+      // 各グループ(spGroupId)の代表(基本艦)は bannerId 最小の艦とする。
+      if (!map.has(ship.spGroupId) || ship.bannerId < (map.get(ship.spGroupId)?.bannerId ?? Infinity)) {
+        map.set(ship.spGroupId, ship)
       }
     }
     uniqueOrigs.value = Array.from(map.values()).sort(compareShipsByFilterAndLibrary)
@@ -87,8 +112,8 @@ export function useShips() {
 
   // Helper to construct a new UserShip
   const createDefaultUserShip = (orig: number, index: number): UserShip => {
-    // Find default variant (base ship)
-    const baseShip = uniqueOrigs.value.find(s => s.orig === orig)
+    // orig はグルーピングID(spGroupId)。既定の変種(基本艦)の bannerId を初期値にする。
+    const baseShip = uniqueOrigs.value.find(s => s.spGroupId === orig)
     const variantId = baseShip ? baseShip.bannerId : orig
 
     return {
@@ -172,12 +197,15 @@ export function useShips() {
     const expanded: ExpandedShip[] = []
 
     for (const ship of ships) {
-      const count = getOwnershipCount(ship.orig)
+      const count = getOwnershipCount(ship.spGroupId)
 
+      // ExpandedShip.orig にグルーピングID(spGroupId)を入れることで、
+      // 下流の行/所持/札/特攻キー(${orig}_${shipIndex} 等)を無改修で spGroupId 基準にする。
       if (count === 0) {
         // Show unowned ship
         expanded.push({
           ...ship,
+          orig: ship.spGroupId,
           shipIndex: 0,
           ownershipCount: 0
         })
@@ -186,6 +214,7 @@ export function useShips() {
         for (let i = 0; i < count; i++) {
           expanded.push({
             ...ship,
+            orig: ship.spGroupId,
             shipIndex: i,
             ownershipCount: count
           })
@@ -205,10 +234,10 @@ export function useShips() {
         if (selectedFilterIds.value.includes(ship.filterId)) return true
 
         // 2. Extended check: Does any owned variant match?
-        const count = getOwnershipCount(ship.orig)
+        const count = getOwnershipCount(ship.spGroupId)
         if (count > 0) {
            for (let i = 0; i < count; i++) {
-             const key = `${ship.orig}_${i}`
+             const key = `${ship.spGroupId}_${i}`
              const userShip = userShipMap.value.get(key)
              if (userShip) {
                const variant = shipByBannerId.value.get(userShip.variantId)

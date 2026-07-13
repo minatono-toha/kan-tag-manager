@@ -3,6 +3,9 @@ export interface Ship {
   // 同一性は bannerId（＝ゲーム艦ID / 艦隊分析コードの ship_id）で行う。
   id?: number
   libraryId: number
+  // 行/所持/札/特攻のグルーピング単位。既定は orig。
+  // 改装段階で特攻倍率が変わる例外形態(龍鳳・Верный 等)は独立値を持ち、別行として扱う。
+  spGroupId: number
   shipType: string
   shipTypeCategory: string
   speed: string
@@ -85,7 +88,7 @@ export interface TagManagement {
 export interface UserShip {
   id?: string // `${orig}_${shipIndex}`
   uniqueId?: number // オリジナルの艦隊分析コードのid (情報のロストを防ぐため)
-  orig: number // 艦ID (系統)
+  orig: number // グルーピングID (= Ship.spGroupId。既定は系統ID、例外形態は独立値)
   shipIndex: number // 何隻目か (0-29)
   variantId: number // 現在の改造段階の bannerId (＝ゲーム艦ID / 艦隊分析コードの ship_id)
   lv: number
