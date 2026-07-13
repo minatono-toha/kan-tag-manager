@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 .DS_Store
 dist
+
+# 特攻表の生成物とFirestoreダンプ(scripts/build-maintable.mjs で再生成できる)
+out
+data/master
 dist-ssr
 coverage
 *.local
