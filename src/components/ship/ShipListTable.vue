@@ -53,6 +53,7 @@
               <FilterIcon v-else />
             </span>
           </th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '140px', minWidth: '140px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">対地装備</th>
         </tr>
       </thead>
       <tbody>
@@ -111,9 +112,10 @@
           </td>
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.class }}</td>
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.speed }}</td>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ groundAtkLabel(getDisplayShip(ship)) }}</td>
         </tr>
         <tr v-if="filteredShips.length === 0">
-          <td :colspan="displayMode === 'detail' ? 5 : 1" :style="cellStyle" class="border text-center py-4 text-gray-500">
+          <td :colspan="displayMode === 'detail' ? 6 : 1" :style="cellStyle" class="border text-center py-4 text-gray-500">
             {{ emptyStateMessage }}
           </td>
         </tr>
@@ -319,6 +321,11 @@ const variantPopupPosition = ref({ x: 0, y: 0 })
 const variantPopupRef = ref<HTMLElement | null>(null)
 const currentVariants = ref<Ship[]>([])
 const currentTarget = ref<{ orig: number; shipIndex: number; ship: ExpandedShip } | null>(null)
+
+// 対地装備(shiplist.ground_atk)の表示。装備可否は改装段階ごとに変わるため、
+// 行の艦ではなく現在選択している形態(getDisplayShip)の値を見る。
+const GROUND_ATK_LABELS = ['-', '大発系のみ', '内火艇のみ', '大発系・内火艇OK']
+const groundAtkLabel = (ship: Ship): string => GROUND_ATK_LABELS[ship.ground_atk ?? 0] ?? '-'
 
 const getDisplayShip = (ship: ExpandedShip): Ship => {
   const key = `${ship.orig}_${ship.shipIndex}`

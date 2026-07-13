@@ -14,6 +14,8 @@
 
 `out/` と `data/master/` は生成物なので git 管理外。
 
+対地装備(`shiplist.ground_atk`)の生成については後段の「対地装備の生成」を参照。
+
 ## 計算モデル
 
 ```
@@ -60,3 +62,69 @@ node index.js export --collections maintable   # シート → Firestore
 ルール定義の `checks` に、外部の特効表(X投稿の画像など)から読み取った期待値を書いておくと、
 生成結果と突き合わせて `out/report.md` に差分が出る。ソース同士の食い違いはここで炙り出す。
 **出典(Googleドキュメント)を正とし、画像は検算にのみ使う**方針。
+
+---
+
+# 対地装備(ground_atk)の生成
+
+`shiplist.ground_atk` は**形態(bannerId)単位**の対地装備の可否。艦単位ではないので手入力しない。
+
+| 値 | 意味 | SPA の「対地装備」列 |
+|---|---|---|
+| 0 | どちらもNG | `-` |
+| 1 | 上陸用舟艇のみ可 | `大発系のみ` |
+| 2 | 特型内火艇のみ可 | `内火艇のみ` |
+| 3 | どちらも可 | `大発系・内火艇OK` |
+
+出典: <https://kannagi35.com/content/kantai-collection-anti-ground>
+(出典の WG系・迫撃砲系は本アプリの対象外)
+
+## 構成
+
+| ファイル | 役割 |
+|---|---|
+| `data/ground-atk.rules.mjs` | 出典の表の転記。**ここだけ直せば全形態の値が直る** |
+| `scripts/build-ground-atk.mjs` | 生成器。`out/` に CSV・投入用JSON・レポートを出す |
+
+```sh
+node scripts/fetch-master.mjs      # マスタを最新化
+node scripts/build-ground-atk.mjs
+```
+
+`out/ground_atk_report.md` の**警告が0件**であることを必ず確認する。
+
+## 生成の考え方
+
+出典は「艦名」で書かれているが、可否は改装段階で変わる(秋津洲は素で不可・改で可)。
+そのため生成器は次の順で形態(bannerId)に落とす。先に決まった規則が優先される。
+
+1. **出典の表** — `SOURCE_ROWS` の転記。`[上陸用舟艇, 特型内火艇]` で書く。
+   「できない」行(`[0,0]`)も残す。確認済みの記録であり、下の継承を止める役割も持つ。
+2. **出典の抜けの補完** — `SOURCE_FIXES`。出典に行が無いが装備可能と確認できた形態。
+   **出典を直接転記していない唯一の箇所**なのでレポートで必ず確認する。
+3. **改装形態への継承** — 出典は「千歳」「あきつ丸」のように基本形しか載せない艦がある。
+   同一系統・**同一艦種**で updateLevel が真に大きい形態に引き継ぐ。
+   艦種が変わる形態(千歳航=軽空母)は装備可否も変わるため引き継がない。
+   分岐改装で可否が割れる形態が出たら `INHERIT_BLOCK` で止める。
+4. **艦種一括ルール** — `TYPE_RULES`。出典の本文にあり表に行が無いもの
+   (「まるゆを除く全ての潜水艦・潜水空母は特型内火艇を装備できる」)。
+5. 残りは 0。
+
+継承した形態と補完した形態はレポートに全件出るので、そこだけ目視すればよい。
+
+## Firestore への反映
+
+既存行への列追加なので、**必ず sync してから貼る**(docId が無いと新規作成になり重複する)。
+
+```sh
+cd D:\src\firebase-maintenance
+node index.js sync   --collections shiplist   # Firestore → シート(docId付きの現在値)
+# シートに ground_atk 列を作り、out/shiplist_ground_atk.csv の値を docId で突き合わせて貼る
+node index.js export --collections shiplist   # シート → Firestore
+```
+
+## 新しい艦・改装が実装されたとき
+
+shiplist に形態が増えたら `fetch-master.mjs` → `build-ground-atk.mjs` を回す。
+出典に載っているのに shiplist に無い艦名は「【艦名未解決】」として警告に出るので、
+先に shiplist 側へ形態を追加すること。

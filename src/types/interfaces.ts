@@ -17,6 +17,9 @@ export interface Ship {
   filtertype_jp: string
   filtertype_en: string
   updateLevel: number
+  // 対地装備(上陸用舟艇・特型内火艇)の可否。形態(bannerId)ごとに異なる。
+  // 0=どちらもNG / 1=大発系のみ / 2=内火艇のみ / 3=どちらもOK
+  ground_atk?: number
   wiki_url?: string
   read_kana?: string
   read_kata?: string

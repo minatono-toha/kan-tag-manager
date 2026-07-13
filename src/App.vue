@@ -682,7 +682,7 @@ export default defineComponent({
 }
 
 .list-container.flex-1 {
-  min-width: 650px; /* Detail mode minimum (60 + 120 + 250 + 165 + 55) */
+  min-width: 790px; /* Detail mode minimum (60 + 120 + 250 + 165 + 55 + 140) */
 }
 
 .attack-container {
