@@ -23,15 +23,23 @@
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue'
-import { TIPS_DATA, EXHAUSTED_MESSAGE, PRE_EXHAUSTED_MESSAGE } from './tipsData'
-import { TWEET_DATA } from './tweetData'
+import {
+  EXHAUSTED_MESSAGE,
+  PRE_EXHAUSTED_MESSAGE,
+  LOADING_MESSAGE,
+  ERROR_MESSAGE,
+} from './tipsData'
+import { useFairyComments } from '@/composables/useFairyComments'
 
 export default defineComponent({
   name: 'FairyTips',
   setup() {
+    const { tips, tweets, loading, loaded, fetchComments } = useFairyComments()
+
     const isTweetMode = ref(false)
     const shownTipsIndices = ref<Set<number>>(new Set())
     const shownTweetsIndices = ref<Set<number>>(new Set())
+    const exhaustedCount = ref(0)
 
     const activeTip = ref('')
     const isVisible = ref(false)
@@ -39,44 +47,74 @@ export default defineComponent({
     const CLICK_COOLDOWN = 500
     let timer: number | null = null
 
-    const showNextTip = (forceMessage?: string) => {
+    const showBubble = (message: string, autoHide = true) => {
+      activeTip.value = message
+      isVisible.value = true
+
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
+      if (autoHide) {
+        timer = window.setTimeout(() => {
+          isVisible.value = false
+          timer = null
+        }, 3000)
+      }
+    }
+
+    const pickNextTip = (): string => {
+      const dataSource = isTweetMode.value ? tweets.value : tips.value
+      const shownSet = isTweetMode.value ? shownTweetsIndices.value : shownTipsIndices.value
+
+      // 未表示のチップを選択
+      const availableIndices = dataSource.map((_, i) => i).filter((i) => !shownSet.has(i))
+
+      if (availableIndices.length > 0) {
+        exhaustedCount.value = 0
+        // If we are in regular (tips) mode and exactly 1 tip remains unshown:
+        if (!isTweetMode.value && availableIndices.length === 1) {
+          const lastIndex = availableIndices[0]
+          // Mark the last real tip as shown so next click shows EXHAUSTED_MESSAGE
+          shownSet.add(lastIndex)
+          return PRE_EXHAUSTED_MESSAGE
+        }
+        const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)]
+        shownSet.add(randomIndex)
+        return dataSource[randomIndex]
+      }
+
+      if (exhaustedCount.value === 2) {
+        exhaustedCount.value = 0
+        return PRE_EXHAUSTED_MESSAGE
+      }
+      exhaustedCount.value++
+      return EXHAUSTED_MESSAGE
+    }
+
+    const showNextTip = async (forceMessage?: string) => {
       if (forceMessage) {
-        activeTip.value = forceMessage
-      } else {
-        const dataSource = isTweetMode.value ? TWEET_DATA : TIPS_DATA
-        const shownSet = isTweetMode.value ? shownTweetsIndices.value : shownTipsIndices.value
+        exhaustedCount.value = 0
+        showBubble(forceMessage)
+        return
+      }
 
-        // 未表示のチップを選択
-        const availableIndices = dataSource.map((_, i) => i).filter((i) => !shownSet.has(i))
-
-        if (availableIndices.length > 0) {
-          // If we are in regular (TIPS_DATA) mode and exactly 1 tip remains unshown:
-          if (!isTweetMode.value && availableIndices.length === 1) {
-            const lastIndex = availableIndices[0]
-            activeTip.value = PRE_EXHAUSTED_MESSAGE
-            // Mark the last real tip as shown so next click shows EXHAUSTED_MESSAGE
-            shownSet.add(lastIndex)
-          } else {
-            const randomIndex =
-              availableIndices[Math.floor(Math.random() * availableIndices.length)]
-            activeTip.value = dataSource[randomIndex]
-            shownSet.add(randomIndex)
-          }
-        } else {
-          activeTip.value = EXHAUSTED_MESSAGE
+      // コメント本文はFirestoreから初回クリック時に取得する
+      if (!loaded.value) {
+        showBubble(LOADING_MESSAGE, false)
+        try {
+          await fetchComments()
+        } catch {
+          showBubble(ERROR_MESSAGE)
+          return
         }
       }
 
-      isVisible.value = true
-
-      if (timer) clearTimeout(timer)
-      timer = window.setTimeout(() => {
-        isVisible.value = false
-        timer = null
-      }, 3000)
+      showBubble(pickNextTip())
     }
 
     const handleCharacterClick = () => {
+      if (loading.value) return
       const now = Date.now()
       if (now - lastClickTime.value < CLICK_COOLDOWN) return
       lastClickTime.value = now

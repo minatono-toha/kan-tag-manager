@@ -137,3 +137,15 @@ export interface QA {
   qa_question: string
   qa_answer: string
 }
+
+// 妖精さんコメントの種別 (tips=通常, tweet=管理人つぶやきモード)
+export type FairyCommentType = 'tips' | 'tweet'
+
+// 妖精さんコメントデータ
+export interface FairyComment {
+  id?: string
+  fc_id: number // コメントID（ソート用）
+  fc_type: FairyCommentType
+  fc_text: string // 本文。v-htmlで描画するため<br>等のHTMLを含められる
+  fc_status: number // 0=非表示 / 1=表示
+}
