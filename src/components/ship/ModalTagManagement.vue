@@ -222,15 +222,20 @@ const props = defineProps<{
 
 const currentShip = computed(() => props.ship)
 
+// props.ship は allShips 由来の生の Ship なので orig は系統IDのまま。
+// 札データのキーは ExpandedShip と同じグルーピングID(spGroupId)で作る必要がある。
+// 系統IDを使うと、分割行(spGroupId ≠ orig)が分割元の札を読み書きしてしまう。
+const groupId = computed(() => props.ship.spGroupId)
+
 // Get tag data for the current ship
 const tagData = computed(() => {
-  const key = `${props.ship.orig}_${props.shipIndex}`
+  const key = `${groupId.value}_${props.shipIndex}`
   const existing = props.tagManagementData.get(key)
   if (existing) return existing
 
   return {
     eventId: props.selectedEventId,
-    orig: props.ship.orig,
+    orig: groupId.value,
     shipIndex: props.shipIndex,
     assigned: false,
     preserve: false,
