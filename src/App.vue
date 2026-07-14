@@ -154,6 +154,14 @@
                 >
                   {{ attackIsAllExpanded ? '全格納' : '全展開' }}
                 </button>
+                <a
+                  :href="attackSource.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="attack-source ml-auto pl-4 text-xs text-gray-500 hover:text-blue-600 underline whitespace-nowrap"
+                >
+                  {{ attackSourceLabel }}
+                </a>
               </div>
             </div>
             <div class="flex-grow">
@@ -243,6 +251,7 @@ import { useShips } from '@/composables/useShips'
 import { hasSpGroupSplit } from '@/utils/shipSort'
 import { useTagManagement } from '@/composables/useTagManagement'
 import { tagManageTableWidth } from '@/constants/tagManageColumns'
+import { ATTACK_SOURCE, ATTACK_SOURCE_LABEL } from '@/constants/attackSource'
 
 export default defineComponent({
   components: {
@@ -623,6 +632,8 @@ export default defineComponent({
       handleDisplayModeChange,
       attackSortByMode,
       attackIsAllExpanded,
+      attackSource: ATTACK_SOURCE,
+      attackSourceLabel: ATTACK_SOURCE_LABEL,
       showUnownedShips,
       handleToggleSortMode,
       handleToggleAllStages,
@@ -707,5 +718,23 @@ export default defineComponent({
 .attack-container {
   flex: 1;
   min-width: 400px; /* Minimum width for attack table */
+}
+
+/* 出典名には簡体字専用の字(运/贴/备/档)が混ざる。日本語フォントがこれらを持たないため
+   1文字ずつ別フォントにフォールバックし、多くの環境で明朝系(SimSun)が当たって字面が崩れる。
+   日本語ゴシックを先頭に置いて日本語部分の字形を保ちつつ、日本語フォントに無い簡体字だけが
+   落ちる先を簡体字ゴシックに固定する。2書体になるがどちらもゴシックで字面は揃う。 */
+.attack-source {
+  font-family:
+    'Yu Gothic UI',
+    'Yu Gothic',
+    'Hiragino Sans',
+    Meiryo,
+    'Noto Sans JP',
+    'Microsoft YaHei',
+    'PingFang SC',
+    'Noto Sans CJK SC',
+    'Noto Sans SC',
+    sans-serif;
 }
 </style>
