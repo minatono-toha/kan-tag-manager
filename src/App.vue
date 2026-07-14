@@ -60,7 +60,7 @@
           <div
             class="tag-manage-container flex-none flex flex-col"
             ref="tagManageContainerRef"
-            :class="{ 'check-only': tagManageDisplayMode === 'checkOnly' }"
+            :style="{ minWidth: tagManageMinWidth }"
           >
             <!-- Spacer to align with other tables -->
              <TableTitle title="制御札管理" type="tag" />
@@ -70,7 +70,7 @@
                   @click="handleTagManageDisplayModeChange(tagManageDisplayMode === 'detail' ? 'checkOnly' : 'detail')"
                   class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
                 >
-                  {{ tagManageDisplayMode === 'detail' ? 'チェックのみ' : '詳細表示' }}
+                  {{ tagManageDisplayMode === 'detail' ? '簡易表示' : '詳細表示' }}
                 </button>
               </div>
             </div>
@@ -242,6 +242,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
 import { hasSpGroupSplit } from '@/utils/shipSort'
 import { useTagManagement } from '@/composables/useTagManagement'
+import { tagManageTableWidth } from '@/constants/tagManageColumns'
 
 export default defineComponent({
   components: {
@@ -646,6 +647,8 @@ export default defineComponent({
       handleSafeShipFilterChange,
       tagManageDisplayMode,
       handleTagManageDisplayModeChange,
+      // 表と同じ列幅定義から算出する(数値の二重管理をしない)
+      tagManageMinWidth: computed(() => `${tagManageTableWidth(tagManageDisplayMode.value)}px`),
       incrementShipCount,
       decrementShipCount,
       shipVariantMap,
@@ -693,13 +696,8 @@ export default defineComponent({
   flex-wrap: nowrap; /* Prevent wrapping - always horizontal */
 }
 
-/* Set minimum widths for each container to prevent overlap */
-.tag-manage-container {
-  min-width: 410px; /* 60 + 60 + 60 + 80 + 150 = 410px */
-}
-.tag-manage-container.check-only {
-  min-width: 120px; /* 60 + 60 = 120px */
-}
+/* .tag-manage-container の min-width は tagManageColumns の列幅定義から算出して
+   :style で与える(ここに数値を書くと表側の列幅とずれる) */
 
 /* 列幅は内容に合わせて決まる(セルは nowrap)。ここで下限を作ると余白になるため min-width は置かない。 */
 .list-container {

@@ -4,12 +4,12 @@
     <table
       v-else
       class="text-sm border-collapse border border-gray-300"
-      :style="{ tableLayout: 'fixed', width: displayMode === 'detail' ? '410px' : '120px' }"
+      :style="{ tableLayout: 'fixed', width: `${tagManageTableWidth(displayMode)}px` }"
     >
       <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef" :style="theadStyle">
         <tr>
           <th
-            :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }"
+            :style="{ ...cellStyle, ...headerStyle, ...columnWidth('assigned') }"
             class="border text-left align-top relative pb-6"
             :class="assignedFilter !== null ? 'filter-active' : 'bg-gray-100'"
           >
@@ -25,7 +25,7 @@
             </span>
           </th>
           <th
-            :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }"
+            :style="{ ...cellStyle, ...headerStyle, ...columnWidth('preserve') }"
             class="border text-left align-top relative pb-6"
             :class="preserveFilter !== null ? 'filter-active' : 'bg-gray-100'"
           >
@@ -42,7 +42,7 @@
           </th>
           <th
             v-if="displayMode === 'detail'"
-            :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px' }"
+            :style="{ ...cellStyle, ...headerStyle, ...columnWidth('targetStage') }"
             class="border text-left align-top relative pb-6"
             :class="targetStageFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
           >
@@ -58,8 +58,7 @@
             </span>
           </th>
           <th
-            v-if="displayMode === 'detail'"
-            :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px' }"
+            :style="{ ...cellStyle, ...headerStyle, ...columnWidth('assignedTag') }"
             class="border text-left align-top relative pb-6"
             :class="assignedTagFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
           >
@@ -76,7 +75,7 @@
           </th>
           <th
             v-if="displayMode === 'detail'"
-            :style="{ ...cellStyle, ...headerStyle, width: '150px', minWidth: '150px' }"
+            :style="{ ...cellStyle, ...headerStyle, ...columnWidth('comment') }"
             class="border text-left align-top relative pb-6"
             :class="commentFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
           >
@@ -183,24 +182,25 @@
           <td
             v-if="displayMode === 'detail'"
             :style="cellStyle"
-            class="border text-center relative"
+            class="border text-center relative cell-clip"
           >
             <div
               class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px] stage-trigger"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
               @click="openStageSelector($event, ship.orig, ship.shipIndex)"
             >
-              {{ getStageOnlyFromTargetStage(ship.orig, ship.shipIndex) || '-' }}
+              <span class="truncate" :title="getStageOnlyFromTargetStage(ship.orig, ship.shipIndex)">
+                {{ getStageOnlyFromTargetStage(ship.orig, ship.shipIndex) || '-' }}
+              </span>
             </div>
           </td>
           <!-- 割当札 -->
           <td
-            v-if="displayMode === 'detail'"
             :style="{
               ...cellStyle,
               backgroundColor: getTagColorForShip(ship.orig, ship.shipIndex),
             }"
-            class="border text-center text-xs cursor-help"
+            class="border text-center text-xs cursor-help cell-clip"
             @mouseenter="handleMouseEnterWarning($event, '割当札は割当先から選択')"
             @mouseleave="handleMouseLeaveWarning"
           >
@@ -227,11 +227,9 @@
         <tr v-if="displayedShips.length === 0" :style="rowStyle">
           <td :style="cellStyle" class="border text-center">-</td>
           <td :style="cellStyle" class="border text-center">-</td>
-          <template v-if="displayMode === 'detail'">
-            <td :style="cellStyle" class="border text-center">-</td>
-            <td :style="cellStyle" class="border text-center">-</td>
-            <td :style="cellStyle" class="border text-center">-</td>
-          </template>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border text-center">-</td>
+          <td :style="cellStyle" class="border text-center">-</td>
+          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border text-center">-</td>
         </tr>
       </tbody>
     </table>
@@ -491,6 +489,11 @@ import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
+import {
+  TAG_MANAGE_COLUMNS,
+  tagManageTableWidth,
+  type TagManageColumn,
+} from '@/constants/tagManageColumns'
 import FilterPopup from '@/components/common/FilterPopup.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import SearchIcon from '@/components/common/SearchIcon.vue'
@@ -1133,6 +1136,13 @@ const cellStyle = {
   whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
+// 列幅は tagManageColumns の定義のみを参照する（テーブル幅もそこから算出されるため、
+// 宣言幅と列幅合計がずれて列が比例縮小されることがない）
+const columnWidth = (column: TagManageColumn): CSSProperties => {
+  const w = `${TAG_MANAGE_COLUMNS[column]}px`
+  return { width: w, minWidth: w }
+}
+
 const headerStyle = computed<CSSProperties>(() => {
   const h = props.targetHeaderHeight
     ? `${props.targetHeaderHeight}px`
@@ -1204,6 +1214,12 @@ thead th.filter-active:not(:last-child) {
     inset 0 2px 0 var(--table-accent, #6366f1),
     inset 0 -1px 0 var(--table-border, #e5e7eb),
     inset -1px 0 0 var(--table-border, #e5e7eb);
+}
+
+/* 列幅に収まらない文字列はセル内で省略する（はみ出して隣の列を壊さないため） */
+.cell-clip {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 select:focus,
