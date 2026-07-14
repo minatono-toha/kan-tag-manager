@@ -12,7 +12,7 @@
     </h2>
     <div
       v-if="isVisible"
-      class="absolute left-0 top-full mt-1 z-[60] w-80 bg-gray-100 border border-gray-200 rounded-lg shadow-xl p-4 text-sm font-normal text-left"
+      class="absolute left-0 top-full mt-1 z-[60] w-80 border rounded-lg shadow-xl p-4 text-sm font-normal text-left popup-container"
       @click.stop
     >
       <TableAnnotations :type="type" />
@@ -78,5 +78,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Optional: slightly nicer shadow or transition if needed */
+/* 注釈ボックスは表の上に重なるため、テーマの半透明背景ではなく不透明なポップアップ色を使う */
+.popup-container {
+  background-color: var(--bg-popup) !important;
+  color: var(--text-popup) !important;
+  border-color: var(--border-popup) !important;
+}
 </style>
