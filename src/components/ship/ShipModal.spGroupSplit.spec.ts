@@ -34,6 +34,7 @@ const baseProps = {
   stageTagMap: {},
   tagMap: {},
   updateTagManagement: async () => {},
+  arriveShip: async () => {},
 }
 
 describe('改装段階選択モーダルの分割注記', () => {

@@ -12,17 +12,22 @@ export const TAG_MANAGE_COLUMNS = {
 
 export type TagManageColumn = keyof typeof TAG_MANAGE_COLUMNS
 
-// checkOnly（簡易表示）モードで表示する列
-const CHECK_ONLY_COLUMNS: TagManageColumn[] = ['assigned', 'preserve', 'assignedTag']
+// コメント欄以外は常に表示する（表示切替はコメント欄の出し入れだけ）
+const ALWAYS_VISIBLE_COLUMNS: TagManageColumn[] = [
+  'assigned',
+  'preserve',
+  'targetStage',
+  'assignedTag',
+]
 
 const sumWidths = (columns: readonly TagManageColumn[]): number =>
   columns.reduce((total, key) => total + TAG_MANAGE_COLUMNS[key], 0)
 
-export const TAG_MANAGE_DETAIL_WIDTH = sumWidths(
+export const TAG_MANAGE_WITH_COMMENT_WIDTH = sumWidths(
   Object.keys(TAG_MANAGE_COLUMNS) as TagManageColumn[],
 )
 
-export const TAG_MANAGE_CHECK_ONLY_WIDTH = sumWidths(CHECK_ONLY_COLUMNS)
+export const TAG_MANAGE_WITHOUT_COMMENT_WIDTH = sumWidths(ALWAYS_VISIBLE_COLUMNS)
 
-export const tagManageTableWidth = (displayMode: 'detail' | 'checkOnly'): number =>
-  displayMode === 'detail' ? TAG_MANAGE_DETAIL_WIDTH : TAG_MANAGE_CHECK_ONLY_WIDTH
+export const tagManageTableWidth = (showComment: boolean): number =>
+  showComment ? TAG_MANAGE_WITH_COMMENT_WIDTH : TAG_MANAGE_WITHOUT_COMMENT_WIDTH

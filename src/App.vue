@@ -67,10 +67,10 @@
             <div class="p-1 pb-0">
               <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
                  <button
-                  @click="handleTagManageDisplayModeChange(tagManageDisplayMode === 'detail' ? 'checkOnly' : 'detail')"
+                  @click="handleTagManageShowCommentChange(!tagManageShowComment)"
                   class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
                 >
-                  {{ tagManageDisplayMode === 'detail' ? '簡易表示' : '詳細表示' }}
+                  {{ tagManageShowComment ? 'コメント欄非表示' : 'コメント欄表示' }}
                 </button>
               </div>
             </div>
@@ -86,7 +86,7 @@
                 :stageTagMap="stageTagMap"
                 :tagMap="tagMap"
                 :updateTagManagement="updateTagManagement"
-                :displayMode="tagManageDisplayMode"
+                :showComment="tagManageShowComment"
                 :theme="theme"
                 @filter-change="handleTagFilterChange"
               />
@@ -215,6 +215,7 @@
       :stageTagMap="stageTagMap"
       :tagMap="tagMap"
       :updateTagManagement="updateTagManagement"
+      :arriveShip="arriveModalShip"
       @close="closeModal"
       @select-variant="handleVariantSelectFromModal"
     />
@@ -459,9 +460,10 @@ export default defineComponent({
       shipListDisplayMode.value = mode
     }
 
-    const tagManageDisplayMode = ref<'detail' | 'checkOnly'>('checkOnly')
-    const handleTagManageDisplayModeChange = (mode: 'detail' | 'checkOnly') => {
-      tagManageDisplayMode.value = mode
+    // 制御札管理の表示切替はコメント欄の出し入れのみ(既定は非表示)
+    const tagManageShowComment = ref(false)
+    const handleTagManageShowCommentChange = (show: boolean) => {
+      tagManageShowComment.value = show
     }
 
     const handleHeaderHeightChange = (height: number) => {
@@ -532,6 +534,13 @@ export default defineComponent({
       modalVisible.value = false
       modalShips.value = []
       modalShipIndex.value = 0
+    }
+
+    // モーダルで未着任の艦の札を変更したときの自動着任。所持数は
+    // グルーピングID(spGroupId)で数えているため、系統ID(orig)ではなくそちらで増やす。
+    const arriveModalShip = async () => {
+      if (!modalShips.value.length) return
+      await incrementShipCount(modalShips.value[0].spGroupId)
     }
 
     const handleVariantSelectFromModal = async (orig: number, variantId: number) => {
@@ -656,10 +665,10 @@ export default defineComponent({
       filteredShipsFromSearch,
       isSearchActive,
       handleSafeShipFilterChange,
-      tagManageDisplayMode,
-      handleTagManageDisplayModeChange,
+      tagManageShowComment,
+      handleTagManageShowCommentChange,
       // 表と同じ列幅定義から算出する(数値の二重管理をしない)
-      tagManageMinWidth: computed(() => `${tagManageTableWidth(tagManageDisplayMode.value)}px`),
+      tagManageMinWidth: computed(() => `${tagManageTableWidth(tagManageShowComment.value)}px`),
       incrementShipCount,
       decrementShipCount,
       shipVariantMap,
@@ -670,6 +679,7 @@ export default defineComponent({
       confirmTypeChange,
       cancelTypeChange,
       handleVariantSelectFromModal,
+      arriveModalShip,
       finalShips: computed(() => {
         // If an event is selected, we want to show ships in the order determined by AttackTable.
         if (selectedEventId.value) {
@@ -691,7 +701,9 @@ export default defineComponent({
       getOwnershipCount,
       isModalShipUnowned: computed(() => {
         if (!modalShips.value.length) return false
-        return getOwnershipCount(modalShips.value[0].orig) === 0
+        // 所持数はグルーピングID(spGroupId)で数えている。系統ID(orig)で引くと
+        // 分割行(千歳航 等)が分割元(千歳)の所持数を見てしまう。
+        return getOwnershipCount(modalShips.value[0].spGroupId) === 0
       })
     }
   },

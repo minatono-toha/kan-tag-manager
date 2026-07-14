@@ -102,6 +102,8 @@
           :stageTagMap="stageTagMap"
           :tagMap="tagMap"
           :updateTagManagement="updateTagManagement"
+          :arriveShip="arriveShip"
+          :isUnowned="isUnowned"
         />
       </div>
 
@@ -138,6 +140,8 @@ const props = withDefaults(defineProps<{
   stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
   tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
   updateTagManagement: (data: TagManagement) => Promise<void>
+  // 未着任の艦の札を変更したとき、確認のうえ着任(所持数+1)させる。
+  arriveShip: () => Promise<void>
   // このロットの系統が別の spGroupId に分割されている(=他行に別の改装段階がある)か。
   // props.ships は既に1グループ分に絞られているため、判定は呼び出し側(App.vue)で行い渡す。
   hasSpGroupSplit?: boolean

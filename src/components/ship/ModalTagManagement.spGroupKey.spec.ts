@@ -29,6 +29,7 @@ const mountFor = (ship: Ship, updateTagManagement: (data: TagManagement) => Prom
       stageTagMap: {},
       tagMap: { 1: { tagId: 1, tagName: '甲', tagColor: '#fff' } },
       updateTagManagement,
+      arriveShip: async () => {},
     },
   })
 

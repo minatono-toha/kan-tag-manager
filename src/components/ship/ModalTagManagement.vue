@@ -59,7 +59,7 @@
             <!-- 温存 -->
             <div class="flex items-center">
               <span
-                @click="!tagData.assigned && togglePreserve()"
+                @click="togglePreserve()"
                 @mouseenter="
                   tagData.assigned && handleMouseEnterWarning($event, '割当済の艦は温存できません')
                 "
@@ -175,6 +175,15 @@
       message="先に割当先と割当札を選択してください"
     />
 
+    <!-- Auto-Arrive Confirmation (未着任の艦の札を変更したとき) -->
+    <BaseDialog
+      v-model:show="showArriveConfirm"
+      type="confirm"
+      :message="arriveConfirmMessage"
+      @confirm="handleConfirmArrive"
+      @cancel="handleCancelArrive"
+    />
+
     <!-- Confirmation Dialog -->
     <BaseDialog
       v-model:show="showConfirmDialog"
@@ -213,16 +222,24 @@ import { uniqueAreasFromStages, parseStage } from '@/utils/stageUtils'
 import { useTooltip } from '@/composables/useTooltip'
 import { contrastingTextColor } from '@/utils/color'
 
-const props = defineProps<{
-  ship: Ship
-  shipIndex: number
-  selectedEventId: number
-  tagManagementData: Map<string, TagManagement>
-  stageOptions: string[]
-  stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
-  tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
-  updateTagManagement: (data: TagManagement) => Promise<void>
-}>()
+const props = withDefaults(
+  defineProps<{
+    ship: Ship
+    shipIndex: number
+    selectedEventId: number
+    tagManagementData: Map<string, TagManagement>
+    stageOptions: string[]
+    stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
+    tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
+    updateTagManagement: (data: TagManagement) => Promise<void>
+    // 未着任の艦に札の変更を加えるとき、確認のうえ着任(所持数+1)させる。
+    arriveShip: () => Promise<void>
+    isUnowned?: boolean
+  }>(),
+  {
+    isUnowned: false,
+  },
+)
 
 const currentShip = computed(() => props.ship)
 
@@ -251,6 +268,35 @@ const tagData = computed(() => {
 
 const showValidationAlert = ref(false)
 
+// 未着任(所持0隻)の艦に札の変更を加えるときは、着任させてよいか確認してから書き込む。
+const showArriveConfirm = ref(false)
+const arriveConfirmMessage = '未着任の艦の札割り当てが変更されたため、自動的に着任させます'
+const pendingArriveAction = ref<(() => void) | null>(null)
+
+// 書き込み直前に呼ぶ。未着任ならダイアログに委ねて true(=ここでは書き込まない)を返す。
+const requireArrival = (action: () => void): boolean => {
+  if (!props.isUnowned) return false
+  closeStagePopup()
+  pendingArriveAction.value = action
+  showArriveConfirm.value = true
+  return true
+}
+
+const handleConfirmArrive = async () => {
+  const action = pendingArriveAction.value
+  pendingArriveAction.value = null
+  if (!action) return
+
+  // 着任(所持数+1)させてから、保留していた札の変更を適用する
+  await props.arriveShip()
+  action()
+}
+
+// キャンセル時は未着任のまま、札の変更も加えない
+const handleCancelArrive = () => {
+  pendingArriveAction.value = null
+}
+
 // Confirmation Dialog State
 const showConfirmDialog = ref(false)
 const pendingAction = ref<(() => void) | null>(null)
@@ -268,6 +314,15 @@ const {
 } = useTooltip()
 
 // Toggle functions
+const executeAssign = () => {
+  const updated: TagManagement = {
+    ...tagData.value,
+    assigned: true,
+    tagId: resolveTagId(tagData.value.tagId, tagData.value.targetStage, props.tagMap),
+  }
+  props.updateTagManagement(updated)
+}
+
 const toggleAssigned = () => {
   // If already assigned, show confirmation dialog to unassign
   if (tagData.value.assigned) {
@@ -276,17 +331,13 @@ const toggleAssigned = () => {
   }
 
   // Validation: If trying to set assigned to true, check if targetStage is empty
-  if (!tagData.value.assigned && !tagData.value.targetStage) {
+  if (!tagData.value.targetStage) {
     showValidationAlert.value = true
     return
   }
 
-  const updated: TagManagement = {
-    ...tagData.value,
-    assigned: !tagData.value.assigned,
-    tagId: resolveTagId(tagData.value.tagId, tagData.value.targetStage, props.tagMap),
-  }
-  props.updateTagManagement(updated)
+  if (requireArrival(executeAssign)) return
+  executeAssign()
 }
 
 const handleConfirmUnassign = () => {
@@ -298,12 +349,20 @@ const handleConfirmUnassign = () => {
   showUnassignConfirm.value = false
 }
 
-const togglePreserve = () => {
+const executePreserve = () => {
   const updated: TagManagement = {
     ...tagData.value,
     preserve: !tagData.value.preserve,
   }
   props.updateTagManagement(updated)
+}
+
+const togglePreserve = () => {
+  // 割当済の艦は温存できない(ツールチップで案内済み)
+  if (tagData.value.assigned) return
+
+  if (requireArrival(executePreserve)) return
+  executePreserve()
 }
 
 // Stage selection
@@ -327,6 +386,12 @@ const stagesForSelectedArea = computed(() => {
   if (!selectedArea.value) return []
   return props.stageOptions.filter((stage) => stage.startsWith(selectedArea.value!))
 })
+
+const closeStagePopup = () => {
+  showStagePopup.value = false
+  selectedArea.value = null
+  hoveredStage.value = null
+}
 
 const handleAreaClick = (event: MouseEvent, area: string) => {
   selectedArea.value = area
@@ -371,6 +436,7 @@ const applyStageSelection = (stage: string, tagId: number = 0) => {
     showConfirmDialog.value = true
     return
   }
+  if (requireArrival(() => executeStageSelection(stage, tagId))) return
   executeStageSelection(stage, tagId)
 }
 
@@ -381,9 +447,7 @@ const executeStageSelection = (stage: string, tagId: number = 0) => {
     tagId: resolveTagId(tagId, stage, props.tagMap),
   }
   props.updateTagManagement(updated)
-  showStagePopup.value = false
-  selectedArea.value = null
-  hoveredStage.value = null
+  closeStagePopup()
   pendingAction.value = null
 }
 
@@ -398,6 +462,7 @@ const applyTagSelection = (stage: string, tagName: string) => {
     showConfirmDialog.value = true
     return
   }
+  if (requireArrival(() => executeTagSelection(stage, tagName, tagId))) return
   executeTagSelection(stage, tagName, tagId)
 }
 
@@ -409,9 +474,7 @@ const executeTagSelection = (stage: string, tagName: string, tagId: number) => {
     tagId: tagId,
   }
   props.updateTagManagement(updated)
-  showStagePopup.value = false
-  selectedArea.value = null
-  hoveredStage.value = null
+  closeStagePopup()
   pendingAction.value = null
 }
 
@@ -421,6 +484,7 @@ const clearStage = () => {
     showConfirmDialog.value = true
     return
   }
+  if (requireArrival(executeClearStage)) return
   executeClearStage()
 }
 

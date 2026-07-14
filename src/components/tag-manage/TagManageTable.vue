@@ -4,7 +4,7 @@
     <table
       v-else
       class="text-sm border-collapse border border-gray-300"
-      :style="{ tableLayout: 'fixed', width: `${tagManageTableWidth(displayMode)}px` }"
+      :style="{ tableLayout: 'fixed', width: `${tagManageTableWidth(showComment)}px` }"
     >
       <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef" :style="theadStyle">
         <tr>
@@ -41,7 +41,6 @@
             </span>
           </th>
           <th
-            v-if="displayMode === 'detail'"
             :style="{ ...cellStyle, ...headerStyle, ...columnWidth('targetStage') }"
             class="border text-left align-top relative pb-6"
             :class="targetStageFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
@@ -74,7 +73,7 @@
             </span>
           </th>
           <th
-            v-if="displayMode === 'detail'"
+            v-if="showComment"
             :style="{ ...cellStyle, ...headerStyle, ...columnWidth('comment') }"
             class="border text-left align-top relative pb-6"
             :class="commentFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
@@ -104,7 +103,7 @@
             getTagData(ship.orig, ship.shipIndex).preserve,
             getTagData(ship.orig, ship.shipIndex).targetStage,
             getTagData(ship.orig, ship.shipIndex).comment,
-            displayMode,
+            showComment,
             theme,
             getRowClass(ship.orig, ship.shipIndex),
           ]"
@@ -116,7 +115,7 @@
           <td
             :style="cellStyle"
             class="border text-center cursor-pointer"
-            @click="toggleAssigned(ship.orig, ship.shipIndex)"
+            @click="toggleAssigned(ship)"
           >
             <div
               class="inline-flex items-center justify-center w-4 h-4 border border-black rounded-sm transition-colors mx-auto"
@@ -147,10 +146,7 @@
               handleMouseEnterWarning($event, '割当済の艦は温存できません')
             "
             @mouseleave="handleMouseLeaveWarning"
-            @click="
-              !getTagData(ship.orig, ship.shipIndex).assigned &&
-              togglePreserve(ship.orig, ship.shipIndex)
-            "
+            @click="togglePreserve(ship)"
           >
             <div
               class="inline-flex items-center justify-center w-4 h-4 border border-black rounded-sm transition-colors mx-auto"
@@ -179,15 +175,11 @@
             </div>
           </td>
           <!-- 割当先 -->
-          <td
-            v-if="displayMode === 'detail'"
-            :style="cellStyle"
-            class="border text-center relative cell-clip"
-          >
+          <td :style="cellStyle" class="border text-center relative cell-clip">
             <div
               class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px] stage-trigger"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
-              @click="openStageSelector($event, ship.orig, ship.shipIndex)"
+              @click="openStageSelector($event, ship)"
             >
               <span class="truncate" :title="getStageOnlyFromTargetStage(ship.orig, ship.shipIndex)">
                 {{ getStageOnlyFromTargetStage(ship.orig, ship.shipIndex) || '-' }}
@@ -207,7 +199,7 @@
             {{ getTagNameForShip(ship.orig, ship.shipIndex) }}
           </td>
           <!-- コメント -->
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">
+          <td v-if="showComment" :style="cellStyle" class="border">
             <input
               type="text"
               :value="getTagData(ship.orig, ship.shipIndex).comment"
@@ -227,9 +219,9 @@
         <tr v-if="displayedShips.length === 0" :style="rowStyle">
           <td :style="cellStyle" class="border text-center">-</td>
           <td :style="cellStyle" class="border text-center">-</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border text-center">-</td>
           <td :style="cellStyle" class="border text-center">-</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border text-center">-</td>
+          <td :style="cellStyle" class="border text-center">-</td>
+          <td v-if="showComment" :style="cellStyle" class="border text-center">-</td>
         </tr>
       </tbody>
     </table>
@@ -418,7 +410,7 @@
       @click.stop
     >
       <div
-        v-for="stage in [hoveredArea]"
+        v-for="stage in stagesForArea(hoveredArea)"
         :key="stage"
         @click="handleStageClick($event, stage)"
         @keydown.enter="handleStageClick($event, stage)"
@@ -467,6 +459,13 @@
       message="先に割当先と割当札を選択してください"
     />
 
+    <!-- Unowned Ship Alert -->
+    <BaseDialog
+      v-model:show="showUnownedAlert"
+      type="alert"
+      message="札割り当て操作をする際は先に着任させてください"
+    />
+
     <!-- Confirmation Dialog -->
     <BaseDialog
       v-model:show="showConfirmDialog"
@@ -500,6 +499,7 @@ import SearchIcon from '@/components/common/SearchIcon.vue'
 import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
 import { resolveTagId } from '@/utils/tagAssignment'
+import { uniqueAreasFromStages, parseStage } from '@/utils/stageUtils'
 import { contrastingTextColor } from '@/utils/color'
 
 const props = withDefaults(
@@ -514,11 +514,12 @@ const props = withDefaults(
     stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
     tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
     updateTagManagement: (data: TagManagement) => Promise<void>
-    displayMode?: 'detail' | 'checkOnly'
+    // 表示切替はコメント欄の出し入れのみ。他の列は常に出す。
+    showComment?: boolean
     theme?: 'light' | 'dark' | 'gradient'
   }>(),
   {
-    displayMode: 'detail',
+    showComment: false,
     theme: 'light',
   },
 )
@@ -592,6 +593,15 @@ const commentIconRef = commentPopup.iconRef
 
 // Validation Alert State
 const showValidationAlert = ref(false)
+
+// 未着任(所持0隻)の艦は札まわりを変更できない。着任を促して操作を止める。
+const showUnownedAlert = ref(false)
+
+const blockIfUnowned = (ship: ExpandedShip): boolean => {
+  if (ship.ownershipCount > 0) return false
+  showUnownedAlert.value = true
+  return true
+}
 
 // Confirmation Dialog State
 const showConfirmDialog = ref(false)
@@ -743,7 +753,10 @@ watch(
 )
 
 // Toggle assigned checkbox by clicking the cell
-const toggleAssigned = (orig: number, shipIndex: number) => {
+const toggleAssigned = (ship: ExpandedShip) => {
+  if (blockIfUnowned(ship)) return
+
+  const { orig, shipIndex } = ship
   const current = getTagData(orig, shipIndex)
 
   // If already assigned, shoe confirmation dialog to unassign
@@ -781,8 +794,13 @@ const handleConfirmUnassign = () => {
 }
 
 // Toggle preserve checkbox by clicking the cell
-const togglePreserve = (orig: number, shipIndex: number) => {
-  const current = getTagData(orig, shipIndex)
+const togglePreserve = (ship: ExpandedShip) => {
+  if (blockIfUnowned(ship)) return
+
+  const current = getTagData(ship.orig, ship.shipIndex)
+  // 割当済の艦は温存できない(セルのツールチップで案内済み)
+  if (current.assigned) return
+
   const updated: TagManagement = {
     ...current,
     preserve: !current.preserve,
@@ -864,19 +882,22 @@ const getTagCellColorStyle = (orig: number, shipIndex: number): CSSProperties =>
 // Stage Selector Logic
 // ----------------------------------------------------
 
-// Computed: Unique Areas from stageTagMap
-const uniqueAreas = computed(() => {
-  if (!props.stageTagMap) return []
-  return Object.keys(props.stageTagMap)
-})
+// 3段構成: 1段目=エリア(E-1, E-2 ...) → 2段目=そのエリアのステージ(E-1-1 ...) → 3段目=札
+const uniqueAreas = computed(() => uniqueAreasFromStages(props.stageOptions))
+
+// stageOptions は compareStages 順で渡ってくるため、絞り込むだけで並び順は保たれる
+const stagesForArea = (area: string) =>
+  props.stageOptions.filter((stage) => parseStage(stage).area === area)
 
 const getTagsForStage = (stage: string) => {
   return props.stageTagMap[stage] || []
 }
 
-const openStageSelector = (event: MouseEvent, orig: number, shipIndex: number) => {
-  editingShipOrig.value = orig
-  editingShipIndex.value = shipIndex
+const openStageSelector = (event: MouseEvent, ship: ExpandedShip) => {
+  if (blockIfUnowned(ship)) return
+
+  editingShipOrig.value = ship.orig
+  editingShipIndex.value = ship.shipIndex
   activeStageCell.value = event.currentTarget as HTMLElement
 
   // Position logic
