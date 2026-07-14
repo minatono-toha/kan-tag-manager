@@ -85,10 +85,17 @@ function generateUserShipId(orig: number, shipIndex: number): string {
   return `${orig}_${shipIndex}`
 }
 
+// 呼び出し元は Vue の reactive な Map(userShipMap 等)から取り出した値をスプレッドして渡すことがある。
+// スプレッドは浅いコピーのため、st/exp/sp のような配列プロパティは reactive Proxy のまま残る。
+// IndexedDB の構造化複製は Proxy を複製できず "DataCloneError: ... could not be cloned" で失敗するため、
+// put() に渡す直前でプレーンなデータに戻す。JSON往復は Proxy の get トラップを素通りして値だけ読むので、
+// ネストした配列の Proxy も含めて剥がせる(このストアのデータは数値・配列のみで往復による欠損は無い)。
+const toPlain = <T>(data: T): T => JSON.parse(JSON.stringify(data))
+
 export async function saveUserShip(data: UserShip): Promise<void> {
   const db = await initDB()
   const dataWithId = {
-    ...data,
+    ...toPlain(data),
     id: generateUserShipId(data.orig, data.shipIndex)
   }
   await db.put(USER_SHIP_STORE_NAME, dataWithId)
@@ -122,7 +129,7 @@ function generateTagId(eventId: number, orig: number, shipIndex: number): string
 export async function saveTagManagement(data: TagManagement): Promise<void> {
   const db = await initDB()
   const dataWithId = {
-    ...data,
+    ...toPlain(data),
     id: generateTagId(data.eventId, data.orig, data.shipIndex)
   }
   await db.put(TAG_STORE_NAME, dataWithId)
@@ -154,7 +161,7 @@ export async function saveUserShipsBulk(items: UserShip[]): Promise<void> {
   const tx = db.transaction(USER_SHIP_STORE_NAME, 'readwrite')
   await Promise.all(
     items.map((data) =>
-      tx.store.put({ ...data, id: generateUserShipId(data.orig, data.shipIndex) })
+      tx.store.put({ ...toPlain(data), id: generateUserShipId(data.orig, data.shipIndex) })
     )
   )
   await tx.done
@@ -166,7 +173,7 @@ export async function saveTagManagementBulk(items: TagManagement[]): Promise<voi
   const tx = db.transaction(TAG_STORE_NAME, 'readwrite')
   await Promise.all(
     items.map((data) =>
-      tx.store.put({ ...data, id: generateTagId(data.eventId, data.orig, data.shipIndex) })
+      tx.store.put({ ...toPlain(data), id: generateTagId(data.eventId, data.orig, data.shipIndex) })
     )
   )
   await tx.done

@@ -20,7 +20,18 @@ const shiplist = JSON.parse(readFileSync(join(ROOT, 'data', 'master', 'shiplist.
 const warnings = []
 const warn = (msg) => warnings.push(msg)
 
-const LABEL = ['-', '大発系のみ', '内火艇のみ', '大発系・内火艇OK']
+// 1〜3 は「今の形態で装備できる」、4〜6 は「今は不可だが、改装を進めれば装備できる」。
+// 4〜6 は (3 + 改装後に装備できるもの) なので、値から 3 を引けば何が解禁されるか分かる。
+const LABEL = [
+  '-',
+  '大発系のみ',
+  '内火艇のみ',
+  '大発系・内火艇OK',
+  '(改造後)大発系のみ',
+  '(改造後)内火艇のみ',
+  '(改造後)大発系・内火艇OK',
+]
+const FUTURE_OFFSET = 3
 const encode = ([boat, tank]) => (boat ? 1 : 0) + (tank ? 2 : 0)
 
 // bannerId -> { value, rule, note }。先に入った規則が勝つ(出典の明示行 > 補完 > 継承 > 艦種一括)。
@@ -120,6 +131,49 @@ for (const rule of TYPE_RULES) {
 // --- 6. 残りは 0 ---
 for (const ship of shiplist) assign(ship, 0, '既定(対象外)')
 
+// --- 7. 「改造後に装備できる」形態(4〜6) ---
+// 対地装備は改装で解禁される艦が大半なので、今 0 の形態でも改装先が装備できるなら区別する。
+// 改装の系統は orig で辿る。spGroupId は特攻用の分割で改装経路をまたぐことがあるため使えない
+// (三隈 → 三隈改二特(9507)、神威 → 神威改(9499) が別グループになっている)。
+// 分岐改装は「最終的にどれかの形態で装備できるようになるもの」を OR で束ねる。
+const formsByOrig = new Map()
+for (const ship of shiplist) {
+  if (!formsByOrig.has(ship.orig)) formsByOrig.set(ship.orig, [])
+  formsByOrig.get(ship.orig).push(ship)
+}
+const nowValue = new Map([...resolved].map(([b, r]) => [b, r.value]))
+const futures = []
+const branchConflicts = []
+for (const ship of shiplist) {
+  if (nowValue.get(ship.bannerId) !== 0) continue
+
+  // 自分より改装段階が進んだ形態のうち、実際に装備できるもの
+  const later = formsByOrig
+    .get(ship.orig)
+    .filter((s) => s.updateLevel > ship.updateLevel && nowValue.get(s.bannerId) !== 0)
+  if (later.length === 0) continue
+
+  const unlocked = later.reduce((acc, s) => acc | nowValue.get(s.bannerId), 0)
+
+  // OR を満たす単一の形態が無い場合だけ問題になる。つまり「大発だけ解禁する改装」と
+  // 「内火艇だけ解禁する別の改装」に分岐していて、両立する形態が存在しないケース。
+  // OR で束ねると「両方いける」と誤読されるため、実在したらレポートに出して人間が判断する。
+  // (早潮改=大発のみ → 早潮改二=両方 のような一本道は、改二が OR を満たすので問題ない)
+  if (!later.some((s) => nowValue.get(s.bannerId) === unlocked)) {
+    branchConflicts.push(
+      `${ship.name}(${ship.bannerId}): 単独で ${LABEL[unlocked]} になる改装先が無い → ` +
+        later.map((s) => `${s.name}=${LABEL[nowValue.get(s.bannerId)]}`).join(' / ') +
+        ` → OR して ${LABEL[FUTURE_OFFSET + unlocked]} とした`,
+    )
+  }
+
+  const r = resolved.get(ship.bannerId)
+  r.value = FUTURE_OFFSET + unlocked
+  r.rule = '改装後に解禁'
+  r.note = later.map((s) => s.name).join('/')
+  futures.push({ ship, value: r.value, later })
+}
+
 // --- 出力 ---
 mkdirSync(OUT_DIR, { recursive: true })
 const write = (file, content) => {
@@ -169,23 +223,32 @@ write(
 
 // 3. 検証レポート
 const byRule = (name) => rows.filter((r) => r.rule === name).length
-const dist = [0, 1, 2, 3].map((v) => rows.filter((r) => r.value === v).length)
+const VALUES = [0, 1, 2, 3, 4, 5, 6]
+const dist = VALUES.map((v) => rows.filter((r) => r.value === v).length)
 const report = [
   '# ground_atk 生成レポート',
   '',
   '出典: <https://kannagi35.com/content/kantai-collection-anti-ground>',
   '',
   `- 対象形態(bannerId): ${rows.length}`,
-  `- 対地装備あり: ${nonZero.length}`,
-  ...[0, 1, 2, 3].map((v) => `  - ${v} (${LABEL[v]}): ${dist[v]}`),
+  `- 今の形態で装備できる(1〜3): ${rows.filter((r) => r.value >= 1 && r.value <= 3).length}`,
+  `- 改装後に装備できる(4〜6): ${rows.filter((r) => r.value >= 4).length}`,
+  ...VALUES.map((v) => `  - ${v} (${LABEL[v]}): ${dist[v]}`),
   '',
   '## 根拠の内訳',
   '',
   '| 根拠 | 件数 |',
   '|---|---|',
-  ...['出典', '出典の抜けを補完', '継承', '艦種一括', '既定(対象外)'].map(
+  ...['出典', '出典の抜けを補完', '継承', '艦種一括', '改装後に解禁', '既定(対象外)'].map(
     (n) => `| ${n} | ${byRule(n)} |`,
   ),
+  '',
+  '## 分岐改装で解禁されるものが食い違う形態(要確認)',
+  '',
+  '改装先が複数あり、装備できるようになるものが分岐で違うもの。OR で束ねているため、',
+  '「どちらの分岐でも両方いける」と誤読されうる。',
+  '',
+  ...(branchConflicts.length ? branchConflicts.map((c) => `- ${c}`) : ['- なし']),
   '',
   '## 出典に行が無く、こちらで補完した形態',
   '',
@@ -226,13 +289,26 @@ const report = [
   '',
   ...(warnings.length ? warnings.map((w) => `- ${w}`) : ['- なし']),
   '',
-  '## 対地装備ありの形態(生成結果)',
+  '## 改装後に解禁される形態(生成結果)',
+  '',
+  `今は装備できないが、改装を進めれば装備できるようになる形態。${futures.length} 件。`,
+  '',
+  '| 艦 | bannerId | ground_atk | 表示 | 解禁される形態 |',
+  '|---|---|---|---|---|',
+  ...futures.map(
+    (f) =>
+      `| ${f.ship.name} | ${f.ship.bannerId} | ${f.value} | ${LABEL[f.value]} | ${f.later.map((s) => s.name).join(' / ')} |`,
+  ),
+  '',
+  '## 今の形態で装備できるもの(生成結果)',
   '',
   '| 艦 | bannerId | 艦種 | ground_atk | 表示 | 根拠 |',
   '|---|---|---|---|---|---|',
-  ...nonZero.map(
-    (r) => `| ${r.ship.name} | ${r.ship.bannerId} | ${r.ship.shipType} | ${r.value} | ${LABEL[r.value]} | ${r.rule} |`,
-  ),
+  ...rows
+    .filter((r) => r.value >= 1 && r.value <= 3)
+    .map(
+      (r) => `| ${r.ship.name} | ${r.ship.bannerId} | ${r.ship.shipType} | ${r.value} | ${LABEL[r.value]} | ${r.rule} |`,
+    ),
 ]
 write('ground_atk_report.md', report.join('\n') + '\n')
 

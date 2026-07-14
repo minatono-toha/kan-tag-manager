@@ -18,7 +18,9 @@ export interface Ship {
   filtertype_en: string
   updateLevel: number
   // 対地装備(上陸用舟艇・特型内火艇)の可否。形態(bannerId)ごとに異なる。
-  // 0=どちらもNG / 1=大発系のみ / 2=内火艇のみ / 3=どちらもOK
+  // 0=どちらもNG
+  // 1=大発系のみ / 2=内火艇のみ / 3=どちらもOK        … 今の形態で装備できる
+  // 4/5/6 = 上記の「(改造後)」版                      … 今は不可だが改装を進めれば装備できる
   ground_atk?: number
   wiki_url?: string
   read_kana?: string
@@ -102,9 +104,12 @@ export interface UserShip {
 }
 
 // 展開された艦船データ（所持数に応じて複数インスタンス化）
+// 注意: orig にはグルーピングID(spGroupId)が入り、元の系統IDは失われる。
+// 分割行かどうかは展開時に isSpGroupSplit へ退避しておく。
 export interface ExpandedShip extends Ship {
   shipIndex: number // 何隻目か (0-29)
   ownershipCount: number // この艦の総所持数
+  isSpGroupSplit: boolean // 特攻グループ分割で系統から切り出した行か (艦名末尾の ※)
 }
 
 // 更新履歴データ

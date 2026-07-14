@@ -7,7 +7,7 @@ import {
   getAllUserShips,
   deleteUserShip
 } from '@/utils/indexedDB'
-import { compareShipsByFilterAndLibrary } from '@/utils/shipSort'
+import { compareShipsByFilterAndLibrary, isBaseFormOf, orderShipRows } from '@/utils/shipSort'
 
 // --- Singleton State ---
 const allShips = ref<Ship[]>([])
@@ -80,11 +80,12 @@ export function useShips() {
       .sort((a, b) => a.id - b.id)
   }
 
+  // 各グループ(spGroupId)の代表は「基本艦」= 最も改装段階の低い形態。
+  // 未着任時に行へ出る形態であり、createDefaultUserShip の既定変種でもある。
   const getUniqueOrigs = () => {
     const map = new Map<number, Ship>()
     for (const ship of allShips.value) {
-      // 各グループ(spGroupId)の代表(基本艦)は bannerId 最小の艦とする。
-      if (!map.has(ship.spGroupId) || ship.bannerId < (map.get(ship.spGroupId)?.bannerId ?? Infinity)) {
+      if (isBaseFormOf(ship, map.get(ship.spGroupId))) {
         map.set(ship.spGroupId, ship)
       }
     }
@@ -198,6 +199,8 @@ export function useShips() {
 
     for (const ship of ships) {
       const count = getOwnershipCount(ship.spGroupId)
+      // orig を spGroupId で潰す前に、分割行かどうかを退避しておく(艦名末尾の ※ に使う)。
+      const isSpGroupSplit = ship.spGroupId !== ship.orig
 
       // ExpandedShip.orig にグルーピングID(spGroupId)を入れることで、
       // 下流の行/所持/札/特攻キー(${orig}_${shipIndex} 等)を無改修で spGroupId 基準にする。
@@ -206,6 +209,7 @@ export function useShips() {
         expanded.push({
           ...ship,
           orig: ship.spGroupId,
+          isSpGroupSplit,
           shipIndex: 0,
           ownershipCount: 0
         })
@@ -215,6 +219,7 @@ export function useShips() {
           expanded.push({
             ...ship,
             orig: ship.spGroupId,
+            isSpGroupSplit,
             shipIndex: i,
             ownershipCount: count
           })
@@ -228,7 +233,9 @@ export function useShips() {
   const ships = computed(() => {
     if (selectedFilterIds.value.length === 0) return []
 
-    return uniqueOrigs.value
+    // 並べ替えは艦種で絞り込んだ「後」に行う。分割行(千歳航 等)を分割元(千歳)の直下に寄せる処理は、
+    // 分割元がその艦種タブに居るかどうかで結果が変わるため。
+    return orderShipRows(uniqueOrigs.value
       .filter((ship) => {
         // 1. Basic check: Does the original ship match?
         if (selectedFilterIds.value.includes(ship.filterId)) return true
@@ -248,8 +255,7 @@ export function useShips() {
            }
         }
         return false
-      })
-      .sort(compareShipsByFilterAndLibrary)
+      }))
   })
 
   // Expanded ships for display

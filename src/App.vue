@@ -80,7 +80,7 @@
                 :sourceShips="shipsToDisplay"
                 :selectedEventId="selectedEventId"
                 :loading="loading"
-                :targetHeaderHeight="attackTableHeaderHeight"
+                :targetHeaderHeight="syncedHeaderHeight"
                 :tagManagementData="tagManagementData"
                 :stageOptions="stageOptions"
                 :stageTagMap="stageTagMap"
@@ -94,7 +94,8 @@
           </div>
 
           <!-- 艦船一覧（中央） -->
-          <div class="list-container flex flex-col" :class="{ 'flex-1': shipListDisplayMode === 'detail', 'flex-none w-auto': shipListDisplayMode === 'nameOnly' }" ref="shipListContainerRef">
+          <!-- 表は内容幅にする(flex-1 で引き伸ばすと列に不要な余白が入る)。余った幅は特攻表が使う。 -->
+          <div class="list-container flex flex-col flex-none w-auto" ref="shipListContainerRef">
                <TableTitle title="艦船情報" type="ship" />
             <div class="p-1 pb-0">
               <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
@@ -116,7 +117,7 @@
               <ShipListTable
                 :ships="finalShips"
                 :loading="loading"
-                :targetHeaderHeight="attackTableHeaderHeight"
+                :targetHeaderHeight="syncedHeaderHeight"
                 :hasFiltersSelected="selectedFilterIds.length > 0"
                 :displayMode="shipListDisplayMode"
                  :show-unowned-ships="showUnownedShips"
@@ -128,6 +129,7 @@
                  :source-ships="expandedShips"
                  @update-variant="handleSafeUpdateVariant"
                 @select="openModal"
+                @header-height-change="handleShipListHeaderHeightChange"
                 @filter-change="handleSafeShipFilterChange"
                 @increment-ship="incrementShipCount"
                 @decrement-ship="decrementShipCount"
@@ -198,6 +200,7 @@
       :modalShipIndex="modalShipIndex"
       :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].spGroupId}_${modalShipIndex}`) || modalShips[0].bannerId) : null"
       :isUnowned="isModalShipUnowned"
+      :hasSpGroupSplit="modalHasSpGroupSplit"
       :selectedEventId="selectedEventId"
       :tagManagementData="tagManagementData"
       :stageOptions="stageOptions"
@@ -237,6 +240,7 @@ import BaseDialog from './components/common/BaseDialog.vue'
 import FairyTips from './tips/FairyTips.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
+import { hasSpGroupSplit } from '@/utils/shipSort'
 import { useTagManagement } from '@/composables/useTagManagement'
 
 export default defineComponent({
@@ -454,6 +458,17 @@ export default defineComponent({
       attackTableHeaderHeight.value = height
     }
 
+    // 3つの表は行を横に並べて読むので、ヘッダの高さを揃えないと行がズレる。
+    // 艦船情報は艦名ヘッダに注記の2行目があり、特攻表より高くなることがあるため、両方の実測値の最大を採る。
+    const shipListHeaderHeight = ref<number | undefined>(undefined)
+    const handleShipListHeaderHeightChange = (height: number) => {
+      shipListHeaderHeight.value = height
+    }
+    const syncedHeaderHeight = computed(() => {
+      const h = Math.max(attackTableHeaderHeight.value ?? 0, shipListHeaderHeight.value ?? 0)
+      return h > 0 ? h : undefined
+    })
+
     const handleLoading = (isLoading: boolean) => {
       loading.value = isLoading
     }
@@ -496,6 +511,12 @@ export default defineComponent({
         .filter((ship) => ship.spGroupId === orig)
         .sort((a, b) => a.updateLevel - b.updateLevel)
     }
+
+    // modalShips は既に1グループ分に絞られているため、系統(orig)全体を見ないと判定できない
+    // 分割の有無はここ(allShips 全体を持つ側)で計算し、ShipModal には結果だけ渡す。
+    const modalHasSpGroupSplit = computed(() =>
+      modalShips.value.length > 0 ? hasSpGroupSplit(allShips.value, modalShips.value[0].spGroupId) : false,
+    )
 
     const closeModal = () => {
       modalVisible.value = false
@@ -589,6 +610,9 @@ export default defineComponent({
       loading,
       handleLoading,
       attackTableHeaderHeight,
+      syncedHeaderHeight,
+      handleShipListHeaderHeightChange,
+      modalHasSpGroupSplit,
       handleHeaderHeightChange,
       shipsToDisplay,
       handleShipFilterChange,
@@ -677,12 +701,9 @@ export default defineComponent({
   min-width: 120px; /* 60 + 60 = 120px */
 }
 
+/* 列幅は内容に合わせて決まる(セルは nowrap)。ここで下限を作ると余白になるため min-width は置かない。 */
 .list-container {
-  min-width: 160px; /* Name only mode minimum */
-}
-
-.list-container.flex-1 {
-  min-width: 790px; /* Detail mode minimum (60 + 120 + 250 + 165 + 55 + 140) */
+  min-width: 160px;
 }
 
 .attack-container {

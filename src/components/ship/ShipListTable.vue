@@ -1,11 +1,11 @@
 <template>
   <div>
     <div v-if="loading">読み込み中...</div>
-    <table v-else class="w-full text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100 sticky top-0 z-10" :style="theadStyle">
+    <table v-else class="text-sm border-collapse border border-gray-300">
+      <thead class="bg-gray-100 sticky top-0 z-10" :style="theadStyle" ref="theadRef">
         <tr>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '60px', minWidth: '60px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '120px', minWidth: '120px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="shipTypeFilter.length > 0 ? 'filter-active' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail' && SHOW_LIBRARY_ID" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="shipTypeFilter.length > 0 ? 'filter-active' : 'bg-gray-100'">
             <div>艦種</div>
             <span
               @click="toggleShipTypeFilter($event)"
@@ -17,8 +17,12 @@
               <FilterIcon v-else />
             </span>
           </th>
-          <th :style="{ ...cellStyle, ...headerStyle, width: '250px', minWidth: '250px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'filter-active' : 'bg-gray-100'">
+          <th :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'filter-active' : 'bg-gray-100'">
             <div>艦名</div>
+            <!-- 注記は折り返す。nowrap のままだと一行に伸びて艦名列の幅を押し広げてしまう。 -->
+            <div class="ship-name-note font-normal text-gray-500">
+              ※が付与されている艦は改装段階によって特攻倍率が変動するため行を分けています
+            </div>
             <span
               @click="toggleSearch($event)"
               class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
@@ -29,7 +33,7 @@
               <FilterIcon v-else />
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '165px', minWidth: '165px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'filter-active' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="classSearchQuery.trim() ? 'filter-active' : 'bg-gray-100'">
             <div>艦型・艦番</div>
             <span
               @click="toggleClassSearch($event)"
@@ -41,7 +45,7 @@
               <FilterIcon v-else />
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '55px', minWidth: '55px', boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'filter-active' : 'bg-gray-100'">
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="speedFilterValue ? 'filter-active' : 'bg-gray-100'">
             <div>速力</div>
             <span
               @click="toggleSpeedFilter($event)"
@@ -53,7 +57,18 @@
               <FilterIcon v-else />
             </span>
           </th>
-          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, width: '140px', minWidth: '140px', boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">対地装備</th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="groundAtkFilter.length > 0 ? 'filter-active' : 'bg-gray-100'">
+            <div>対地装備</div>
+            <span
+              @click="toggleGroundAtkFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="groundAtkIconRef"
+            >
+              <SearchIcon v-if="groundAtkFilter.length === 0" />
+              <FilterIcon v-else />
+            </span>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -73,7 +88,7 @@
           class="hover:bg-gray-100"
           :class="getRowClass(ship.orig, ship.shipIndex)"
         >
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
+          <td v-if="displayMode === 'detail' && SHOW_LIBRARY_ID" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ getDisplayShip(ship).shipType }}</td>
           <td :style="cellStyle" class="border">
             <div class="flex items-center gap-2">
@@ -95,7 +110,7 @@
                  <!-- Name Display -->
                  <div class="cursor-pointer flex-grow" @click.stop="openModal(ship.orig, ship.shipIndex)">
                     <span :class="{ 'line-through text-gray-400': ship.ownershipCount === 0 }">
-                      {{ getDisplayShip(ship).name }}
+                      {{ getDisplayShip(ship).name }}<template v-if="ship.isSpGroupSplit">※</template>
                     </span>
                     <span v-if="ship.ownershipCount === 0" class="text-gray-400 text-xs ml-1">(0隻:未着任)</span>
                     <span v-else-if="ship.shipIndex > 0" class="text-gray-400 text-xs ml-1">({{ ship.shipIndex + 1 }}隻目)</span>
@@ -115,7 +130,7 @@
           <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ groundAtkLabel(getDisplayShip(ship)) }}</td>
         </tr>
         <tr v-if="filteredShips.length === 0">
-          <td :colspan="displayMode === 'detail' ? 6 : 1" :style="cellStyle" class="border text-center py-4 text-gray-500">
+          <td :colspan="columnCount" :style="cellStyle" class="border text-center py-4 text-gray-500">
             {{ emptyStateMessage }}
           </td>
         </tr>
@@ -175,6 +190,20 @@
       ref="shipTypePopupRef"
     />
 
+    <!-- 選択肢は表示に使う GROUND_ATK_LABELS をそのまま渡す(表示と絞り込みで文言を二重管理しない) -->
+    <FilterPopup
+      :show="showGroundAtkFilter"
+      :position="groundAtkFilterPosition"
+      type="checkbox"
+      title="対地装備で絞り込み"
+      :modelValue="groundAtkFilter"
+      :options="GROUND_ATK_LABELS"
+      @apply="(value) => { groundAtkFilter = value as string[]; showGroundAtkFilter = false }"
+      @clear="() => { groundAtkFilter = []; showGroundAtkFilter = false }"
+      @close="showGroundAtkFilter = false"
+      ref="groundAtkPopupRef"
+    />
+
     <!-- Variant Selection Popup -->
     <div
       v-if="showVariantPopup"
@@ -183,6 +212,13 @@
       ref="variantPopupRef"
       @click.stop
     >
+      <div
+        v-if="currentTargetHasSplit"
+        class="text-xs opacity-70 mb-1 pb-1 border-b whitespace-normal"
+        style="max-width: 200px;"
+      >
+        改装によって艦種が変わる艦は別の行で扱っています
+      </div>
       <div
         v-for="variant in currentVariants"
         :key="variant.bannerId"
@@ -216,6 +252,7 @@ import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { isVariantDisabled } from '@/components/attack/SPAttackException'
+import { hasSpGroupSplit } from '@/utils/shipSort'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -241,6 +278,7 @@ const emit = defineEmits<{
   (e: 'increment-ship', orig: number): void
   (e: 'decrement-ship', orig: number): void
   (e: 'update-variant', orig: number, shipIndex: number, variantId: number): void
+  (e: 'header-height-change', height: number): void
 }>()
 
 function openModal(orig: number, shipIndex: number) {
@@ -270,11 +308,15 @@ const speedFilterValue = ref('')
 const shipTypePopup = filterManager.register()
 const shipTypeFilter = ref<string[]>([])
 
+const groundAtkPopup = filterManager.register()
+const groundAtkFilter = ref<string[]>([])
+
 // Explicitly declare ref types for FilterPopup components
 const searchPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 const classSearchPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 const speedPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 const shipTypePopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const groundAtkPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 
 // Destructure for compatibility with existing template
 const showSearchInput = searchPopup.show
@@ -293,6 +335,10 @@ const showShipTypeFilter = shipTypePopup.show
 const shipTypeFilterPosition = shipTypePopup.position
 const shipTypeIconRef = shipTypePopup.iconRef
 
+const showGroundAtkFilter = groundAtkPopup.show
+const groundAtkFilterPosition = groundAtkPopup.position
+const groundAtkIconRef = groundAtkPopup.iconRef
+
 function toggleSearch(event: MouseEvent) {
   searchPopup.toggle(event)
 }
@@ -309,6 +355,10 @@ function toggleShipTypeFilter(event: MouseEvent) {
   shipTypePopup.toggle(event)
 }
 
+function toggleGroundAtkFilter(event: MouseEvent) {
+  groundAtkPopup.toggle(event)
+}
+
 // Helper to close all popups including variant popup
 const closeAllPopups = () => {
   filterManager.closeAll()
@@ -322,9 +372,34 @@ const variantPopupRef = ref<HTMLElement | null>(null)
 const currentVariants = ref<Ship[]>([])
 const currentTarget = ref<{ orig: number; shipIndex: number; ship: ExpandedShip } | null>(null)
 
+// currentTarget.ship.orig は spGroupId(展開時に上書き済み)。その系統(orig)が
+// 別の spGroupId に分割されている(=このポップアップに出てこない改装段階が他行にある)かどうか。
+const currentTargetHasSplit = computed(() =>
+  currentTarget.value ? hasSpGroupSplit(props.allShips, currentTarget.value.ship.orig) : false,
+)
+
+// 図鑑ID列は現在非表示。再表示は true に戻すだけでよいよう、列自体は残してある。
+const SHOW_LIBRARY_ID = false
+
+// 詳細表示の列数(空表示行の colspan 用)。艦種 / 艦名 / 艦型・艦番 / 速力 / 対地装備。
+const columnCount = computed(() => {
+  if (props.displayMode !== 'detail') return 1
+  return 5 + (SHOW_LIBRARY_ID ? 1 : 0)
+})
+
 // 対地装備(shiplist.ground_atk)の表示。装備可否は改装段階ごとに変わるため、
 // 行の艦ではなく現在選択している形態(getDisplayShip)の値を見る。
-const GROUND_ATK_LABELS = ['-', '大発系のみ', '内火艇のみ', '大発系・内火艇OK']
+// 4〜6 は「今の形態では不可だが、改装を進めれば装備できる」。
+// この文言は絞り込みの選択肢にもそのまま使う(表示と絞り込みで判定を二重管理しない)。
+const GROUND_ATK_LABELS = [
+  '-',
+  '大発系のみ',
+  '内火艇のみ',
+  '大発系・内火艇OK',
+  '(改造後)大発系のみ',
+  '(改造後)内火艇のみ',
+  '(改造後)大発系・内火艇OK',
+]
 const groundAtkLabel = (ship: Ship): string => GROUND_ATK_LABELS[ship.ground_atk ?? 0] ?? '-'
 
 const getDisplayShip = (ship: ExpandedShip): Ship => {
@@ -426,6 +501,14 @@ function handleClickOutside(event: MouseEvent) {
     }
   }
 
+  if (showGroundAtkFilter.value && groundAtkPopupRef.value) {
+    const clickedIcon = groundAtkIconRef.value?.contains(target)
+    const clickedPopup = groundAtkPopupRef.value.popupRef?.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showGroundAtkFilter.value = false
+    }
+  }
+
   if (showVariantPopup.value && variantPopupRef.value) {
      if (!variantPopupRef.value.contains(target)) {
         showVariantPopup.value = false
@@ -488,9 +571,10 @@ const filteredShips = computed(() => {
   const hasClassFilter = classSearchQuery.value.trim()
   const hasSpeedFilter = speedFilterValue.value
   const hasShipTypeFilter = shipTypeFilter.value.length > 0
+  const hasGroundAtkFilter = groundAtkFilter.value.length > 0
   const hasUnownedFilter = !props.showUnownedShips
 
-  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter && !hasUnownedFilter) {
+  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter && !hasGroundAtkFilter && !hasUnownedFilter) {
     return props.sourceShips
   }
 
@@ -524,6 +608,9 @@ const filteredShips = computed(() => {
     if (hasShipTypeFilter && !shipTypeFilter.value.includes(displayShip.shipType)) {
       return false
     }
+    if (hasGroundAtkFilter && !groundAtkFilter.value.includes(groundAtkLabel(displayShip))) {
+      return false
+    }
     return true
   })
 })
@@ -531,7 +618,7 @@ const filteredShips = computed(() => {
 watchDebounced(
   filteredShips,
   (newFilteredShips) => {
-    const isFiltering = !!(searchQuery.value.trim() || classSearchQuery.value.trim() || speedFilterValue.value || shipTypeFilter.value.length > 0 || !props.showUnownedShips)
+    const isFiltering = !!(searchQuery.value.trim() || classSearchQuery.value.trim() || speedFilterValue.value || shipTypeFilter.value.length > 0 || groundAtkFilter.value.length > 0 || !props.showUnownedShips)
     emit('filter-change', newFilteredShips, isFiltering)
   },
   { debounce: 150, maxWait: 300 }
@@ -565,6 +652,9 @@ const cellStyle = {
   whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
+// table-cell の height は「下限」として働くので、艦名の注記2行目で内容のほうが高くなれば
+// ヘッダはその分伸びる。伸びた実高さは下で親へ返し、親が3つの表の最大値で揃え直す
+// (揃えないと特攻表・札管理表と行がズレる)。
 const headerStyle = computed<CSSProperties>(() => {
   const h = props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`
   return {
@@ -578,6 +668,31 @@ const headerStyle = computed<CSSProperties>(() => {
 const theadStyle = computed<CSSProperties>(() => ({
   height: props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`,
 }))
+
+// ヘッダの実測値を親に返す(特攻表と行がズレないように、親が最大値で揃える)。
+// 同値なら emit しないので、親 → targetHeaderHeight → 再測定 のループにはならない。
+const theadRef = ref<HTMLElement | null>(null)
+const lastReportedHeight = ref(0)
+const reportHeaderHeight = () => {
+  if (!theadRef.value) return
+  const h = Math.ceil(theadRef.value.getBoundingClientRect().height)
+  if (h > 0 && h !== lastReportedHeight.value) {
+    lastReportedHeight.value = h
+    emit('header-height-change', h)
+  }
+}
+
+let headerObserver: ResizeObserver | null = null
+onMounted(() => {
+  if (!theadRef.value) return
+  headerObserver = new ResizeObserver(reportHeaderHeight)
+  headerObserver.observe(theadRef.value)
+  reportHeaderHeight()
+})
+onUnmounted(() => {
+  headerObserver?.disconnect()
+  headerObserver = null
+})
 
 </script>
 
@@ -653,6 +768,15 @@ thead th.filter-active:not(:last-child) {
     inset 0 2px 0 var(--table-accent, #6366f1),
     inset 0 -1px 0 var(--table-border, #e5e7eb),
     inset -1px 0 0 var(--table-border, #e5e7eb);
+}
+
+/* 艦名ヘッダの注記(※の説明)。本文より一段階小さく、折り返して艦名列の幅を広げない。 */
+.ship-name-note {
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: normal;
+  max-width: 240px;
+  margin-top: 2px;
 }
 
 .popup-container {

@@ -41,7 +41,9 @@ for (const [gid, def] of Object.entries(SP_GROUP_SPLITS)) {
 }
 const groupIdOf = (ship) => splitOf.get(ship.bannerId) ?? ship.spGroupId ?? ship.orig
 
-// spGroupId -> { rep(代表形態), forms[] }。代表は bannerId 最小(useShips.getUniqueOrigs と同じ規則)。
+// spGroupId -> { rep(代表形態), forms[] }。ここでの rep は国籍・艦種・並び順を引くためだけの内部的な代表で、
+// bannerId 最小で選ぶ。SPA の行に出る「基本艦」(useShips.getUniqueOrigs)とは別物である点に注意
+// (あちらは改装段階 updateLevel 最小。bannerId は改装段階順ではないため規則が違う)。
 const groups = new Map()
 for (const ship of shiplist) {
   const gid = groupIdOf(ship)
@@ -51,7 +53,7 @@ for (const ship of shiplist) {
 }
 for (const g of groups.values()) {
   g.forms.sort((a, b) => a.bannerId - b.bannerId)
-  g.rep = g.forms[0] // 代表形態 = bannerId 最小(useShips.getUniqueOrigs と同じ規則)
+  g.rep = g.forms[0] // bannerId 最小。国籍・艦種・並び順の引き当て用(表示名は下で libraryId 最小から取る)
   g.nationality = nationalityOf(g.rep)
   g.category = g.rep.shipTypeCategory
   // 表示名は libraryId 最小の形態(=基本形)。代表形態が「◯◯改」になる艦があるため分ける。

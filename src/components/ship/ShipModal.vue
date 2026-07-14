@@ -14,6 +14,13 @@
         >
           着任済({{ modalShipIndex + 1 }}隻目)
         </div>
+        <div
+          v-if="hasSpGroupSplit"
+          class="text-xs mb-2"
+          :class="theme !== 'light' ? 'text-gray-400' : 'text-gray-500'"
+        >
+          改装によって艦種が変わる艦は別の行で扱っています
+        </div>
         <span
           @click="showOnlySelected = !showOnlySelected"
           class="cursor-pointer text-sm text-blue-600 hover:underline select-none"
@@ -131,8 +138,12 @@ const props = withDefaults(defineProps<{
   stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
   tagMap: Record<number, { tagId: number; tagName: string; tagColor: string }>
   updateTagManagement: (data: TagManagement) => Promise<void>
+  // このロットの系統が別の spGroupId に分割されている(=他行に別の改装段階がある)か。
+  // props.ships は既に1グループ分に絞られているため、判定は呼び出し側(App.vue)で行い渡す。
+  hasSpGroupSplit?: boolean
 }>(), {
-  isUnowned: false
+  isUnowned: false,
+  hasSpGroupSplit: false
 })
 
 const { theme } = useTheme()

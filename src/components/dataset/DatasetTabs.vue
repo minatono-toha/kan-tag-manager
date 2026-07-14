@@ -73,6 +73,7 @@
 
     <DatasetNameModal
       :visible="showNameModal"
+      :initial-name="newDatasetName"
       @close="showNameModal = false"
       @confirm="handleCreateDataset"
       :theme="theme"
@@ -100,6 +101,7 @@ import { useDatasetStore } from '@/stores/datasetStore'
 import DatasetNameModal from './DatasetNameModal.vue'
 import DatasetDeleteModal from './DatasetDeleteModal.vue'
 import DatasetSwitchModal from './DatasetSwitchModal.vue'
+import { formatTimestampName } from '@/utils/date'
 
 interface Dataset {
   id: string
@@ -119,6 +121,7 @@ export default defineComponent({
   setup() {
     const datasetStore = useDatasetStore()
     const showNameModal = ref(false)
+    const newDatasetName = ref('')
     const showDeleteModal = ref(false)
     const showSwitchModal = ref(false)
     const deleteTargetId = ref<string | null>(null)
@@ -153,6 +156,8 @@ export default defineComponent({
 
     const openAddModal = () => {
       if (isAnyModalOpen.value) return
+      // 開いた時刻で作り直す(モーダルを開き直したら名前も今の時刻になる)
+      newDatasetName.value = formatTimestampName()
       showNameModal.value = true
     }
 
@@ -211,6 +216,7 @@ export default defineComponent({
       openAddModal,
       confirmDelete,
       showNameModal,
+      newDatasetName,
       handleCreateDataset,
       showDeleteModal,
       handleDeleteDataset,

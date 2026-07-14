@@ -3,7 +3,6 @@ import { db } from '@/firebase'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import type { ShipWithSpAttack, Event, ExpandedShip } from '@/types/interfaces'
 import type { Ref } from 'vue'
-import { compareShipsByFilterAndLibrary } from '@/utils/shipSort'
 import type { AttackSortMode, SortOrder } from '@/types/ui'
 
 export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqueOrigs: Ref<ExpandedShip[]>) {
@@ -87,7 +86,10 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
 
   const sortedShips = computed(() => {
     if (!sortKey.value) {
-      return [...shipsWithSpAttack.value].sort(compareShipsByFilterAndLibrary)
+      // 並び順は上流(useShips.ships)で orderShipRows 済み(分割行を分割元の直下に寄せてある)。
+      // ここで filterId/libraryId だけの単純ソートをかけ直すと、その並びが失われて崩れるため
+      // 何もせずそのまま渡す。
+      return [...shipsWithSpAttack.value]
     }
     return [...shipsWithSpAttack.value].sort((a, b) => {
       const aVal = a.spAttackData[sortKey.value!]
