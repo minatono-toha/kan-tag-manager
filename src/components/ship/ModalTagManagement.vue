@@ -19,8 +19,11 @@
           <div class="flex items-center gap-1">
             <span
               v-if="assignedTagName"
-              class="px-1.5 py-0.5 rounded text-black font-semibold"
-              :style="{ backgroundColor: assignedTagColor }"
+              class="px-1.5 py-0.5 rounded font-semibold"
+              :style="{
+                backgroundColor: assignedTagColor,
+                color: contrastingTextColor(assignedTagColor),
+              }"
             >
               {{ assignedTagName }}
             </span>
@@ -147,7 +150,7 @@
           :key="tag.tagId"
           @click="applyTagSelection(hoveredStage, tag.tagName)"
           class="px-2 py-1 cursor-pointer hover:opacity-80 text-sm"
-          :style="{ backgroundColor: tag.tagColor, color: '#000' }"
+          :style="{ backgroundColor: tag.tagColor, color: contrastingTextColor(tag.tagColor) }"
         >
           {{ tag.tagName }}
         </div>
@@ -208,6 +211,7 @@ import { parseTagFromTargetStage } from '@/utils/tagStage'
 import { resolveTagId } from '@/utils/tagAssignment'
 import { uniqueAreasFromStages, parseStage } from '@/utils/stageUtils'
 import { useTooltip } from '@/composables/useTooltip'
+import { contrastingTextColor } from '@/utils/color'
 
 const props = defineProps<{
   ship: Ship

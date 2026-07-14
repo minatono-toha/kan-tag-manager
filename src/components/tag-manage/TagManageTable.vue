@@ -198,7 +198,7 @@
           <td
             :style="{
               ...cellStyle,
-              backgroundColor: getTagColorForShip(ship.orig, ship.shipIndex),
+              ...getTagCellColorStyle(ship.orig, ship.shipIndex),
             }"
             class="border text-center text-xs cursor-help cell-clip"
             @mouseenter="handleMouseEnterWarning($event, '割当札は割当先から選択')"
@@ -454,7 +454,7 @@
         @keydown.space.prevent="applyTagSelection(hoveredStage, tag.tagName)"
         class="px-2 py-1 cursor-pointer text-sm popup-item focus:outline-none focus:ring-1 focus:ring-blue-500"
         tabindex="0"
-        :style="{ backgroundColor: tag.tagColor, color: '#000' }"
+        :style="{ backgroundColor: tag.tagColor, color: contrastingTextColor(tag.tagColor) }"
       >
         {{ tag.tagName }}
       </div>
@@ -500,6 +500,7 @@ import SearchIcon from '@/components/common/SearchIcon.vue'
 import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
 import { resolveTagId } from '@/utils/tagAssignment'
+import { contrastingTextColor } from '@/utils/color'
 
 const props = withDefaults(
   defineProps<{
@@ -847,6 +848,17 @@ const getTagColorForShip = (orig: number, shipIndex: number): string => {
   const data = getTagData(orig, shipIndex)
   if (!data.tagId || data.tagId === 0) return 'transparent'
   return props.tagMap[data.tagId]?.tagColor || 'transparent'
+}
+
+// 札が付いているセルは札色の明度で文字色を決める。
+// ダーク系テーマの `td { color: ... !important }` に勝たせるため !important を付ける。
+const getTagCellColorStyle = (orig: number, shipIndex: number): CSSProperties => {
+  const tagColor = getTagColorForShip(orig, shipIndex)
+  if (tagColor === 'transparent') return {}
+  return {
+    backgroundColor: tagColor,
+    color: `${contrastingTextColor(tagColor)} !important`,
+  }
 }
 
 // Stage Selector Logic

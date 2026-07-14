@@ -123,6 +123,9 @@ a,
   --header-text: #f9fafb;
   --hover-bg: rgba(99, 102, 241, 0.2);
   --table-border: rgba(99, 102, 241, 0.3);
+  /* 背景のグラデーションを透かしたまま明度だけをわずかに上げる（白の縞にしない） */
+  --table-zebra-bg: rgba(255, 255, 255, 0.06);
+  --table-accent: #818cf8;
   --tab-grayed-text: #111827;
 
   /* Semantic Colors */
