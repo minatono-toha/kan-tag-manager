@@ -28,7 +28,7 @@
                     class="border sp-col text-center cursor-pointer align-top bg-gray-100"
                     @click="sortBy(`mapId_${map.mapId}`)"
                   >
-                    {{ map.stage }}
+                    {{ formatStageLabel(map) }}
                     <span v-if="sortKey === `mapId_${map.mapId}`">{{
                       sortOrder === 'asc' ? '▲' : '▼'
                     }}</span>
@@ -103,7 +103,7 @@
                     class="border sp-col text-center cursor-pointer align-top"
                     @click="sortBy(`mapId_${map.mapId}`)"
                   >
-                    {{ map.stage }}
+                    {{ formatStageLabel(map) }}
                     <span v-if="sortKey === `mapId_${map.mapId}`">{{
                       sortOrder === 'asc' ? '▲' : '▼'
                     }}</span>
@@ -247,6 +247,12 @@ export default defineComponent({
     const getTagIds = (map: Event): number[] => {
       return [map.tagId1, map.tagId2, map.tagId3, map.tagId4].filter(id => typeof id === 'number' && id >= 1)
     }
+
+    // ステージ名にボスマス情報(mapPlace)を付与して返す。例: E-1-1 (I)
+    const formatStageLabel = (map: Event): string => {
+      return map.mapPlace ? `${map.stage} (${map.mapPlace})` : map.stage
+    }
+
     const getTextColor = contrastingTextColor
 
     const theadRef = ref<HTMLElement | null>(null)
@@ -396,6 +402,7 @@ export default defineComponent({
       isExpanded,
       stageGroups,
       getTagIds,
+      formatStageLabel,
       tagMap,
       getTextColor,
       theadRef,
