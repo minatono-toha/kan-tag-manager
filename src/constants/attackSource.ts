@@ -8,7 +8,7 @@
 export const ATTACK_SOURCE = {
   name: '2026年夏活信息搬运贴备份档',
   url: 'https://x.com/yukicacoon',
-  checkedAt: '7/14 13:00',
+  checkedAt: '7/17 13:00',
 }
 
 // 「◯◯ から引用(◯◯時点)」
