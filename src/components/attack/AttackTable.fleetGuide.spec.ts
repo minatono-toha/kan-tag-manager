@@ -27,7 +27,7 @@ vi.mock('firebase/firestore', () => ({
 const emptySnapshot = () => ({ docs: [], forEach: () => {} })
 const mapsSnapshot = () => ({ docs: eventMaps.map((m) => ({ data: () => m })), forEach: () => {} })
 
-// jsdom には ResizeObserver が無い(AttackTable がヘッダ高さ計測に使う)
+// jsdom には ResizeObserver が無い(AttackTable が列幅の実測に使う)
 class ResizeObserverStub {
   observe() {}
   unobserve() {}
@@ -55,8 +55,7 @@ const mountTable = async () => {
     attachTo: document.body,
   })
   await flushPromises()
-  // E-2 グループを展開してボスマス見出しを出す
-  await wrapper.get('thead th').trigger('click')
+  // 海域グループは既定で全展開なので、ボスマス見出しは最初から出ている
   return wrapper
 }
 
@@ -64,6 +63,16 @@ const mapHeader = (wrapper: Awaited<ReturnType<typeof mountTable>>, label: strin
   wrapper.findAll('thead th').find((th) => th.text().startsWith(label))!
 
 const popup = () => document.body.querySelector('.fleet-guide-popup')
+
+describe('海域グループの既定の展開状態', () => {
+  it('アクセス直後は全展開で、海域の見出しが最初から出ている', async () => {
+    const wrapper = await mountTable()
+
+    const labels = wrapper.findAll('thead th').map((th) => th.text())
+    expect(labels.some((text) => text.startsWith('E-2-1'))).toBe(true)
+    expect(labels.some((text) => text.startsWith('E-2-2'))).toBe(true)
+  })
+})
 
 describe('ボスマス見出しのダブルクリックで編成指南を表示する', () => {
   it('fleetGuide があるマスは内容とマス名を表示し、Escで閉じる', async () => {

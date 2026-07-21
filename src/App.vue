@@ -46,7 +46,88 @@
       </div>
     </div>
 
-    <!-- メインコンテンツ：ここにスクロール管理を集約 -->
+    <!-- 表のタイトル・操作・ヘッダ行の帯。
+         縦スクロール領域の外に置いてあるので、スクロールしても常に見えている。
+         3表のヘッダは同じ flex 行に並ぶため高さがブラウザ側で自動的に揃い、
+         実測して配り直す必要がない(＝本体の開始位置が必ず一致する)。
+         横方向だけ本体のスクロールに追従させる。 -->
+    <div class="table-head-band flex-none px-1" ref="headBandRef">
+      <div
+        class="head-band-inner tables-row w-fit min-w-full"
+        ref="headBandInnerRef"
+        :style="{ fontSize: `${scaleFactor * 100}%` }"
+      >
+        <!-- 札管理（左側） -->
+        <div class="tag-manage-container flex-none flex flex-col" :style="tagManageColumnStyle">
+          <TableTitle title="制御札管理" type="tag" />
+          <div class="p-1 pb-0">
+            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
+              <button
+                @click="handleTagManageShowCommentChange(!tagManageShowComment)"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                {{ tagManageShowComment ? 'コメント欄非表示' : 'コメント欄表示' }}
+              </button>
+            </div>
+          </div>
+          <div class="mt-auto" :id="headerSlotIds.tagManage"></div>
+        </div>
+
+        <!-- 艦船一覧（中央） -->
+        <div class="list-container flex flex-col flex-none" :style="shipListColumnStyle">
+          <TableTitle title="艦船情報" type="ship" />
+          <div class="p-1 pb-0">
+            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
+              <button
+                @click="handleDisplayModeChange(shipListDisplayMode === 'detail' ? 'nameOnly' : 'detail')"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
+              >
+                {{ shipListDisplayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
+              </button>
+              <button
+                @click="showUnownedShips = !showUnownedShips"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                {{ showUnownedShips ? '未所持艦を表示しない' : '未所持艦を表示する' }}
+              </button>
+            </div>
+          </div>
+          <div class="mt-auto" :id="headerSlotIds.shipList"></div>
+        </div>
+
+        <!-- 特攻情報（右側） -->
+        <div class="attack-container flex-1 flex flex-col">
+          <TableTitle v-if="selectedEventId" title="海域特攻情報" type="attack" />
+          <div v-if="selectedEventId" class="p-1 pb-0">
+            <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
+              <button
+                @click="handleToggleSortMode"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
+              >
+                {{ attackSortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
+              </button>
+              <button
+                @click="handleToggleAllStages"
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              >
+                {{ attackIsAllExpanded ? '全格納' : '全展開' }}
+              </button>
+              <a
+                :href="attackSource.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="attack-source ml-auto pl-4 text-xs text-gray-500 hover:text-blue-600 underline whitespace-nowrap"
+              >
+                {{ attackSourceLabel }}
+              </a>
+            </div>
+          </div>
+          <div class="mt-auto" :id="headerSlotIds.attack"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- メインコンテンツ：表本体だけをここで縦スクロールさせる -->
     <div
       class="main-scroll-container flex-1 overflow-y-auto overflow-x-auto px-1 pb-1"
       ref="scrollRef"
@@ -55,130 +136,66 @@
     >
       <!-- 動的幅拡張と最下部固定のためのラッパー -->
       <div class="flex flex-col min-h-full w-fit min-w-full">
-        <div class="main-content flex-1 flex gap-10 min-h-[calc(100%-60px)]">
-          <!-- 札管理（左側） -->
+        <div class="main-content tables-row flex-1 min-h-[calc(100%-60px)]">
           <div
             class="tag-manage-container flex-none flex flex-col"
             ref="tagManageContainerRef"
-            :style="{ minWidth: tagManageMinWidth }"
+            :style="tagManageColumnStyle"
           >
-            <!-- Spacer to align with other tables -->
-             <TableTitle title="制御札管理" type="tag" />
-            <div class="p-1 pb-0">
-              <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
-                 <button
-                  @click="handleTagManageShowCommentChange(!tagManageShowComment)"
-                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-                >
-                  {{ tagManageShowComment ? 'コメント欄非表示' : 'コメント欄表示' }}
-                </button>
-              </div>
-            </div>
-            <div class="flex-grow">
-              <TagManageTable
-                :ships="finalShips"
-                :sourceShips="shipsToDisplay"
-                :selectedEventId="selectedEventId"
-                :loading="loading"
-                :targetHeaderHeight="syncedHeaderHeight"
-                :tagManagementData="tagManagementData"
-                :stageOptions="stageOptions"
-                :stageTagMap="stageTagMap"
-                :tagMap="tagMap"
-                :updateTagManagement="updateTagManagement"
-                :showComment="tagManageShowComment"
-                :theme="theme"
-                @filter-change="handleTagFilterChange"
-              />
-            </div>
+            <TagManageTable
+              :ships="finalShips"
+              :sourceShips="shipsToDisplay"
+              :selectedEventId="selectedEventId"
+              :loading="loading"
+              :header-target="headerSlotSelectors.tagManage"
+              :tagManagementData="tagManagementData"
+              :stageOptions="stageOptions"
+              :stageTagMap="stageTagMap"
+              :tagMap="tagMap"
+              :updateTagManagement="updateTagManagement"
+              :showComment="tagManageShowComment"
+              :theme="theme"
+              @filter-change="handleTagFilterChange"
+            />
           </div>
 
-          <!-- 艦船一覧（中央） -->
           <!-- 表は内容幅にする(flex-1 で引き伸ばすと列に不要な余白が入る)。余った幅は特攻表が使う。 -->
-          <div class="list-container flex flex-col flex-none w-auto" ref="shipListContainerRef">
-               <TableTitle title="艦船情報" type="ship" />
-            <div class="p-1 pb-0">
-              <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
-                <button
-                  @click="handleDisplayModeChange(shipListDisplayMode === 'detail' ? 'nameOnly' : 'detail')"
-                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
-                >
-                  {{ shipListDisplayMode === 'detail' ? '艦名のみ' : '詳細表示' }}
-                </button>
-                <button
-                  @click="showUnownedShips = !showUnownedShips"
-                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-                >
-                  {{ showUnownedShips ? '未所持艦を表示しない' : '未所持艦を表示する' }}
-                </button>
-              </div>
-            </div>
-            <div class="flex-grow">
-              <ShipListTable
-                :ships="finalShips"
-                :loading="loading"
-                :targetHeaderHeight="syncedHeaderHeight"
-                :hasFiltersSelected="selectedFilterIds.length > 0"
-                :displayMode="shipListDisplayMode"
-                 :show-unowned-ships="showUnownedShips"
-                 :selectedEventId="selectedEventId"
-                :tagManagementData="tagManagementData"
-                :theme="theme"
-                :all-ships="allShips"
-                 :variant-map="shipVariantMap"
-                 :source-ships="expandedShips"
-                 @update-variant="handleSafeUpdateVariant"
-                @select="openModal"
-                @header-height-change="handleShipListHeaderHeightChange"
-                @filter-change="handleSafeShipFilterChange"
-                @increment-ship="incrementShipCount"
-                @decrement-ship="decrementShipCount"
-              />
-            </div>
+          <div class="list-container flex flex-col flex-none" ref="shipListContainerRef" :style="shipListColumnStyle">
+            <ShipListTable
+              :ships="finalShips"
+              :loading="loading"
+              :header-target="headerSlotSelectors.shipList"
+              :hasFiltersSelected="selectedFilterIds.length > 0"
+              :displayMode="shipListDisplayMode"
+               :show-unowned-ships="showUnownedShips"
+               :selectedEventId="selectedEventId"
+              :tagManagementData="tagManagementData"
+              :theme="theme"
+              :all-ships="allShips"
+               :variant-map="shipVariantMap"
+               :source-ships="expandedShips"
+               @update-variant="handleSafeUpdateVariant"
+              @select="openModal"
+              @filter-change="handleSafeShipFilterChange"
+              @increment-ship="incrementShipCount"
+              @decrement-ship="decrementShipCount"
+            />
           </div>
 
-          <!-- 特攻情報（右側） -->
           <div class="attack-container flex-1 flex flex-col" ref="attackContainerRef">
-               <TableTitle v-if="selectedEventId" title="海域特攻情報" type="attack" />
-            <div v-if="selectedEventId" class="p-1 pb-0">
-              <div class="flex items-center mb-1 flex-nowrap" style="min-height: 44px;">
-                <button
-                  @click="handleToggleSortMode"
-                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap mr-2"
-                >
-                  {{ attackSortByMode === 'area' ? '札で並べ替え' : '海域で並べ替え' }}
-                </button>
-                <button
-                  @click="handleToggleAllStages"
-                  class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
-                >
-                  {{ attackIsAllExpanded ? '全格納' : '全展開' }}
-                </button>
-                <a
-                  :href="attackSource.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="attack-source ml-auto pl-4 text-xs text-gray-500 hover:text-blue-600 underline whitespace-nowrap"
-                >
-                  {{ attackSourceLabel }}
-                </a>
-              </div>
-            </div>
-            <div class="flex-grow">
-              <AttackTable
-                v-if="selectedEventId"
-                :filteredUniqueOrigs="intersectedShips"
-                :selectedEventId="selectedEventId!"
-                @update-sorted-ships="handleSortedShipsUpdate"
-                @loading="handleLoading"
-                @header-height-change="handleHeaderHeightChange"
-                @update-sort-mode="handleSortModeUpdate"
-                @update-is-all-expanded="handleIsAllExpandedUpdate"
-                ref="attackTableRef"
-              />
-              <div v-else class="p-4 text-center text-gray-500">
-                イベントを選択してください
-              </div>
+            <AttackTable
+              v-if="selectedEventId"
+              :filteredUniqueOrigs="intersectedShips"
+              :selectedEventId="selectedEventId!"
+              :header-target="headerSlotSelectors.attack"
+              @update-sorted-ships="handleSortedShipsUpdate"
+              @loading="handleLoading"
+              @update-sort-mode="handleSortModeUpdate"
+              @update-is-all-expanded="handleIsAllExpandedUpdate"
+              ref="attackTableRef"
+            />
+            <div v-else class="p-4 text-center text-gray-500">
+              イベントを選択してください
             </div>
           </div>
         </div>
@@ -251,7 +268,9 @@ import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
 import { hasSpGroupSplit } from '@/utils/shipSort'
 import { useTagManagement } from '@/composables/useTagManagement'
+import { HEADER_SLOT_IDS, headerSlotSelector } from '@/constants/tableHeaderSlots'
 import { tagManageTableWidth } from '@/constants/tagManageColumns'
+import { shipListTableWidth, SHOW_LIBRARY_ID } from '@/constants/shipListColumns'
 import { ATTACK_SOURCE, ATTACK_SOURCE_LABEL } from '@/constants/attackSource'
 
 export default defineComponent({
@@ -317,7 +336,6 @@ export default defineComponent({
     const sortedShipsFromAttackTable = ref<ExpandedShip[]>([])
     const selectedEventId = ref<number | null>(null)
     const loading = ref(false)
-    const attackTableHeaderHeight = ref<number | undefined>(undefined)
     const shipListDisplayMode = ref<'detail' | 'nameOnly'>('nameOnly')
     const showUnownedShips = ref(true)
     const attackSortByMode = ref<string>('area')
@@ -466,20 +484,14 @@ export default defineComponent({
       tagManageShowComment.value = show
     }
 
-    const handleHeaderHeightChange = (height: number) => {
-      attackTableHeaderHeight.value = height
+    // ヘッダ帯は縦スクロールしないので、横方向だけ本体に追従させる。
+    // scrollLeft ではなく transform で動かすので、帯側の内容幅が本体と1pxずれても破綻しない。
+    const headBandRef = ref<HTMLElement | null>(null)
+    const headBandInnerRef = ref<HTMLElement | null>(null)
+    const syncHeadBandScroll = (scrollLeft: number) => {
+      if (!headBandInnerRef.value) return
+      headBandInnerRef.value.style.transform = `translateX(${-scrollLeft}px)`
     }
-
-    // 3つの表は行を横に並べて読むので、ヘッダの高さを揃えないと行がズレる。
-    // 艦船情報は艦名ヘッダに注記の2行目があり、特攻表より高くなることがあるため、両方の実測値の最大を採る。
-    const shipListHeaderHeight = ref<number | undefined>(undefined)
-    const handleShipListHeaderHeightChange = (height: number) => {
-      shipListHeaderHeight.value = height
-    }
-    const syncedHeaderHeight = computed(() => {
-      const h = Math.max(attackTableHeaderHeight.value ?? 0, shipListHeaderHeight.value ?? 0)
-      return h > 0 ? h : undefined
-    })
 
     const handleLoading = (isLoading: boolean) => {
       loading.value = isLoading
@@ -576,6 +588,7 @@ export default defineComponent({
       if (scrollRef.value) {
         const scrollTop = scrollRef.value.scrollTop
         scrollPositions.value = { ...scrollPositions.value, main: scrollTop }
+        syncHeadBandScroll(scrollRef.value.scrollLeft)
       }
     }
 
@@ -628,11 +641,15 @@ export default defineComponent({
       handleEventSelected,
       loading,
       handleLoading,
-      attackTableHeaderHeight,
-      syncedHeaderHeight,
-      handleShipListHeaderHeightChange,
+      headBandRef,
+      headBandInnerRef,
+      headerSlotIds: HEADER_SLOT_IDS,
+      headerSlotSelectors: {
+        tagManage: headerSlotSelector('tagManage'),
+        shipList: headerSlotSelector('shipList'),
+        attack: headerSlotSelector('attack'),
+      },
       modalHasSpGroupSplit,
-      handleHeaderHeightChange,
       shipsToDisplay,
       handleShipFilterChange,
       theme,
@@ -667,8 +684,18 @@ export default defineComponent({
       handleSafeShipFilterChange,
       tagManageShowComment,
       handleTagManageShowCommentChange,
-      // 表と同じ列幅定義から算出する(数値の二重管理をしない)
-      tagManageMinWidth: computed(() => `${tagManageTableWidth(tagManageShowComment.value)}px`),
+      // ヘッダ帯と表本体は別々の要素なので、列の幅が1pxでも違うと横位置がずれる。
+      // どちらの列にも表と同じ幅定義から算出した同じ値を与える(数値の二重管理をしない)。
+      // 幅は表に合わせて固定する。タイトルやボタンが表より広くても列を広げない
+      // (広がると本体側の列とずれるため。ボタンは折り返して収める)。
+      tagManageColumnStyle: computed(() => {
+        const w = `${tagManageTableWidth(tagManageShowComment.value)}px`
+        return { width: w, minWidth: w }
+      }),
+      shipListColumnStyle: computed(() => {
+        const w = `${shipListTableWidth(shipListDisplayMode.value, SHOW_LIBRARY_ID)}px`
+        return { width: w, minWidth: w }
+      }),
       incrementShipCount,
       decrementShipCount,
       shipVariantMap,
@@ -713,10 +740,36 @@ export default defineComponent({
 <style>
 @import '@/assets/zoom-responsive.css';
 
-.main-content {
+/* ヘッダ帯と表本体は別々の要素なので、列の並びが少しでも違うと横位置がずれる。
+   両方がこの1つの定義を使うことで、間隔と折り返しの指定が食い違わないようにする。 */
+.tables-row {
   display: flex;
   gap: 20px;
   flex-wrap: nowrap; /* Prevent wrapping - always horizontal */
+}
+
+/* 列幅は表に合わせて固定してあるので、タイトル行のボタンが収まらない場合は
+   ボタン側を折り返す(列を広げると本体側の列と横位置がずれる)。 */
+.head-band-inner .flex-nowrap {
+  flex-wrap: wrap;
+}
+
+/* 表のタイトル・操作・ヘッダ行の帯。縦スクロール領域の外にあるので常に見えている。
+   本体の横スクロールには transform で追従する(はみ出しは overflow で隠す)。 */
+.table-head-band {
+  overflow: hidden;
+  background: var(--bg-primary, #fff);
+}
+
+.head-band-inner {
+  flex-wrap: nowrap;
+  will-change: transform;
+}
+
+/* 各列のヘッダ行を列の下端に寄せる。帯の高さは最も高いヘッダで決まり、
+   3表のヘッダの下端＝表本体の開始位置が必ず一致する。 */
+.head-band-inner > div {
+  min-height: 100%;
 }
 
 /* .tag-manage-container の min-width は tagManageColumns の列幅定義から算出して

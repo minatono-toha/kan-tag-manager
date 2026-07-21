@@ -26,7 +26,6 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
     const q = query(collection(db, 'eventmap'), where('eventId', '==', selectedEventId.value))
     const snap = await getDocs(q)
     eventMaps.value = snap.docs.map((doc) => doc.data() as Event)
-    expandedStageNums.value = []
   }
 
   const fetchTags = async () => {
@@ -44,7 +43,6 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
       }
     })
     tagMap.value = map
-    expandedTagIds.value = []
   }
 
   const fetchAllSpAttackData = async () => {
@@ -57,6 +55,9 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
         fetchTags(),
         getDocs(mainQ),
       ])
+      // 既定は全展開。海域と札の両方が揃ってからでないとグループを列挙できないので、
+      // 個々の fetch ではなくここでまとめて設定する。
+      expandAllGroups()
       const results: Record<number, Record<string, number>> = {}
       snap.forEach((doc) => {
         const data = doc.data()
@@ -194,6 +195,13 @@ export function useAttackData(selectedEventId: Ref<number | null>, filteredUniqu
       return tagGroups.value.every(group => expandedTagIds.value.includes(group.tagId))
     }
   })
+
+  // 海域順・札順のどちらのグループも展開する。
+  // 既定表示で使うほか、並べ替えを切り替えても展開状態が保たれるようにする。
+  const expandAllGroups = () => {
+    expandedStageNums.value = stageGroups.value.map((group) => group.stageNum)
+    expandedTagIds.value = tagGroups.value.map((group) => group.tagId)
+  }
 
   const toggleAllStages = () => {
     if (sortByMode.value === 'area') {

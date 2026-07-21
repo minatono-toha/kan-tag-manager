@@ -1,12 +1,12 @@
 <template>
   <div>
-    <div v-if="loading" class="p-4">読み込み中...</div>
-    <table
-      v-else
-      class="text-sm border-collapse border border-gray-300"
-      :style="{ tableLayout: 'fixed', width: `${tagManageTableWidth(showComment)}px` }"
-    >
-      <thead class="bg-gray-100 sticky top-0 z-10" ref="theadRef" :style="theadStyle">
+    <!-- ヘッダ行は縦スクロールしないヘッダ帯へ送る。3表のヘッダが同じ flex 行に並ぶので
+         高さがブラウザ側で自動的に揃い、実測して配り直す必要がない。
+         送り先が無いとき(単体テスト等)はその場に描画する。 -->
+    <Teleport :to="headerTarget || 'body'" :disabled="!headerTarget" defer>
+      <table class="tag-manage-table text-sm" :style="tableStyle">
+        <TableColgroup :widths="columnWidths" />
+        <thead class="bg-gray-100">
         <tr>
           <th
             :style="{ ...cellStyle, ...headerStyle, ...columnWidth('assigned') }"
@@ -90,7 +90,13 @@
             </span>
           </th>
         </tr>
-      </thead>
+        </thead>
+      </table>
+    </Teleport>
+
+    <div v-if="loading" class="p-4">読み込み中...</div>
+    <table v-else class="tag-manage-table text-sm" :style="tableStyle">
+      <TableColgroup :widths="columnWidths" />
       <tbody>
         <tr
           v-for="(ship, rowIndex) in displayedShips"
@@ -115,7 +121,7 @@
         >
           <!-- 割当済 -->
           <td
-            :style="cellStyle"
+            :style="bodyCellStyle"
             class="border text-center cursor-pointer"
             @click="toggleAssigned(ship)"
           >
@@ -141,7 +147,7 @@
           </td>
           <!-- 温存 -->
           <td
-            :style="cellStyle"
+            :style="bodyCellStyle"
             class="border text-center cursor-pointer"
             @mouseenter="
               getTagData(ship.orig, ship.shipIndex).assigned &&
@@ -177,7 +183,7 @@
             </div>
           </td>
           <!-- 割当先 -->
-          <td :style="cellStyle" class="border text-center relative cell-clip">
+          <td :style="bodyCellStyle" class="border text-center relative cell-clip">
             <div
               class="w-full h-full px-1 py-0 text-sm border-0 bg-transparent cursor-pointer flex items-center justify-center min-h-[20px] stage-trigger"
               :style="{ fontSize: TABLE_STYLE.fontSize }"
@@ -191,7 +197,7 @@
           <!-- 割当札 -->
           <td
             :style="{
-              ...cellStyle,
+              ...bodyCellStyle,
               ...getTagCellColorStyle(ship.orig, ship.shipIndex),
             }"
             class="border text-center text-xs cursor-help cell-clip"
@@ -201,7 +207,7 @@
             {{ getTagNameForShip(ship.orig, ship.shipIndex) }}
           </td>
           <!-- コメント -->
-          <td v-if="showComment" :style="cellStyle" class="border">
+          <td v-if="showComment" :style="bodyCellStyle" class="border">
             <input
               type="text"
               :value="getTagData(ship.orig, ship.shipIndex).comment"
@@ -219,11 +225,11 @@
           </td>
         </tr>
         <tr v-if="displayedShips.length === 0" :style="rowStyle">
-          <td :style="cellStyle" class="border text-center">-</td>
-          <td :style="cellStyle" class="border text-center">-</td>
-          <td :style="cellStyle" class="border text-center">-</td>
-          <td :style="cellStyle" class="border text-center">-</td>
-          <td v-if="showComment" :style="cellStyle" class="border text-center">-</td>
+          <td :style="bodyCellStyle" class="border text-center">-</td>
+          <td :style="bodyCellStyle" class="border text-center">-</td>
+          <td :style="bodyCellStyle" class="border text-center">-</td>
+          <td :style="bodyCellStyle" class="border text-center">-</td>
+          <td v-if="showComment" :style="bodyCellStyle" class="border text-center">-</td>
         </tr>
       </tbody>
     </table>
@@ -501,8 +507,10 @@ import { TABLE_STYLE } from '@/constants/tableStyle'
 import {
   TAG_MANAGE_COLUMNS,
   tagManageTableWidth,
+  tagManageColumnWidths,
   type TagManageColumn,
 } from '@/constants/tagManageColumns'
+import TableColgroup from '@/components/common/TableColgroup.vue'
 import FilterPopup from '@/components/common/FilterPopup.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import SearchIcon from '@/components/common/SearchIcon.vue'
@@ -518,7 +526,8 @@ const props = withDefaults(
     sourceShips: ExpandedShip[]
     selectedEventId: number | null
     loading?: boolean
-    targetHeaderHeight?: number
+    // ヘッダ行の送り先(ヘッダ帯)のセレクタ。未指定ならヘッダをその場に描画する。
+    headerTarget?: string | null
     tagManagementData: Map<string, TagManagement>
     stageOptions: string[]
     stageTagMap: Record<string, { tagId: number; tagName: string; tagColor: string }[]>
@@ -530,6 +539,7 @@ const props = withDefaults(
   }>(),
   {
     showComment: false,
+    headerTarget: null,
     theme: 'light',
   },
 )
@@ -537,6 +547,13 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean): void
 }>()
+
+// ヘッダ用と本体用の2つのテーブルに同じ列幅を与える(表を分けた以上 auto は使えない)
+const columnWidths = computed(() => tagManageColumnWidths(props.showComment))
+const tableStyle = computed<CSSProperties>(() => ({
+  tableLayout: 'fixed',
+  width: `${tagManageTableWidth(props.showComment)}px`,
+}))
 
 // Helper function to get tag data from the shared tagManagementData
 const getTagData = (orig: number, shipIndex: number): TagManagement => {
@@ -751,8 +768,6 @@ const subMenuPosition = ref({ x: 0, y: 0 })
 const hoveredStage = ref<string | null>(null)
 const tagMenuPosition = ref({ x: 0, y: 0 })
 const activeStageCell = ref<HTMLElement | null>(null)
-
-const theadRef = ref<HTMLElement | null>(null)
 
 // Get unique target stages from all source ships (for filter options)
 const uniqueTargetStages = computed(() => {
@@ -1279,6 +1294,12 @@ const cellStyle = {
   whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
+// 表本体は縦方向の余白を詰める(タイトル行は cellStyle のまま)
+const bodyCellStyle = {
+  padding: TABLE_STYLE.bodyPadding,
+  whiteSpace: TABLE_STYLE.whiteSpace,
+}
+
 // 列幅は tagManageColumns の定義のみを参照する（テーブル幅もそこから算出されるため、
 // 宣言幅と列幅合計がずれて列が比例縮小されることがない）
 const columnWidth = (column: TagManageColumn): CSSProperties => {
@@ -1286,32 +1307,26 @@ const columnWidth = (column: TagManageColumn): CSSProperties => {
   return { width: w, minWidth: w }
 }
 
-const headerStyle = computed<CSSProperties>(() => {
-  const h = props.targetHeaderHeight
-    ? `${props.targetHeaderHeight}px`
-    : `${TABLE_STYLE.headerHeight}px`
-  return {
-    height: h,
-    minHeight: h,
-    fontSize: TABLE_STYLE.fontSize,
-    boxSizing: 'border-box',
-  }
-})
+// table-cell の height は「下限」として働く。3表とも同じ下限を使うので、
+// 内容が短いヘッダ同士でも高さが揃う。内容が高ければその分だけ自然に伸びる。
+const headerStyle: CSSProperties = {
+  height: `${TABLE_STYLE.headerHeight}px`,
+  fontSize: TABLE_STYLE.fontSize,
+  boxSizing: 'border-box',
+}
 
-const theadStyle = computed<CSSProperties>(() => ({
-  height: props.targetHeaderHeight
-    ? `${props.targetHeaderHeight}px`
-    : `${TABLE_STYLE.headerHeight}px`,
-}))
 </script>
 
 <style scoped>
 /* Refined: horizontal row dividers only, zebra striping, no vertical borders */
+/* overflow:hidden は使わない。祖先に overflow が付くと子孫の position:sticky が
+   効かなくなり、ヘッダのスクロール固定が死ぬため。
+   罫線はすべて inset shadow で描くので、border-collapse は separate + spacing 0 で足りる
+   (collapse は sticky なヘッダで罫線が消える不具合があるため避ける)。 */
 table {
-  border-collapse: collapse !important;
+  border-collapse: separate;
+  border-spacing: 0;
   border: 0 !important;
-  border-radius: 6px;
-  overflow: hidden;
   box-shadow: 0 0 0 1px var(--table-border, #e5e7eb);
 }
 
@@ -1320,15 +1335,25 @@ td {
   border: 0 !important;
 }
 
+/* ヘッダの罫線は inset shadow で描く(sticky でスクロールしても消えない)。
+   3本を別々のカスタムプロパティに分けているのは、高さ揃えの詰め物行が入って
+   「最終行かどうか」が変わっても、規則ごとの詳細度を気にせず合成できるようにするため。 */
 thead th {
-  box-shadow: inset 0 -1px 0 var(--table-border, #e5e7eb);
+  box-shadow:
+    var(--th-accent, 0 0 0 0 transparent),
+    var(--th-bottom, 0 0 0 0 transparent),
+    var(--th-right, 0 0 0 0 transparent);
+}
+
+/* 下端はヘッダの最終行だけが描く。詰め物行があるときはそちらが担当する。 */
+thead tr:last-child th {
+  --th-bottom: inset 0 -1px 0 var(--table-border, #e5e7eb);
 }
 
 thead th:not(:last-child) {
-  box-shadow:
-    inset 0 -1px 0 var(--table-border, #e5e7eb),
-    inset -1px 0 0 var(--table-border, #e5e7eb);
+  --th-right: inset -1px 0 0 var(--table-border, #e5e7eb);
 }
+
 
 tbody tr {
   box-shadow: inset 0 -1px 0 var(--table-border, #e5e7eb);
@@ -1347,16 +1372,7 @@ tbody tr:nth-child(even):not(.row-assigned):not(.row-preserve) {
 }
 
 thead th.filter-active {
-  box-shadow:
-    inset 0 2px 0 var(--table-accent, #6366f1),
-    inset 0 -1px 0 var(--table-border, #e5e7eb);
-}
-
-thead th.filter-active:not(:last-child) {
-  box-shadow:
-    inset 0 2px 0 var(--table-accent, #6366f1),
-    inset 0 -1px 0 var(--table-border, #e5e7eb),
-    inset -1px 0 0 var(--table-border, #e5e7eb);
+  --th-accent: inset 0 2px 0 var(--table-accent, #6366f1);
 }
 
 /* 列幅に収まらない文字列はセル内で省略する（はみ出して隣の列を壊さないため） */

@@ -1,9 +1,12 @@
 <template>
   <div>
-    <div v-if="loading">読み込み中...</div>
-    <div v-else>
-      <table class="sp-attack-table w-full text-sm border-collapse border border-gray-300">
-        <thead class="bg-gray-100 sticky top-0 z-10" :style="headerStyle" ref="theadRef">
+    <!-- ヘッダ行は縦スクロールしないヘッダ帯へ送る。3表のヘッダが同じ flex 行に並ぶので
+         高さがブラウザ側で自動的に揃い、実測して配り直す必要がない。
+         送り先が無いとき(単体テスト等)はその場に描画する。 -->
+    <Teleport :to="headerTarget || 'body'" :disabled="!headerTarget" defer>
+      <!-- ヘッダは内容に合わせて自動で幅が決まる。ここで決まった列幅を本体へ渡す。 -->
+      <table class="sp-attack-table sp-attack-table--header text-sm" ref="headerTableRef">
+        <thead class="bg-gray-100" :style="headerStyle">
           <!-- Area Mode Header -->
           <template v-if="sortByMode === 'area'">
             <tr>
@@ -127,6 +130,15 @@
             </tr>
           </template>
         </thead>
+      </table>
+    </Teleport>
+
+    <div v-if="loading">読み込み中...</div>
+    <div v-else>
+      <!-- 本体の列幅はヘッダから受け取る(本体のセルは必ず小数点2桁の数値なので、
+           幅はヘッダ側だけで決まる)。未計測のうちは自動幅で描く。 -->
+      <table class="sp-attack-table text-sm" :style="bodyTableStyle">
+        <TableColgroup v-if="bodyColumnWidths.length" :widths="bodyColumnWidths" />
         <tbody>
           <tr
             v-for="ship in sortedShips"
@@ -184,13 +196,15 @@
               </template>
             </template>
           </tr>
-          <tr v-if="!selectedEventId">
-            <td :colspan="totalColspan" class="border text-center py-4 text-gray-500">
+          <!-- 該当なしの行も通常の行と同じ高さにする(他の2表と行がずれるため、
+               余白を足して高くしない) -->
+          <tr v-if="!selectedEventId" :style="emptyRowStyle">
+            <td :colspan="totalColspan" :style="bodyCellStyle" class="border text-center text-gray-500">
               海域を選択してください
             </td>
           </tr>
-          <tr v-else-if="sortedShips.length === 0">
-            <td :colspan="totalColspan" class="border text-center py-4 text-gray-500">
+          <tr v-else-if="sortedShips.length === 0" :style="emptyRowStyle">
+            <td :colspan="totalColspan" :style="bodyCellStyle" class="border text-center text-gray-500">
               -
             </td>
           </tr>
@@ -210,16 +224,28 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, watch, onMounted, onUnmounted, nextTick, toRefs } from 'vue'
+import {
+  defineComponent,
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onUnmounted,
+  nextTick,
+  toRefs,
+} from 'vue'
+import type { CSSProperties } from 'vue'
 import { TABLE_STYLE } from '@/constants/tableStyle'
+import { distributeSpanWidth } from '@/constants/attackColumns'
 import type { Event, ExpandedShip } from '@/types/interfaces'
 import { useAttackData } from '@/composables/useAttackData'
 import { contrastingTextColor } from '@/utils/color'
+import TableColgroup from '@/components/common/TableColgroup.vue'
 import FleetGuidePopup from './FleetGuidePopup.vue'
 
 export default defineComponent({
   name: 'AttackTable',
-  components: { FleetGuidePopup },
+  components: { FleetGuidePopup, TableColgroup },
   props: {
     filteredUniqueOrigs: {
       type: Array as () => ExpandedShip[],
@@ -229,8 +255,13 @@ export default defineComponent({
       type: Number,
       required: true,
     },
+    // ヘッダ行の送り先(ヘッダ帯)のセレクタ。未指定ならヘッダをその場に描画する。
+    headerTarget: {
+      type: String,
+      default: null,
+    },
   },
-  emits: ['update-sorted-ships', 'loading', 'header-height-change', 'update-sort-mode', 'update-is-all-expanded'],
+  emits: ['update-sorted-ships', 'loading', 'update-sort-mode', 'update-is-all-expanded'],
   setup(props, { emit }) {
     const { filteredUniqueOrigs, selectedEventId } = toRefs(props)
 
@@ -313,15 +344,49 @@ export default defineComponent({
       fleetGuide.value = { ...fleetGuide.value, show: false }
     }
 
-    const theadRef = ref<HTMLElement | null>(null)
-    let resizeObserver: ResizeObserver | null = null
+    // 列幅は固定にすると札名が重なるので、ヘッダ側は内容に合わせた自動幅のままにする。
+    // 表を2つに分けている以上その幅は本体に伝わらないので、ヘッダで決まった列幅を
+    // 実測して本体へ渡す。本体のセルは必ず小数点2桁の数値で、幅を押し広げることが
+    // ないため、これは「ヘッダ → 本体」の一方向で完結する(測り合うループにならない)。
+    const headerTableRef = ref<HTMLTableElement | null>(null)
+    const bodyColumnWidths = ref<number[]>([])
 
-    const emitHeaderHeight = () => {
-      if (theadRef.value) {
-        // Math.ceil avoids subpixel undershoot that leaves the receiver's bottom edge 1px short
-        emit('header-height-change', Math.ceil(theadRef.value.getBoundingClientRect().height))
+    const bodyTableStyle = computed<CSSProperties>(() =>
+      bodyColumnWidths.value.length
+        ? {
+            tableLayout: 'fixed',
+            width: `${bodyColumnWidths.value.reduce((total, w) => total + w, 0)}px`,
+          }
+        : {},
+    )
+
+    // 海域ラベルの行(area/tag どちらのモードでも thead の2行目)は、展開中のグループが
+    // 1海域=1セル、折りたたみ中のグループが colspan でまとめた1セルになっている。
+    // これを列単位にほどくと、本体の列と1対1で対応する幅の並びが得られる。
+    const measureHeaderColumns = () => {
+      const row = headerTableRef.value?.tHead?.rows[1]
+      if (!row) return
+
+      const widths: number[] = []
+      for (const cell of Array.from(row.cells)) {
+        const width = cell.getBoundingClientRect().width
+        if (width <= 0) return // 非表示中は測れないので、その回は見送る
+        widths.push(...distributeSpanWidth(width, cell.colSpan || 1))
       }
+
+      const current = bodyColumnWidths.value
+      const unchanged =
+        widths.length === current.length &&
+        widths.every((w, i) => Math.abs(w - current[i]) < 0.5)
+      if (!unchanged) bodyColumnWidths.value = widths
     }
+
+    let headerObserver: ResizeObserver | null = null
+
+    // 並べ替えや展開/格納でヘッダの列構成が変わったら測り直す
+    watch([sortByMode, expandedStageNums, tagGroups, stageGroups], () => {
+      nextTick(measureHeaderColumns)
+    })
 
     onMounted(() => {
       // fetchAllSpAttackData is called by watcher in composable or manually?
@@ -332,25 +397,20 @@ export default defineComponent({
         fetchAllSpAttackData()
       }
 
-      if (theadRef.value) {
-        resizeObserver = new ResizeObserver(() => {
-          // Re-measure via getBoundingClientRect to include subpixel-rounded outer height
-          emitHeaderHeight()
-        })
-        resizeObserver.observe(theadRef.value)
+      if (headerTableRef.value) {
+        headerObserver = new ResizeObserver(measureHeaderColumns)
+        headerObserver.observe(headerTableRef.value)
       }
-
-      // Ensure correct height after fonts/styles fully settle
-      nextTick(() => emitHeaderHeight())
+      nextTick(measureHeaderColumns)
+      // 日本語フォントの読み込みで札名の幅が変わるため、確定後にもう一度測る
       if (typeof document !== 'undefined' && document.fonts) {
-        document.fonts.ready.then(() => emitHeaderHeight())
+        document.fonts.ready.then(measureHeaderColumns)
       }
     })
 
     onUnmounted(() => {
-      if (resizeObserver) {
-        resizeObserver.disconnect()
-      }
+      headerObserver?.disconnect()
+      headerObserver = null
       cancelPendingSort()
     })
 
@@ -371,16 +431,6 @@ export default defineComponent({
     })
 
 
-
-    // Watchers to sync header height
-    watch(
-      [sortByMode, expandedStageNums, tagGroups],
-      () => {
-        nextTick(() => {
-          emitHeaderHeight()
-        })
-      },
-    )
 
     // Emit loading state
     watch(loading, (newVal) => {
@@ -412,8 +462,19 @@ export default defineComponent({
       padding: TABLE_STYLE.padding,
       whiteSpace: TABLE_STYLE.whiteSpace,
     }
+    // 表本体は縦方向の余白を詰める(タイトル行は cellStyle のまま)
+    const bodyCellStyle = {
+      padding: TABLE_STYLE.bodyPadding,
+      whiteSpace: TABLE_STYLE.whiteSpace,
+    }
     const headerStyle = {
       fontSize: TABLE_STYLE.fontSize,
+    }
+    // 該当なしの行。通常の行と同じ高さにして、他の2表と行がずれないようにする。
+    const emptyRowStyle = {
+      ...rowStyle,
+      height: `${TABLE_STYLE.rowHeight}px`,
+      boxSizing: 'border-box' as const,
     }
     const getCellStyle = (spAttackData: number | undefined) => {
       let backgroundColor = 'rgb(255, 255, 255)'
@@ -429,7 +490,7 @@ export default defineComponent({
         }
       }
       return {
-        ...cellStyle,
+        ...bodyCellStyle,
         backgroundColor,
       }
     }
@@ -451,7 +512,9 @@ export default defineComponent({
       loading,
       rowStyle,
       cellStyle,
+      bodyCellStyle,
       headerStyle,
+      emptyRowStyle,
       getCellStyle,
       sortKey,
       sortOrder,
@@ -468,7 +531,9 @@ export default defineComponent({
       closeFleetGuide,
       tagMap,
       getTextColor,
-      theadRef,
+      headerTableRef,
+      bodyColumnWidths,
+      bodyTableStyle,
       formatSpAttackValue,
       sortByMode,
       toggleSortMode,
@@ -489,61 +554,65 @@ export default defineComponent({
 /* Refined: full grid retained for column tracking, but with collapse to eliminate
    subpixel border misalignment. Sticky header borders are drawn via inset
    box-shadow so they don't detach during scroll. */
+/* overflow:hidden は使わない。祖先に overflow が付くと子孫の position:sticky が
+   効かなくなり、ヘッダのスクロール固定が死ぬため。
+   罫線はすべて inset shadow で描くので、border-collapse は separate + spacing 0 で足りる
+   (collapse は sticky なヘッダで罫線が消える不具合があるため避ける)。 */
 table.sp-attack-table {
-  border-collapse: collapse !important;
+  border-collapse: separate;
+  border-spacing: 0;
   border: 0 !important;
-  border-radius: 6px;
-  overflow: hidden;
   box-shadow: 0 0 0 1px var(--table-border, #e5e7eb);
-  /* Auto width based on summed column widths so it doesn't expand to viewport edge */
-  width: auto !important;
-  table-layout: auto;
 }
 
+/* 罫線は inset shadow で描く。外周は表の box-shadow が1本引いているので、
+   端の列・端の行では引かない(引くと外枠だけ2pxになり他の表と太さが揃わない)。
+   2本を別々のカスタムプロパティに分けて、規則ごとの詳細度を気にせず合成する。 */
 table.sp-attack-table th,
 table.sp-attack-table td {
   border: 0 !important;
-  /* Single shared grid via inset shadows — no double-border or misalignment */
   box-shadow:
-    inset -1px 0 0 var(--table-border, #e5e7eb),
-    inset 0 -1px 0 var(--table-border, #e5e7eb);
+    var(--cell-bottom, 0 0 0 0 transparent),
+    var(--cell-right, 0 0 0 0 transparent);
 }
 
-table.sp-attack-table thead th {
-  /* Sticky-safe: header keeps full edges even while scrolling */
-  box-shadow:
-    inset -1px 0 0 var(--table-border, #e5e7eb),
-    inset 0 -1px 0 var(--table-border, #e5e7eb),
-    inset 0 1px 0 var(--table-border, #e5e7eb);
+table.sp-attack-table th:not(:last-child),
+table.sp-attack-table td:not(:last-child) {
+  --cell-right: inset -1px 0 0 var(--table-border, #e5e7eb);
 }
 
-/* Compact, stable column widths — prevents expand/collapse from inflating cells.
-   :not([colspan]) excludes parent group headers (E-X, tagName) so they auto-size
-   to the sum of their leaf columns. */
-table.sp-attack-table th.sp-col:not([colspan]),
-table.sp-attack-table td.sp-col:not([colspan]) {
-  min-width: 56px;
+table.sp-attack-table thead tr:not(:last-child) th,
+table.sp-attack-table tbody tr:not(:last-child) td {
+  --cell-bottom: inset 0 -1px 0 var(--table-border, #e5e7eb);
+}
+
+/* ヘッダは内容に合わせて幅が決まる。札名を折り返さないので文字が重ならない。
+   ここで決まった列幅を実測して本体の colgroup に渡している。 */
+table.sp-attack-table--header {
+  table-layout: auto;
+  width: auto;
+}
+
+table.sp-attack-table th.sp-col {
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+/* 本体のセルは必ず小数点2桁の数値なので、列幅を押し広げることはない */
+table.sp-attack-table td.sp-col {
+  overflow: hidden;
   box-sizing: border-box;
   word-break: keep-all;
 }
 
-/* Body cells hold short numeric values — cap them to keep columns compact */
-table.sp-attack-table td.sp-col:not([colspan]) {
-  max-width: 56px;
-  overflow: hidden;
+/* 折りたたんだ海域グループのプレースホルダ。中身が無いので、
+   見出し(E-1 等)が読める幅をヘッダ側で確保する。 */
+table.sp-attack-table--header th.sp-col-collapsed {
+  min-width: 100px;
 }
 
-/* Header tag-pill cells: let the column grow just enough to fit pill labels */
-table.sp-attack-table thead th.sp-col:not([colspan]) {
-  white-space: nowrap;
-}
-
-/* Collapsed group placeholders: keep the whole column group minimal */
 table.sp-attack-table th.sp-col-collapsed,
 table.sp-attack-table td.sp-col-collapsed {
-  width: 16px !important;
-  min-width: 16px !important;
-  max-width: 16px !important;
   padding: 0 !important;
 }
 </style>

@@ -1,13 +1,18 @@
 // src/constants/tableStyle.ts
 
-// 行の高さ（px）— 密度はほぼ維持しつつ可読性を上げるため微増
-export const TABLE_ROW_HEIGHT = 32
+// 表本体の行の高さ（px）— 1画面に入る行数を増やすため、余白を詰めて約2割低くしている
+export const TABLE_ROW_HEIGHT = 26
 
 // フォントサイズ（CSSの文字列指定）
 export const TABLE_FONT_SIZE = '12px'
 
 // セル内のパディング — 横方向に余白を増やして読みやすさを向上
 export const TABLE_PADDING = '4px 8px'
+
+// 表本体のセルのパディング。行を低くした分、縦方向だけ詰める。
+// ここを詰めないと、セルの中身(増減ボタン等)の高さが行の高さを上回って
+// TABLE_ROW_HEIGHT が効かなくなる。タイトル行は TABLE_PADDING のまま。
+export const TABLE_BODY_PADDING = '2px 8px'
 
 // ヘッダーの高さ
 export const TABLE_HEADER_HEIGHT = 42
@@ -24,6 +29,7 @@ export const TABLE_STYLE = {
   headerHeight: TABLE_HEADER_HEIGHT,
   fontSize: TABLE_FONT_SIZE,
   padding: TABLE_PADDING,
+  bodyPadding: TABLE_BODY_PADDING,
   width: TABLE_WIDTH,
   whiteSpace: TABLE_WHITE_SPACE,
 }

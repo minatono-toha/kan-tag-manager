@@ -1,8 +1,12 @@
 <template>
   <div>
-    <div v-if="loading">読み込み中...</div>
-    <table v-else class="text-sm border-collapse border border-gray-300">
-      <thead class="bg-gray-100 sticky top-0 z-10" :style="theadStyle" ref="theadRef">
+    <!-- ヘッダ行は縦スクロールしないヘッダ帯へ送る。3表のヘッダが同じ flex 行に並ぶので
+         高さがブラウザ側で自動的に揃い、実測して配り直す必要がない。
+         送り先が無いとき(単体テスト等)はその場に描画する。 -->
+    <Teleport :to="headerTarget || 'body'" :disabled="!headerTarget" defer>
+      <table class="ship-list-table text-sm" :style="tableStyle">
+        <TableColgroup :widths="columnWidths" />
+        <thead class="bg-gray-100">
         <tr>
           <th v-if="displayMode === 'detail' && SHOW_LIBRARY_ID" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top bg-gray-100">図鑑ID</th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="shipTypeFilter.length > 0 ? 'filter-active' : 'bg-gray-100'">
@@ -18,10 +22,10 @@
             </span>
           </th>
           <th :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="searchQuery.trim() ? 'filter-active' : 'bg-gray-100'">
-            <div>艦名</div>
-            <!-- 注記は折り返す。nowrap のままだと一行に伸びて艦名列の幅を押し広げてしまう。 -->
+            <div class="font-bold">艦名</div>
+            <!-- 注記は1行に収める。収まる幅は SHIP_LIST_COLUMNS.name で確保している。 -->
             <div class="ship-name-note font-normal text-gray-500">
-              ※が付与されている艦は改装段階によって特攻倍率が変動するため行を分けています
+              改装段階によって特攻倍率が変動する艦に※を付けています
             </div>
             <span
               @click="toggleSearch($event)"
@@ -70,7 +74,13 @@
             </span>
           </th>
         </tr>
-      </thead>
+        </thead>
+      </table>
+    </Teleport>
+
+    <div v-if="loading">読み込み中...</div>
+    <table v-else class="ship-list-table text-sm" :style="tableStyle">
+      <TableColgroup :widths="columnWidths" />
       <tbody>
         <tr
           v-for="ship in ships"
@@ -88,9 +98,9 @@
           class="hover:bg-gray-100"
           :class="getRowClass(ship.orig, ship.shipIndex)"
         >
-          <td v-if="displayMode === 'detail' && SHOW_LIBRARY_ID" :style="cellStyle" class="border">{{ ship.libraryId }}</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ getDisplayShip(ship).shipType }}</td>
-          <td :style="cellStyle" class="border">
+          <td v-if="displayMode === 'detail' && SHOW_LIBRARY_ID" :style="bodyCellStyle" class="border">{{ ship.libraryId }}</td>
+          <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">{{ getDisplayShip(ship).shipType }}</td>
+          <td :style="bodyCellStyle" class="border">
             <div class="flex items-center gap-2">
               <!-- Increment/Decrement buttons -->
               <div class="flex flex-row gap-1" @click.stop>
@@ -106,9 +116,14 @@
                 >-</button>
               </div>
               <!-- Ship name with ownership indicators -->
-              <div class="flex-1 flex items-center justify-between">
+              <div class="flex-1 min-w-0 flex items-center justify-between">
                  <!-- Name Display -->
-                 <div class="cursor-pointer flex-grow" @click.stop="openModal(ship.orig, ship.shipIndex)">
+                 <!-- 列幅が固定なので、長い艦名は省略して隣の列を押し出さないようにする -->
+                 <div
+                   class="cursor-pointer flex-grow min-w-0 truncate"
+                   :title="getDisplayShip(ship).name"
+                   @click.stop="openModal(ship.orig, ship.shipIndex)"
+                 >
                     <span :class="{ 'line-through text-gray-400': ship.ownershipCount === 0 }">
                       {{ getDisplayShip(ship).name }}<template v-if="ship.isSpGroupSplit">※</template>
                     </span>
@@ -125,12 +140,14 @@
               </div>
             </div>
           </td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.class }}</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ ship.speed }}</td>
-          <td v-if="displayMode === 'detail'" :style="cellStyle" class="border">{{ groundAtkLabel(getDisplayShip(ship)) }}</td>
+          <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">{{ ship.class }}</td>
+          <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">{{ ship.speed }}</td>
+          <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">{{ groundAtkLabel(getDisplayShip(ship)) }}</td>
         </tr>
-        <tr v-if="filteredShips.length === 0">
-          <td :colspan="columnCount" :style="cellStyle" class="border text-center py-4 text-gray-500">
+        <!-- 該当なしの行も通常の行と同じ高さにする(他の2表と行がずれるため、
+             余白を足して高くしない) -->
+        <tr v-if="filteredShips.length === 0" :style="{ ...rowStyle, ...rowBoxSizing }">
+          <td :colspan="columnCount" :style="bodyCellStyle" class="border text-center text-gray-500">
             {{ emptyStateMessage }}
           </td>
         </tr>
@@ -246,6 +263,13 @@ import type { CSSProperties } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import type { Ship, ExpandedShip, TagManagement } from '@/types/interfaces'
 import { TABLE_STYLE } from '@/constants/tableStyle'
+import {
+  SHIP_LIST_COLUMNS,
+  SHOW_LIBRARY_ID,
+  visibleShipListColumns,
+  shipListTableWidth,
+} from '@/constants/shipListColumns'
+import TableColgroup from '@/components/common/TableColgroup.vue'
 import FilterPopup from '@/components/common/FilterPopup.vue'
 import SearchIcon from '@/components/common/SearchIcon.vue'
 import FilterIcon from '@/components/common/FilterIcon.vue'
@@ -257,7 +281,8 @@ import { hasSpGroupSplit } from '@/utils/shipSort'
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
   loading?: boolean
-  targetHeaderHeight?: number
+  // ヘッダ行の送り先(ヘッダ帯)のセレクタ。未指定ならヘッダをその場に描画する。
+  headerTarget?: string | null
   hasFiltersSelected: boolean
   displayMode: 'detail' | 'nameOnly'
   selectedEventId: number | null
@@ -269,6 +294,7 @@ const props = withDefaults(defineProps<{
   sourceShips: ExpandedShip[]
 }>(), {
   theme: 'light',
+  headerTarget: null,
   allShips: () => []
 })
 
@@ -278,7 +304,6 @@ const emit = defineEmits<{
   (e: 'increment-ship', orig: number): void
   (e: 'decrement-ship', orig: number): void
   (e: 'update-variant', orig: number, shipIndex: number, variantId: number): void
-  (e: 'header-height-change', height: number): void
 }>()
 
 function openModal(orig: number, shipIndex: number) {
@@ -377,9 +402,6 @@ const currentTarget = ref<{ orig: number; shipIndex: number; ship: ExpandedShip 
 const currentTargetHasSplit = computed(() =>
   currentTarget.value ? hasSpGroupSplit(props.allShips, currentTarget.value.ship.orig) : false,
 )
-
-// 図鑑ID列は現在非表示。再表示は true に戻すだけでよいよう、列自体は残してある。
-const SHOW_LIBRARY_ID = false
 
 // 詳細表示の列数(空表示行の colspan 用)。艦種 / 艦名 / 艦型・艦番 / 速力 / 対地装備。
 const columnCount = computed(() => {
@@ -652,57 +674,40 @@ const cellStyle = {
   whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
-// table-cell の height は「下限」として働くので、艦名の注記2行目で内容のほうが高くなれば
-// ヘッダはその分伸びる。伸びた実高さは下で親へ返し、親が3つの表の最大値で揃え直す
-// (揃えないと特攻表・札管理表と行がズレる)。
-const headerStyle = computed<CSSProperties>(() => {
-  const h = props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`
-  return {
-    height: h,
-    minHeight: h,
-    fontSize: TABLE_STYLE.fontSize,
-    boxSizing: 'border-box',
-  }
-})
-
-const theadStyle = computed<CSSProperties>(() => ({
-  height: props.targetHeaderHeight ? `${props.targetHeaderHeight}px` : `${TABLE_STYLE.headerHeight}px`,
-}))
-
-// ヘッダの実測値を親に返す(特攻表と行がズレないように、親が最大値で揃える)。
-// 同値なら emit しないので、親 → targetHeaderHeight → 再測定 のループにはならない。
-const theadRef = ref<HTMLElement | null>(null)
-const lastReportedHeight = ref(0)
-const reportHeaderHeight = () => {
-  if (!theadRef.value) return
-  const h = Math.ceil(theadRef.value.getBoundingClientRect().height)
-  if (h > 0 && h !== lastReportedHeight.value) {
-    lastReportedHeight.value = h
-    emit('header-height-change', h)
-  }
+// 表本体は縦方向の余白を詰める(タイトル行は cellStyle のまま)
+const bodyCellStyle = {
+  padding: TABLE_STYLE.bodyPadding,
+  whiteSpace: TABLE_STYLE.whiteSpace,
 }
 
-let headerObserver: ResizeObserver | null = null
-onMounted(() => {
-  if (!theadRef.value) return
-  headerObserver = new ResizeObserver(reportHeaderHeight)
-  headerObserver.observe(theadRef.value)
-  reportHeaderHeight()
-})
-onUnmounted(() => {
-  headerObserver?.disconnect()
-  headerObserver = null
-})
+// table-cell の height は「下限」として働く。3表とも同じ下限を使うので、
+// 内容が短いヘッダ同士でも高さが揃う。内容が高ければその分だけ自然に伸びる。
+const headerStyle: CSSProperties = {
+  height: `${TABLE_STYLE.headerHeight}px`,
+  fontSize: TABLE_STYLE.fontSize,
+  boxSizing: 'border-box',
+}
 
+// ヘッダ用と本体用の2つのテーブルに同じ列幅を与える(表を分けた以上 auto は使えない)
+const columnWidths = computed(() =>
+  visibleShipListColumns(props.displayMode, SHOW_LIBRARY_ID).map((key) => SHIP_LIST_COLUMNS[key]),
+)
+const tableStyle = computed<CSSProperties>(() => ({
+  tableLayout: 'fixed',
+  width: `${shipListTableWidth(props.displayMode, SHOW_LIBRARY_ID)}px`,
+}))
 </script>
 
 <style scoped>
 /* Refined: horizontal row dividers only, zebra striping, no vertical borders */
+/* overflow:hidden は使わない。祖先に overflow が付くと子孫の position:sticky が
+   効かなくなり、ヘッダのスクロール固定が死ぬため。
+   罫線はすべて inset shadow で描くので、border-collapse は separate + spacing 0 で足りる
+   (collapse は sticky なヘッダで罫線が消える不具合があるため避ける)。 */
 table {
-  border-collapse: collapse !important;
+  border-collapse: separate;
+  border-spacing: 0;
   border: 0 !important;
-  border-radius: 6px;
-  overflow: hidden;
   box-shadow: 0 0 0 1px var(--table-border, #e5e7eb);
 }
 
@@ -710,15 +715,23 @@ th, td {
   border: 0 !important;
 }
 
-/* Header bottom edge — drawn via inset shadow so sticky scroll keeps it intact */
+/* ヘッダの罫線は inset shadow で描く(sticky でスクロールしても消えない)。
+   3本を別々のカスタムプロパティに分けているのは、高さ揃えの詰め物行が入って
+   「最終行かどうか」が変わっても、規則ごとの詳細度を気にせず合成できるようにするため。 */
 thead th {
-  box-shadow: inset 0 -1px 0 var(--table-border, #e5e7eb);
+  box-shadow:
+    var(--th-accent, 0 0 0 0 transparent),
+    var(--th-bottom, 0 0 0 0 transparent),
+    var(--th-right, 0 0 0 0 transparent);
+}
+
+/* 下端はヘッダの最終行だけが描く。詰め物行があるときはそちらが担当する。 */
+thead tr:last-child th {
+  --th-bottom: inset 0 -1px 0 var(--table-border, #e5e7eb);
 }
 
 thead th:not(:last-child) {
-  box-shadow:
-    inset 0 -1px 0 var(--table-border, #e5e7eb),
-    inset -1px 0 0 var(--table-border, #e5e7eb);
+  --th-right: inset -1px 0 0 var(--table-border, #e5e7eb);
 }
 
 /* Horizontal row separators */
@@ -758,24 +771,21 @@ tbody tr:nth-child(even):not(.row-assigned):not(.row-preserve) {
 
 /* Active filter column: top accent bar instead of full-cell shading */
 thead th.filter-active {
-  box-shadow:
-    inset 0 2px 0 var(--table-accent, #6366f1),
-    inset 0 -1px 0 var(--table-border, #e5e7eb);
+  --th-accent: inset 0 2px 0 var(--table-accent, #6366f1);
 }
 
-thead th.filter-active:not(:last-child) {
-  box-shadow:
-    inset 0 2px 0 var(--table-accent, #6366f1),
-    inset 0 -1px 0 var(--table-border, #e5e7eb),
-    inset -1px 0 0 var(--table-border, #e5e7eb);
+/* 列幅が固定なので、収まらない内容はセル内で省略する(隣の列を押し出さない) */
+tbody td {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* 艦名ヘッダの注記(※の説明)。本文より一段階小さく、折り返して艦名列の幅を広げない。 */
+/* 艦名ヘッダの注記(※の説明)。本文より一段階小さく、1行に収める。
+   収まる幅は SHIP_LIST_COLUMNS.name 側で確保しているので、ここでは折り返さない。 */
 .ship-name-note {
   font-size: 10px;
   line-height: 1.25;
-  white-space: normal;
-  max-width: 240px;
+  white-space: nowrap;
   margin-top: 2px;
 }
 
