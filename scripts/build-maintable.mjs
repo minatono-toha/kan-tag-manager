@@ -12,6 +12,7 @@ const eventId = Number(process.argv[2] ?? 3)
 
 const rules = (await import(`../data/events/event${eventId}.rules.mjs`)).default
 const { TYPE_SETS } = await import(`../data/events/event${eventId}.rules.mjs`)
+const CATEGORY_OVERRIDE = (await import(`../data/events/event${eventId}.rules.mjs`)).CATEGORY_OVERRIDE ?? {}
 const readMaster = (n) => JSON.parse(readFileSync(join(ROOT, 'data', 'master', `${n}.json`), 'utf8'))
 const shiplist = readMaster('shiplist')
 const eventmap = readMaster('eventmap')
@@ -55,10 +56,11 @@ for (const g of groups.values()) {
   g.forms.sort((a, b) => a.bannerId - b.bannerId)
   g.rep = g.forms[0] // bannerId 最小。国籍・艦種・並び順の引き当て用(表示名は下で libraryId 最小から取る)
   g.nationality = nationalityOf(g.rep)
-  g.category = g.rep.shipTypeCategory
   // 表示名は libraryId 最小の形態(=基本形)。代表形態が「◯◯改」になる艦があるため分ける。
   // 分割したグループは、どの形態の行か分かるようにラベルを使う。
   g.name = SP_GROUP_SPLITS[g.gid]?.label ?? [...g.forms].sort((a, b) => a.libraryId - b.libraryId)[0].name
+  // 艦種は代表形態から引くが、形態で割れるグループは CATEGORY_OVERRIDE で明示指定した艦種を優先する。
+  g.category = CATEGORY_OVERRIDE[g.name] ?? g.rep.shipTypeCategory
 }
 
 // --- 艦名 -> 特攻グループ群 ---
@@ -144,6 +146,7 @@ const rateSignature = (category) =>
     ])
     .join(',')
 for (const g of groups.values()) {
+  if (CATEGORY_OVERRIDE[g.name]) continue // 艦種を明示指定済み(暫定でその艦種の値を採用)なので警告しない
   const cats = [...new Set(g.forms.map((f) => f.shipTypeCategory))]
   if (cats.length < 2) continue
   if (new Set(cats.map(rateSignature)).size < 2) continue // 同じ倍率区分なら問題なし(例: 伊勢=戦艦/航空戦艦)

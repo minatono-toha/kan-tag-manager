@@ -3,7 +3,7 @@
 // 計算式: セルの値 = (全図の艦種倍率) × (全図のグループ倍率) × (ボス地点の艦種倍率) × (ボス地点のグループ倍率)
 // 同一区分内の倍率は重複しない(艦種は1つ、グループは所属分だけ全て掛ける)。
 //
-// 出典: https://docs.google.com/document/d/1cJ66SdOAH_EIerB3OuGH05lXk7bTl45VGlwbYZRCqDg/ (7/17 反映)
+// 出典: https://docs.google.com/document/d/1cJ66SdOAH_EIerB3OuGH05lXk7bTl45VGlwbYZRCqDg/ (7/21 後段追加)
 //   → この数値が正。ここを直せば表全体が直る。
 // 検算: 特効艦まとめ前段暫定V02/X02 (R8.7.13) の画像
 //   → 画像から読み取った値を checks に置き、生成結果と食い違ったら out/report.md に出す。
@@ -28,10 +28,24 @@ export const TYPE_SETS = {
   // になっている画像から、軽空母を含むと判断した。
   'CV系': ['正規空母', '装甲空母', '空母', '軽空母'],
   'CA系': ['重巡洋艦', '航空巡洋艦'],
+  // E4 は重巡と航巡でボス倍率が割れる(P1bossD で CA 1.13 / CAV 1.06)ため CA系 を分ける。
+  // 注意: 利根/筑摩/最上/三隈は同一グループ内に重巡形態と航巡形態が混在する。maintable は
+  //       グループ単位で1行=1艦種のため、これらは代表形態の艦種で一括評価される(下の警告で検出)。
+  CA: ['重巡洋艦'],
+  CAV: ['航空巡洋艦'],
   'BB系': ['戦艦', '高速戦艦', '航空戦艦'],
   AV: ['水上機母艦'],
   AS: ['潜水母艦'],
   SS: ['潜水艦', '潜水空母'],
+}
+
+// 形態で艦種が割れるグループの、特攻計算上の艦種を明示指定する(暫定)。
+// 利根/最上型は基本形が重巡だが、後段(E4)では CA(重巡)1.13 と CAV(航巡)1.06 が割れる。
+// これらは航巡形態で運用する前提で、低い CAV 側の値を採用する。
+// E1〜E3 は CA系(重巡+航巡)でまとめているため、航巡扱いにしても前段の値は変わらない。
+export const CATEGORY_OVERRIDE = {
+  利根: '航空巡洋艦', 筑摩: '航空巡洋艦', 最上: '航空巡洋艦',
+  三隈: '航空巡洋艦', 熊野: '航空巡洋艦', 鈴谷: '航空巡洋艦',
 }
 
 const 三十一戦隊A = [
@@ -180,6 +194,68 @@ export default {
             ウルシーC: 1.2096, // 出典に 1.08×1.12=1.2096 と明記
           },
         },
+      ],
+    },
+    // === 後段作戦(欧州海域) ===
+    // 後段は国籍別特攻が主体。出典は多くの値に「?」を付けており暫定。?付きの値も出典どおり採用し、
+    // ここに注記する。装備由来(舰载机A/B、大発系、内火艇等)は前段同様 maintable の対象外。
+    {
+      stage: 'E4',
+      // 友軍は仏艦隊。国籍倍率の対象は 意/英/独/ソ/米/瑞。仏は個艦指定のみで国籍倍率は無い。
+      groups: {
+        伊艦: { nationality: 'IT' },
+        英艦: { nationality: 'GB' },
+        独艦: { nationality: 'DE' },
+        ソ連艦: { nationality: 'RU' },
+        米艦: { nationality: 'US' },
+        瑞艦: { nationality: 'SE' },
+        // 単独艦。出典は仏艦の値に ? を付けている(暫定)。足柄のみ確定値。
+        足柄: { ships: ['足柄'] },
+        Mogador: { ships: ['Mogador'] },
+        Gloire: { ships: ['Gloire'] },
+        Richelieu: { ships: ['Richelieu'] },
+        'Jean Bart': { ships: ['Jean Bart'] },
+      },
+      mapWide: {
+        types: { DD: 1.04, CL: 1.06, AV: 1.08 },
+        groups: {
+          伊艦: 1.19, 英艦: 1.15, 独艦: 1.08, ソ連艦: 1.06, 米艦: 1.06, 瑞艦: 1.06,
+          足柄: 1.11,
+          Mogador: 1.66, Gloire: 1.64, Richelieu: 1.7, 'Jean Bart': 1.77, // 出典は全て ?付き
+        },
+      },
+      // mapId 11=D(P1boss) 12=N(P2boss) 13=S(P3boss) 14=X(P4boss) 15=Z(P5boss)
+      // N/X/Z はボス固有の艦特攻が無い(N=未記載, X=装備のみ, Z=未記載)が、全図倍率を載せるため node は置く。
+      nodes: [
+        { mapIds: [11], types: { DD: 1.06, CA: 1.13, CAV: 1.06 }, groups: {} },
+        { mapIds: [12], types: {}, groups: {} },
+        { mapIds: [13], types: { DD: 1.07, CA: 1.11, CAV: 1.07 }, groups: {} }, // 出典は全て ?付き(暫定)
+        { mapIds: [14], types: {}, groups: {} },
+        { mapIds: [15], types: {}, groups: {} },
+      ],
+    },
+    {
+      stage: 'E5',
+      // 国籍倍率の対象は ソ/米/意。独は出典が「? (値未記載)」のため載せない。英は P1 のみ。
+      groups: {
+        ソ連艦: { nationality: 'RU' },
+        米艦: { nationality: 'US' },
+        伊艦: { nationality: 'IT' },
+        英艦: { nationality: 'GB' },
+        足柄: { ships: ['足柄'] },
+      },
+      mapWide: {
+        types: { DD: 1.04, CL: 1.06, AV: 1.08 },
+        groups: { ソ連艦: 1.06, 米艦: 1.06, 伊艦: 1.04, 足柄: 1.11 },
+      },
+      // mapId 16=G(P1boss) 17=J2(P2boss) 18=S(P3boss) 19=ZZ(P4boss)
+      // 出典「P1部分 英 1.45?」は地点が曖昧(部分表記)かつ ?付き。P1boss=G に暫定で載せる。
+      // S/ZZ はボス固有の艦特攻が未記載。全図倍率を載せるため node は置く。
+      nodes: [
+        { mapIds: [16], types: {}, groups: { 英艦: 1.45 } }, // 暫定: P1部分 英 1.45?
+        { mapIds: [17], types: { DD: 1.12, CL: 1.12 }, groups: {} }, // P2bossJ2。AV は ?(値未記載)のため省略
+        { mapIds: [18], types: {}, groups: {} },
+        { mapIds: [19], types: {}, groups: {} },
       ],
     },
   ],
