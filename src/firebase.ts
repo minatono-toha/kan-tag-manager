@@ -10,7 +10,6 @@ const firebaseConfig = {
   storageBucket: 'kan-tag-manager-backend.firebasestorage.app',
   messagingSenderId: '643695827033',
   appId: '1:643695827033:web:65ce3f62822d2adfce3948',
-  measurementId: 'G-T70106DCYY',
 }
 
 const app = initializeApp(firebaseConfig)
