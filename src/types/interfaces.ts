@@ -59,6 +59,9 @@ export interface Event {
   tagging1: string
   tagging2: string
   tagging3: string
+  // ボスマスごとの編成指南。未設定の eventmap ドキュメントもあるため optional。
+  // fc_text と同様 v-html で描画するため <br> 等のHTMLを含められる
+  fleetGuide?: string
   // mapId_N を統一的に扱う(列数は eventmap のボス地点数に依存し固定上限は無い)
   [key: `mapId_${number}`]: number
 }

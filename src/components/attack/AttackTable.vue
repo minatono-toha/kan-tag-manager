@@ -25,8 +25,10 @@
                     v-for="map in group.maps"
                     :key="'mapId-' + map.mapId"
                     :style="cellStyle"
-                    class="border sp-col text-center cursor-pointer align-top bg-gray-100"
-                    @click="sortBy(`mapId_${map.mapId}`)"
+                    class="border sp-col text-center cursor-pointer align-top bg-gray-100 select-none"
+                    :title="map.fleetGuide ? 'ダブルクリックで編成指南を表示' : undefined"
+                    @click="handleMapHeaderClick(map)"
+                    @dblclick="handleMapHeaderDblClick($event, map)"
                   >
                     {{ formatStageLabel(map) }}
                     <span v-if="sortKey === `mapId_${map.mapId}`">{{
@@ -100,8 +102,10 @@
                     v-for="(map, index) in group.maps"
                     :key="'tagMap-' + group.tagId + '-' + map.mapId + '-' + index"
                     :style="cellStyle"
-                    class="border sp-col text-center cursor-pointer align-top"
-                    @click="sortBy(`mapId_${map.mapId}`)"
+                    class="border sp-col text-center cursor-pointer align-top select-none"
+                    :title="map.fleetGuide ? 'ダブルクリックで編成指南を表示' : undefined"
+                    @click="handleMapHeaderClick(map)"
+                    @dblclick="handleMapHeaderDblClick($event, map)"
                   >
                     {{ formatStageLabel(map) }}
                     <span v-if="sortKey === `mapId_${map.mapId}`">{{
@@ -193,6 +197,15 @@
         </tbody>
       </table>
     </div>
+
+    <FleetGuidePopup
+      :show="fleetGuide.show"
+      :x="fleetGuide.x"
+      :y="fleetGuide.y"
+      :title="fleetGuide.title"
+      :content="fleetGuide.content"
+      @close="closeFleetGuide"
+    />
   </div>
 </template>
 
@@ -202,9 +215,11 @@ import { TABLE_STYLE } from '@/constants/tableStyle'
 import type { Event, ExpandedShip } from '@/types/interfaces'
 import { useAttackData } from '@/composables/useAttackData'
 import { contrastingTextColor } from '@/utils/color'
+import FleetGuidePopup from './FleetGuidePopup.vue'
 
 export default defineComponent({
   name: 'AttackTable',
+  components: { FleetGuidePopup },
   props: {
     filteredUniqueOrigs: {
       type: Array as () => ExpandedShip[],
@@ -255,6 +270,49 @@ export default defineComponent({
 
     const getTextColor = contrastingTextColor
 
+    // --- 編成指南(fleetGuide)のポップアップ -------------------------------
+    const fleetGuide = ref({ show: false, x: 0, y: 0, title: '', content: '' })
+
+    // ダブルクリックは click を2回発火させてしまうため、ソートは少し遅らせて
+    // 2打目が来たらキャンセルする(ダブルクリックで並び順が動かないようにする)。
+    const DOUBLE_CLICK_GRACE_MS = 220
+    let pendingSortTimer: ReturnType<typeof setTimeout> | null = null
+
+    const cancelPendingSort = () => {
+      if (pendingSortTimer !== null) {
+        clearTimeout(pendingSortTimer)
+        pendingSortTimer = null
+      }
+    }
+
+    const handleMapHeaderClick = (map: Event) => {
+      cancelPendingSort()
+      pendingSortTimer = setTimeout(() => {
+        pendingSortTimer = null
+        sortBy(`mapId_${map.mapId}`)
+      }, DOUBLE_CLICK_GRACE_MS)
+    }
+
+    const handleMapHeaderDblClick = (event: MouseEvent, map: Event) => {
+      cancelPendingSort()
+      const content = map.fleetGuide?.trim()
+      if (!content) {
+        fleetGuide.value = { ...fleetGuide.value, show: false }
+        return
+      }
+      fleetGuide.value = {
+        show: true,
+        x: event.clientX,
+        y: event.clientY,
+        title: formatStageLabel(map),
+        content,
+      }
+    }
+
+    const closeFleetGuide = () => {
+      fleetGuide.value = { ...fleetGuide.value, show: false }
+    }
+
     const theadRef = ref<HTMLElement | null>(null)
     let resizeObserver: ResizeObserver | null = null
 
@@ -293,6 +351,7 @@ export default defineComponent({
       if (resizeObserver) {
         resizeObserver.disconnect()
       }
+      cancelPendingSort()
     })
 
     const totalColspan = computed(() => {
@@ -403,6 +462,10 @@ export default defineComponent({
       stageGroups,
       getTagIds,
       formatStageLabel,
+      fleetGuide,
+      handleMapHeaderClick,
+      handleMapHeaderDblClick,
+      closeFleetGuide,
       tagMap,
       getTextColor,
       theadRef,
