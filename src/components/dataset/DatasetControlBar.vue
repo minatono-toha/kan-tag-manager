@@ -1,9 +1,6 @@
 <template>
-  <div
-    class="dataset-control-bar bg-gray-200 border-b border-gray-400 select-none py-1"
-  >
+  <div class="dataset-control-bar bg-gray-200 border-b border-gray-400 select-none py-1">
     <div class="flex items-center px-2 h-full">
-
       <!-- Expanded Content -->
       <div class="flex items-center gap-2 flex-1 w-full justify-between">
         <!-- Left: Controls -->
@@ -76,7 +73,10 @@
             class="px-2 py-1 bg-gray-300 text-gray-800 border border-gray-400 rounded hover:bg-gray-400 text-xs flex items-center gap-1 shadow-sm transition-colors whitespace-nowrap"
             :disabled="loading"
             @mouseenter="
-              handleMouseEnter($event, '艦名のみ、改行区切りのUTF-8形式のCSVを取り込みます')
+              handleMouseEnter(
+                $event,
+                '艦名のみ、改行区切りのCSVを取り込みます (UTF-8 / Shift_JIS 自動判定)',
+              )
             "
             @mouseleave="handleMouseLeave"
           >
@@ -120,6 +120,24 @@
             </svg>
           </a>
           <a
+            href="https://x.com/kan_tag_mng"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center text-gray-500 hover:text-gray-700 transition-colors"
+            title="X (旧Twitter)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path
+                d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+              />
+            </svg>
+          </a>
+          <a
             href="https://tally.so/r/2EaBrD"
             target="_blank"
             rel="noopener noreferrer"
@@ -136,6 +154,13 @@
       v-if="showDestinationModal"
       @select="handleDestinationSelect"
       @cancel="closeDestinationModal"
+    />
+
+    <AmbiguousShipSelectModal
+      v-if="ambiguousPrompt"
+      :prompt="ambiguousPrompt"
+      @select="handleAmbiguousSelect"
+      @cancel="handleAmbiguousCancel"
     />
 
     <ImportResultModal
@@ -175,14 +200,18 @@ import { useDatasetStore } from '@/stores/datasetStore'
 import { useShips } from '@/composables/useShips'
 import { useTagManagement } from '@/composables/useTagManagement'
 import { useTooltip } from '@/composables/useTooltip'
+import { readFileAsText } from '@/utils/textEncodingDetect'
+import type { AmbiguousShipPrompt } from '@/utils/ambiguousShips'
 import ImportDestinationModal from './ImportDestinationModal.vue'
 import ImportResultModal from './ImportResultModal.vue'
+import AmbiguousShipSelectModal from './AmbiguousShipSelectModal.vue'
 
 export default defineComponent({
   name: 'DatasetControlBar',
   components: {
     ImportDestinationModal,
     ImportResultModal,
+    AmbiguousShipSelectModal,
     BaseDialog,
   },
   props: {
@@ -221,8 +250,32 @@ export default defineComponent({
       type: 'alert' as 'alert' | 'confirm',
     })
 
+    // 艦これ上は同名だが艦種違いの艦(Glorious 等)の選択待ち。1隻ずつ順に聞く。
+    const ambiguousPrompt = ref<AmbiguousShipPrompt | null>(null)
+    let ambiguousResolve: ((bannerId: number | null) => void) | null = null
+
+    const resolveAmbiguousShip = (prompt: AmbiguousShipPrompt) =>
+      new Promise<number | null>((resolve) => {
+        ambiguousPrompt.value = prompt
+        ambiguousResolve = resolve
+      })
+
+    const answerAmbiguous = (bannerId: number | null) => {
+      ambiguousPrompt.value = null
+      const resolve = ambiguousResolve
+      ambiguousResolve = null
+      resolve?.(bannerId)
+    }
+
+    const handleAmbiguousSelect = (bannerId: number) => answerAmbiguous(bannerId)
+    const handleAmbiguousCancel = () => answerAmbiguous(null)
+
     const isAnyModalOpen = computed(
-      () => showDestinationModal.value || showResultModal.value || alertDialog.value.show,
+      () =>
+        showDestinationModal.value ||
+        showResultModal.value ||
+        ambiguousPrompt.value !== null ||
+        alertDialog.value.show,
     )
 
     const showAlert = (title: string, message: string) => {
@@ -283,19 +336,20 @@ export default defineComponent({
       fileInput.value?.click()
     }
 
-    const handleFileSelect = (event: Event) => {
+    const handleFileSelect = async (event: Event) => {
       const target = event.target as HTMLInputElement
       const file = target.files?.[0]
       if (!file) return
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        csvContent.value = e.target?.result as string
+      try {
+        csvContent.value = await readFileAsText(file)
         showDestinationModal.value = true
+      } catch {
+        showAlert('エラー', 'ファイルの読み込みに失敗しました')
+      } finally {
         // Reset input so same file can be selected again if needed
         target.value = ''
       }
-      reader.readAsText(file)
     }
 
     const closeDestinationModal = () => {
@@ -325,7 +379,10 @@ export default defineComponent({
             mode,
             allShips.value,
             name,
+            resolveAmbiguousShip,
           )
+          // 艦種選択でキャンセルされた場合は何も取り込まない
+          if (!result) return
           importResult.value = {
             total: result.success + result.excluded.length,
             success: result.success,
@@ -366,6 +423,8 @@ export default defineComponent({
         console.error('Import Failed:', error)
         showAlert('エラー', 'インポートに失敗しました')
       } finally {
+        // 途中で失敗しても艦種選択のモーダルが残らないようにする
+        if (ambiguousPrompt.value) answerAmbiguous(null)
         loading.value = false
         codeText.value = ''
         csvContent.value = ''
@@ -392,6 +451,9 @@ export default defineComponent({
       handleDestinationSelect,
       closeDestinationModal,
       closeResultModal,
+      ambiguousPrompt,
+      handleAmbiguousSelect,
+      handleAmbiguousCancel,
       tooltipState,
       handleMouseEnter,
       handleMouseLeave,

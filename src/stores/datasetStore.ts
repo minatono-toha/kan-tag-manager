@@ -19,6 +19,11 @@ import {
   type FleetAnalysisShip,
 } from '@/utils/jsonUtils'
 import type { ImportMode } from '@/types/ui'
+import {
+  getAmbiguousBannerIds,
+  normalizeShipName,
+  type AmbiguousShipResolver,
+} from '@/utils/ambiguousShips'
 
 interface Dataset {
   id: string
@@ -141,14 +146,7 @@ export const useDatasetStore = defineStore('dataset', () => {
   }
 
   const importDataset = async (options: ImportFleetOptions): Promise<void> => {
-    const {
-      fileContent,
-      newDatasetName,
-      allShips,
-      selectedEventId,
-      stageTagMap,
-      mode,
-    } = options
+    const { fileContent, newDatasetName, allShips, selectedEventId, stageTagMap, mode } = options
     const parsed = parseFleetAnalysisJSON(fileContent)
 
     const originalDB = getActiveDBName()
@@ -209,7 +207,8 @@ export const useDatasetStore = defineStore('dataset', () => {
             orig,
             shipIndex: currentIndex,
             assigned: p.area > 0,
-            targetStage: foundStage && foundTagName ? `${foundStage} (${foundTagName})` : foundStage,
+            targetStage:
+              foundStage && foundTagName ? `${foundStage} (${foundTagName})` : foundStage,
             tagId: p.area,
             preserve: false,
             comment: '',
@@ -217,10 +216,7 @@ export const useDatasetStore = defineStore('dataset', () => {
         }
       }
 
-      await Promise.all([
-        saveUserShipsBulk(userShipBatch),
-        saveTagManagementBulk(tagBatch),
-      ])
+      await Promise.all([saveUserShipsBulk(userShipBatch), saveTagManagementBulk(tagBatch)])
     } catch (e) {
       console.error('Import failed', e)
       await resetDBConnection()
@@ -234,10 +230,7 @@ export const useDatasetStore = defineStore('dataset', () => {
     }
   }
 
-  const exportDataset = async (
-    _allShips: Ship[],
-    selectedEventId: number,
-  ) => {
+  const exportDataset = async (_allShips: Ship[], selectedEventId: number) => {
     const userShips = await getAllUserShips()
     const eventTags = await getAllTagManagementForEvent(selectedEventId)
     const tagManagementMap = new Map<string, TagManagement>()
@@ -274,28 +267,68 @@ export const useDatasetStore = defineStore('dataset', () => {
     return generateFleetAnalysisJSON(result)
   }
 
+  // 艦種の選択でユーザーがキャンセルした場合は null を返す(DBは一切変更しない)。
   const importShipCsv = async (
     csvContent: string,
     mode: ImportMode | 'overwrite' | 'new',
     allShips: Ship[],
     newDatasetName?: string,
-  ): Promise<{ success: number; excluded: string[] }> => {
+    resolveAmbiguous?: AmbiguousShipResolver,
+  ): Promise<{ success: number; excluded: string[] } | null> => {
     const rawNames = csvContent
       .split(/[\r\n,]+/)
       .map((s) => s.trim())
       .filter((s) => s)
 
+    const shipByBannerId = new Map<number, Ship>()
     const nameToShip = new Map<string, Ship>()
     for (const s of allShips) {
-      if (s.name && !nameToShip.has(s.name)) nameToShip.set(s.name, s)
+      shipByBannerId.set(s.bannerId, s)
+      const key = normalizeShipName(s.name || '')
+      if (!key) continue
+      // 同名の形態が複数ある艦(宗谷 等)は、最も改装段階の低い形態を既定にする。
+      const current = nameToShip.get(key)
+      if (!current || s.updateLevel < current.updateLevel) nameToShip.set(key, s)
     }
+
+    // 艦種の選択が必要な艦は、何隻目/全何隻かを出すために先に総数を数えておく。
+    const ambiguousTotals = new Map<string, number>()
+    for (const name of rawNames) {
+      const key = normalizeShipName(name)
+      if (getAmbiguousBannerIds(key)) ambiguousTotals.set(key, (ambiguousTotals.get(key) || 0) + 1)
+    }
+    const ambiguousSeen = new Map<string, number>()
 
     const shipVariantsByOrig = new Map<number, number[]>()
     const unmatchedCounts = new Map<string, number>()
     let successCount = 0
 
     for (const name of rawNames) {
-      const ship = nameToShip.get(name)
+      const key = normalizeShipName(name)
+      let ship: Ship | undefined
+
+      const bannerIds = getAmbiguousBannerIds(key)
+      if (bannerIds && resolveAmbiguous) {
+        const candidates = bannerIds
+          .map((id) => shipByBannerId.get(id))
+          .filter((s): s is Ship => !!s)
+        if (candidates.length > 1) {
+          // 複数所持なら1隻ずつ艦種を選んでもらう
+          const index = (ambiguousSeen.get(key) || 0) + 1
+          ambiguousSeen.set(key, index)
+          const chosen = await resolveAmbiguous({
+            name,
+            index,
+            total: ambiguousTotals.get(key) || 1,
+            candidates,
+          })
+          if (chosen === null) return null
+          ship = shipByBannerId.get(chosen)
+        }
+      }
+
+      if (!ship) ship = nameToShip.get(key)
+
       if (ship) {
         const list = shipVariantsByOrig.get(ship.spGroupId) || []
         list.push(ship.bannerId)
