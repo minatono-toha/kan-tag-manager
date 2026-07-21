@@ -59,7 +59,7 @@ export interface Event {
   tagging1: string
   tagging2: string
   tagging3: string
-  // mapId_1 ～ mapId_15 を統一的に扱う
+  // mapId_N を統一的に扱う(列数は eventmap のボス地点数に依存し固定上限は無い)
   [key: `mapId_${number}`]: number
 }
 

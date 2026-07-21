@@ -93,7 +93,7 @@
       </thead>
       <tbody>
         <tr
-          v-for="ship in displayedShips"
+          v-for="(ship, rowIndex) in displayedShips"
           :key="`${ship.orig}_${ship.shipIndex}`"
           v-memo="[
             ship.orig,
@@ -110,6 +110,8 @@
           :style="{ ...rowStyle, ...rowBoxSizing }"
           class="hover:bg-gray-100"
           :class="getRowClass(ship.orig, ship.shipIndex)"
+          @mouseenter="hoveredRowIndex = rowIndex"
+          @mouseleave="hoveredRowIndex === rowIndex && (hoveredRowIndex = null)"
         >
           <!-- 割当済 -->
           <td
@@ -480,6 +482,14 @@
       :message="unassignConfirmMessage"
       @confirm="handleConfirmUnassign"
     />
+
+    <!-- Keyboard shortcut (Ctrl+D / F4) overwrite confirmation -->
+    <BaseDialog
+      v-model:show="showKeyboardConfirm"
+      type="confirm"
+      :message="confirmMessage"
+      @confirm="handleConfirmKeyboardApply"
+    />
   </div>
 </template>
 
@@ -613,6 +623,98 @@ const confirmMessage =
 const showUnassignConfirm = ref(false)
 const pendingUnassign = ref<{ orig: number; shipIndex: number } | null>(null)
 const unassignConfirmMessage = '割当済チェックを外しますか'
+
+// ----------------------------------------------------
+// キーボードショートカット (① Ctrl+D 複製 / ② F4 繰り返し)
+// ----------------------------------------------------
+
+// displayedShips 内でマウスが乗っている行のインデックス(見た目の順序)
+const hoveredRowIndex = ref<number | null>(null)
+
+// ② 直前に手動で行った割当先/割当札。F4 でホバー行に再適用する
+const lastAssignment = ref<{ targetStage: string; tagId: number } | null>(null)
+
+// Ctrl+D / F4 で割当済の艦に上書きする際の確認ダイアログ状態
+const showKeyboardConfirm = ref(false)
+const pendingKeyboardApply = ref<TagManagement | null>(null)
+
+const handleConfirmKeyboardApply = () => {
+  if (pendingKeyboardApply.value) {
+    props.updateTagManagement(pendingKeyboardApply.value)
+    pendingKeyboardApply.value = null
+  }
+  showKeyboardConfirm.value = false
+}
+
+// 複製/繰り返しで指定行に札情報を書き込む。既存ガードを踏襲:
+//   - 未着任(所持0隻) → アラートで中止
+//   - 既に割当済       → 上書き確認ダイアログ
+const applyTagFieldsToShip = (
+  ship: ExpandedShip,
+  fields: { targetStage: string; tagId: number; comment?: string; preserve?: boolean },
+) => {
+  if (blockIfUnowned(ship)) return
+
+  const current = getTagData(ship.orig, ship.shipIndex)
+  const updated: TagManagement = {
+    ...current,
+    targetStage: fields.targetStage,
+    tagId: resolveTagId(fields.tagId, fields.targetStage, props.tagMap),
+    ...(fields.comment !== undefined ? { comment: fields.comment } : {}),
+    ...(fields.preserve !== undefined ? { preserve: fields.preserve } : {}),
+  }
+
+  if (current.assigned && current.targetStage) {
+    pendingKeyboardApply.value = updated
+    showKeyboardConfirm.value = true
+    return
+  }
+
+  props.updateTagManagement(updated)
+}
+
+// テキスト入力欄にフォーカス中はショートカットを無効化する
+const isTextInputFocused = (): boolean => {
+  const el = document.activeElement as HTMLElement | null
+  if (!el) return false
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable
+}
+
+const handleTableKeydown = (event: KeyboardEvent) => {
+  // ステージセレクタ操作中や入力欄フォーカス中は無効
+  if (showStageSelectorPopup.value || isTextInputFocused()) return
+  if (hoveredRowIndex.value === null) return
+
+  const ships = displayedShips.value
+  const idx = hoveredRowIndex.value
+  const hoveredShip = ships[idx]
+  if (!hoveredShip) return
+
+  // ① Ctrl+D(または Cmd+D): 一つ上の行の札情報をホバー行へ複製
+  if ((event.ctrlKey || event.metaKey) && (event.key === 'd' || event.key === 'D')) {
+    event.preventDefault() // ブラウザのブックマーク追加を抑止
+    if (idx <= 0) return // 一番上の行では複製元が無い
+    const src = getTagData(ships[idx - 1].orig, ships[idx - 1].shipIndex)
+    applyTagFieldsToShip(hoveredShip, {
+      targetStage: src.targetStage,
+      tagId: src.tagId,
+      comment: src.comment,
+      preserve: src.preserve,
+    })
+    return
+  }
+
+  // ② F4: 直前の割当をホバー行へ繰り返し適用
+  if (event.key === 'F4') {
+    event.preventDefault()
+    if (!lastAssignment.value) return
+    applyTagFieldsToShip(hoveredShip, {
+      targetStage: lastAssignment.value.targetStage,
+      tagId: lastAssignment.value.tagId,
+    })
+    return
+  }
+}
 
 // Custom Tooltip State
 const tooltipState = ref({
@@ -810,12 +912,18 @@ const togglePreserve = (ship: ExpandedShip) => {
 
 const executeStageChange = (orig: number, shipIndex: number, value: string, tagId: number = 0) => {
   const current = getTagData(orig, shipIndex)
+  const resolvedTagId = resolveTagId(tagId, value, props.tagMap)
   const updated: TagManagement = {
     ...current,
     targetStage: value,
-    tagId: resolveTagId(tagId, value, props.tagMap),
+    tagId: resolvedTagId,
   }
   props.updateTagManagement(updated)
+
+  // ② F4用: 直前の割当を記憶(「選択解除」の空割当は繰り返し対象にしない)
+  if (value) {
+    lastAssignment.value = { targetStage: value, tagId: resolvedTagId }
+  }
 }
 
 
@@ -1073,11 +1181,13 @@ const handleClickOutside = (event: MouseEvent) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleTableKeydown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleStageSelectorKeydown)
+  document.removeEventListener('keydown', handleTableKeydown)
 })
 
 const handleStageSelectorKeydown = (event: KeyboardEvent) => {
