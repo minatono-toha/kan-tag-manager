@@ -244,7 +244,10 @@ export const useDatasetStore = defineStore('dataset', () => {
     const result: FleetAnalysisShip[] = []
     for (const ship of userShips) {
       const key = `${ship.orig}_${ship.shipIndex}`
-      const area = tagManagementMap.get(key)?.tagId || 0
+      // 札IDは実際に割当済みの艦のみ出力する。
+      // 割当先だけ決めた(assigned=false)艦の tagId を出すと、取り込み時に割当済みとして復元されてしまう。
+      const tm = tagManagementMap.get(key)
+      const area = tm?.assigned ? tm.tagId || 0 : 0
 
       let shipId = ship.uniqueId
       if (!shipId) {
