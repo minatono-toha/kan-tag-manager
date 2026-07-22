@@ -7,6 +7,10 @@ export interface FleetAnalysisShip {
   area: number // Tag ID
   ex: number
   sp: number[] // Special attack or something?
+  // 本アプリ独自の拡張。艦隊分析コードの area だけでは「割当先を決めただけ」と
+  // 「実際に札が付いている」を区別できないため、割当済みかどうかを別に持たせる。
+  // ゲーム由来のコードには存在しないので、無い場合は area > 0 を割当済みとみなす。
+  ktm_assigned?: boolean
 }
 
 // Helper to convert array to JSON string nicely
@@ -22,6 +26,7 @@ function isFleetAnalysisShip(v: unknown): v is FleetAnalysisShip {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false
   const o = v as Record<string, unknown>
   return (
+    (o.ktm_assigned === undefined || typeof o.ktm_assigned === 'boolean') &&
     typeof o.ship_id === 'number' &&
     typeof o.lv === 'number' &&
     typeof o.area === 'number' &&

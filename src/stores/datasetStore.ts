@@ -206,7 +206,8 @@ export const useDatasetStore = defineStore('dataset', () => {
             eventId: selectedEventId,
             orig,
             shipIndex: currentIndex,
-            assigned: p.area > 0,
+            // ゲーム由来のコードには ktm_assigned が無いので、その場合は札あり=割当済みとみなす。
+            assigned: p.ktm_assigned ?? p.area > 0,
             targetStage:
               foundStage && foundTagName ? `${foundStage} (${foundTagName})` : foundStage,
             tagId: p.area,
@@ -244,10 +245,10 @@ export const useDatasetStore = defineStore('dataset', () => {
     const result: FleetAnalysisShip[] = []
     for (const ship of userShips) {
       const key = `${ship.orig}_${ship.shipIndex}`
-      // 札IDは実際に割当済みの艦のみ出力する。
-      // 割当先だけ決めた(assigned=false)艦の tagId を出すと、取り込み時に割当済みとして復元されてしまう。
       const tm = tagManagementMap.get(key)
-      const area = tm?.assigned ? tm.tagId || 0 : 0
+      // area には割当先の札IDをそのまま出す(割当先だけ決めた艦も札を保持する)。
+      // 「割当済み」かどうかは area では表現できないので ktm_assigned に持たせる。
+      const area = tm?.tagId || 0
 
       let shipId = ship.uniqueId
       if (!shipId) {
@@ -264,6 +265,7 @@ export const useDatasetStore = defineStore('dataset', () => {
         area,
         ex: ship.ex,
         sp: ship.sp,
+        ktm_assigned: tm?.assigned ?? false,
       })
     }
 
