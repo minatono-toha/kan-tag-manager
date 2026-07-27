@@ -58,7 +58,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed } from 'vue'
+import { defineComponent, computed, watch, onUnmounted } from 'vue'
 
 export default defineComponent({
   name: 'BaseShipModal',
@@ -160,6 +160,27 @@ export default defineComponent({
     const handleConfirm = () => {
       emit('confirm')
     }
+
+    // Esc キーでモーダルをキャンセル/クローズする。
+    // オーバーレイクリックと違い、closeOnOverlay=false のモーダルでも Esc は
+    // 明示的な操作なので常に受け付ける。handleCancel と同じく cancel/close を発火する。
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        handleCancel()
+      }
+    }
+
+    watch(
+      () => props.visible,
+      (isVisible) => {
+        if (isVisible) document.addEventListener('keydown', handleKeydown)
+        else document.removeEventListener('keydown', handleKeydown)
+      },
+      { immediate: true }
+    )
+
+    onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 
     return {
       containerClass,

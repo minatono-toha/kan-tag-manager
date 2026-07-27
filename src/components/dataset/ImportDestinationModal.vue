@@ -5,6 +5,7 @@
     title="出力先を選択"
     :close-on-overlay="false"
     :show-default-footer="false"
+    @cancel="$emit('cancel')"
   >
     <p class="text-sm text-gray-600 mb-6">
       取り込んだ艦船データをどこに出力しますか？

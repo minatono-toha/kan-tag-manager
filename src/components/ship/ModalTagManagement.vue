@@ -534,8 +534,25 @@ const handleClickOutside = (event: MouseEvent) => {
   hoveredStage.value = null
 }
 
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+// Esc キーでステージ選択ポップアップを閉じる。capture フェーズで処理し、
+// ポップアップが開いているときだけ伝播を止めることで、親の ShipModal が
+// Esc で丸ごと閉じてしまうのを防ぐ。ポップアップが閉じているときは何もしないので、
+// 親側の Esc(モーダルを閉じる)は通常どおり動作する。
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape' || !showStagePopup.value) return
+  event.stopImmediatePropagation()
+  event.preventDefault()
+  closeStagePopup()
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleKeydown, true)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeydown, true)
+})
 </script>
 
 <style scoped>

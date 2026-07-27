@@ -5,6 +5,7 @@
     title="艦種を選択してください"
     :close-on-overlay="false"
     :show-default-footer="false"
+    @cancel="$emit('cancel')"
   >
     <p class="text-sm text-gray-600">
       <span class="font-medium text-gray-800">{{ prompt.name }}</span>

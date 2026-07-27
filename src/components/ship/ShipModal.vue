@@ -120,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import type { Ship, TagManagement } from '@/types/interfaces'
 import ShipCard from './ShipCard.vue'
 import ModalTagManagement from './ModalTagManagement.vue'
@@ -259,6 +259,25 @@ const closeModal = () => {
   filteredShips.value = []
   emit('close')
 }
+
+// Esc キーでモーダルを閉じる。カード画像モーダルが開いていればそちらを先に閉じる。
+// 子コンポーネント(ModalTagManagement)のステージ選択ポップアップは capture フェーズで
+// Esc を処理し伝播を止めるため、ここには届かない。確認/警告ダイアログ(BaseDialog)が
+// 開いているときは、そのダイアログ側に Esc を委ねる。
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape') return
+  if (!props.modalVisible) return
+  if (document.querySelector('[role="alertdialog"]')) return
+  event.preventDefault()
+  if (cardModalVisible.value) {
+    closeCardModal()
+  } else {
+    closeModal()
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', handleKeydown))
+onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 </script>
 
 <style scoped>
