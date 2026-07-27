@@ -3,7 +3,7 @@
 // 計算式: セルの値 = (全図の艦種倍率) × (全図のグループ倍率) × (ボス地点の艦種倍率) × (ボス地点のグループ倍率)
 // 同一区分内の倍率は重複しない(艦種は1つ、グループは所属分だけ全て掛ける)。
 //
-// 出典: https://docs.google.com/document/d/1cJ66SdOAH_EIerB3OuGH05lXk7bTl45VGlwbYZRCqDg/ (7/21 後段追加)
+// 出典: https://docs.google.com/document/d/1cJ66SdOAH_EIerB3OuGH05lXk7bTl45VGlwbYZRCqDg/ (7/27 後段本記述)
 //   → この数値が正。ここを直せば表全体が直る。
 // 検算: 特効艦まとめ前段暫定V02/X02 (R8.7.13) の画像
 //   → 画像から読み取った値を checks に置き、生成結果と食い違ったら out/report.md に出す。
@@ -94,7 +94,7 @@ export default {
         連合A: {
           ships: [
             '大和', '長門', '榛名', '伊勢', '日向', '大鯨', '龍鳳', '隼鷹', '鳳翔',
-            '青葉', '妙高', '利根', '矢矧', '大淀', '酒匂', '北上', '大井',
+            '青葉', '妙高', '高雄', '利根', '矢矧', '大淀', '酒匂', '北上', '大井', '鹿島',
           ],
         },
         連合B: {
@@ -143,15 +143,15 @@ export default {
         ウルシーB: {
           ships: [
             '時雨', '雪風', '不知火', '浜風', '磯風', '長波', '浜波', '朝霜', '沖波',
-            '秋月', '初月', '涼月', '冬月', '松', '桃', '梅', '竹', '杉', '榧', '樫',
-            '桐', '島風',
+            '秋月', '初月', '涼月', '冬月', '花月', '松', '桃', '梅', '竹', '杉', '榧',
+            '樫', '桐', '島風', '初春',
           ],
         },
         ウルシーA増強: {
           ships: [
             '大和', '武蔵', '長門', '陸奥', '榛名', '伊勢', '日向', '大鯨', '龍鳳',
-            '隼鷹', '鳳翔', '八幡丸', '雲鷹', '最上', '矢矧', '大淀', '酒匂', '鹿島',
-            '北上', '大井',
+            '隼鷹', '鳳翔', '八幡丸', '雲鷹', '最上', '利根', '矢矧', '大淀', '酒匂',
+            '鹿島', '北上', '大井',
           ],
         },
         ウルシーB増強: {
@@ -201,7 +201,7 @@ export default {
     // ここに注記する。装備由来(舰载机A/B、大発系、内火艇等)は前段同様 maintable の対象外。
     {
       stage: 'E4',
-      // 友軍は仏艦隊。国籍倍率の対象は 意/英/独/ソ/米/瑞。仏は個艦指定のみで国籍倍率は無い。
+      // 友軍は仏艦隊。国籍倍率の対象は 意/英/独/ソ/米/瑞。仏は国籍倍率が無く個艦指定のみ。
       groups: {
         伊艦: { nationality: 'IT' },
         英艦: { nationality: 'GB' },
@@ -209,53 +209,83 @@ export default {
         ソ連艦: { nationality: 'RU' },
         米艦: { nationality: 'US' },
         瑞艦: { nationality: 'SE' },
-        // 単独艦。出典は仏艦の値に ? を付けている(暫定)。足柄のみ確定値。
+        // 単独艦。国籍倍率と積算する(例: Zara=意1.19×1.06)。仏艦の値は出典が ?付き(暫定)。
         足柄: { ships: ['足柄'] },
         Mogador: { ships: ['Mogador'] },
+        Vautour: { ships: ['Vautour'] },
+        Algérie: { ships: ['Algérie'] },
         Gloire: { ships: ['Gloire'] },
+        'Commandant Teste': { ships: ['Commandant Teste'] },
         Richelieu: { ships: ['Richelieu'] },
         'Jean Bart': { ships: ['Jean Bart'] },
+        Zara: { ships: ['Zara'] },
+        Pola: { ships: ['Pola'] },
+        Warspite: { ships: ['Warspite'] },
+        Valiant: { ships: ['Valiant'] },
+        'Ark Royal': { ships: ['Ark Royal'] },
+        Glorious: { ships: ['Glorious'] },
       },
       mapWide: {
-        types: { DD: 1.04, CL: 1.06, AV: 1.08 },
+        types: { DD: 1.04, DE: 1.13, CL: 1.06, AV: 1.08, AS: 1.08, SS: 1.13 },
         groups: {
           伊艦: 1.19, 英艦: 1.15, 独艦: 1.08, ソ連艦: 1.06, 米艦: 1.06, 瑞艦: 1.06,
           足柄: 1.11,
-          Mogador: 1.66, Gloire: 1.64, Richelieu: 1.7, 'Jean Bart': 1.77, // 出典は全て ?付き
+          // 仏艦は ?付き(暫定)
+          Mogador: 1.66, Vautour: 1.7, Algérie: 1.7, Gloire: 1.64, 'Commandant Teste': 1.67,
+          Richelieu: 1.7, 'Jean Bart': 1.77,
+          // 伊/英の追加個艦(国籍倍率と積算)
+          Zara: 1.06, Pola: 1.08, Warspite: 1.07, Valiant: 1.05, 'Ark Royal': 1.11, Glorious: 1.05,
         },
       },
       // mapId 11=D(P1boss) 12=N(P2boss) 13=S(P3boss) 14=X(P4boss) 15=Z(P5boss)
-      // N/X/Z はボス固有の艦特攻が無い(N=未記載, X=装備のみ, Z=未記載)が、全図倍率を載せるため node は置く。
+      // N はボス固有の艦特攻が未記載だが、全図倍率を載せるため node は置く。
       nodes: [
         { mapIds: [11], types: { DD: 1.06, CA: 1.13, CAV: 1.06 }, groups: {} },
         { mapIds: [12], types: {}, groups: {} },
-        { mapIds: [13], types: { DD: 1.07, CA: 1.11, CAV: 1.07 }, groups: {} }, // 出典は全て ?付き(暫定)
-        { mapIds: [14], types: {}, groups: {} },
-        { mapIds: [15], types: {}, groups: {} },
+        { mapIds: [13], types: { DD: 1.07, CA: 1.11, CAV: 1.07 }, groups: {} },
+        { mapIds: [14], types: { DD: 1.06, CA: 1.13, CAV: 1.06 }, groups: {} },
+        { mapIds: [15], types: { DD: 1.15, CA: 1.25, CAV: 1.15 }, groups: {} }, // AV は ?(値未記載)のため省略
       ],
     },
     {
       stage: 'E5',
-      // 国籍倍率の対象は ソ/米/意。独は出典が「? (値未記載)」のため載せない。英は P1 のみ。
+      // 国籍倍率は「ボスに書かれた値=その地点の総倍率」で扱う(全図の国籍とは積算しない)。
+      // よって全図の国籍(法1.38/英1.16/独1.18/ソ1.06/米1.06/意1.04/瑞1.24)は道中用で
+      // ボス列には出ないため mapWide.groups には載せず、各ボス node に総倍率を直接置く。
+      // 艦種倍率は従来どおり全図×ボスで積算する。
       groups: {
-        ソ連艦: { nationality: 'RU' },
-        米艦: { nationality: 'US' },
-        伊艦: { nationality: 'IT' },
+        法艦: { nationality: 'FR' },
         英艦: { nationality: 'GB' },
+        独艦: { nationality: 'DE' },
+        ソ連艦: { nationality: 'RU' },
+        瑞艦: { nationality: 'SE' },
         足柄: { ships: ['足柄'] },
       },
       mapWide: {
-        types: { DD: 1.04, CL: 1.06, AV: 1.08 },
-        groups: { ソ連艦: 1.06, 米艦: 1.06, 伊艦: 1.04, 足柄: 1.11 },
+        types: { DD: 1.04, DE: 1.13, CL: 1.06, AV: 1.08, AS: 1.08, SS: 1.13 },
+        groups: { 足柄: 1.11 }, // 国籍は全図に載せない(上のコメント参照)
       },
       // mapId 16=G(P1boss) 17=J2(P2boss) 18=S(P3boss) 19=ZZ(P4boss)
-      // 出典「P1部分 英 1.45?」は地点が曖昧(部分表記)かつ ?付き。P1boss=G に暫定で載せる。
-      // S/ZZ はボス固有の艦特攻が未記載。全図倍率を載せるため node は置く。
+      // 出典の「CV」は CV系(空母全般)、「CL系」は CL+CLT+CT として扱う。
+      // AV/LHA/AO 1.25 は ?付き かつ揚陸/補給艦を含む曖昧表記のため省略(ZZ の AV 1.12 のみ採用)。
       nodes: [
-        { mapIds: [16], types: {}, groups: { 英艦: 1.45 } }, // 暫定: P1部分 英 1.45?
-        { mapIds: [17], types: { DD: 1.12, CL: 1.12 }, groups: {} }, // P2bossJ2。AV は ?(値未記載)のため省略
-        { mapIds: [18], types: {}, groups: {} },
-        { mapIds: [19], types: {}, groups: {} },
+        { mapIds: [16], types: {}, groups: { 法艦: 1.35, 英艦: 1.25, 独艦: 1.15 } },
+        {
+          mapIds: [17],
+          types: { DD: 1.12, 'CL系': 1.12, 'CV系': 1.2, CA: 1.15, CAV: 1.15 },
+          groups: { 法艦: 1.25, 英艦: 1.35, 独艦: 1.35, 瑞艦: 1.45 },
+        },
+        {
+          mapIds: [18],
+          types: { DD: 1.12, 'CL系': 1.12, 'CV系': 1.2, CAV: 1.15 },
+          groups: { 法艦: 1.45, 英艦: 1.35, 独艦: 1.25 },
+        },
+        {
+          mapIds: [19],
+          types: { DD: 1.15, 'CL系': 1.18, CA: 1.24, AV: 1.12, 'BB系': 1.12, 'CV系': 1.24 },
+          // 国籍は出典が積算済みの総倍率(例: 法2.0155=1.45×1.39)。そのまま採用する。
+          groups: { 法艦: 2.0155, 英艦: 1.728, 独艦: 1.475, ソ連艦: 1.9285, 瑞艦: 2.2475 },
+        },
       ],
     },
   ],
