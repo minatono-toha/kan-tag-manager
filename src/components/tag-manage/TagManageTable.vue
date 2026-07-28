@@ -517,6 +517,7 @@ import SearchIcon from '@/components/common/SearchIcon.vue'
 import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
 import { resolveTagId } from '@/utils/tagAssignment'
+import { parseTagFromTargetStage } from '@/utils/tagStage'
 import { uniqueAreasFromStages, parseStage } from '@/utils/stageUtils'
 import { contrastingTextColor } from '@/utils/color'
 
@@ -769,13 +770,18 @@ const hoveredStage = ref<string | null>(null)
 const tagMenuPosition = ref({ x: 0, y: 0 })
 const activeStageCell = ref<HTMLElement | null>(null)
 
+// 割当先は海域名のみを表示する。旧バージョンの取り込みで保存された
+// "E-3-4 (札名)" 形式のデータもここで海域名だけに揃える。
+const stageOnly = (targetStage: string) =>
+  targetStage ? parseTagFromTargetStage(targetStage)?.stage || targetStage : ''
+
 // Get unique target stages from all source ships (for filter options)
 const uniqueTargetStages = computed(() => {
   const stages = new Set<string>()
   props.sourceShips.forEach((ship) => {
-    const data = getTagData(ship.orig, ship.shipIndex)
-    if (data.targetStage && data.targetStage.trim()) {
-      stages.add(data.targetStage)
+    const stage = stageOnly(getTagData(ship.orig, ship.shipIndex).targetStage).trim()
+    if (stage) {
+      stages.add(stage)
     }
   })
   return Array.from(stages).sort()
@@ -828,8 +834,7 @@ const filteredShipsForEmit = computed(() => {
   // Apply target stage filter
   if (targetStageFilter.value.length > 0) {
     result = result.filter((ship) => {
-      const data = getTagData(ship.orig, ship.shipIndex)
-      const stage = data.targetStage || ''
+      const stage = stageOnly(getTagData(ship.orig, ship.shipIndex).targetStage)
       return targetStageFilter.value.includes(stage)
     })
   }
@@ -975,8 +980,7 @@ const toggleCommentFilter = (event: MouseEvent) => {
 
 
 const getStageOnlyFromTargetStage = (orig: number, shipIndex: number) => {
-  const data = getTagData(orig, shipIndex)
-  return data.targetStage
+  return stageOnly(getTagData(orig, shipIndex).targetStage)
 }
 
 const getTagNameForShip = (orig: number, shipIndex: number): string => {
