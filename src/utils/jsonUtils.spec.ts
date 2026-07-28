@@ -29,4 +29,13 @@ describe('parseFleetAnalysisJSON', () => {
       parseFleetAnalysisJSON(JSON.stringify([{ ...baseShip, ktm_assigned: 1 }])),
     ).toThrow()
   })
+
+  it('本アプリが生成した ktm_stage を保持する', () => {
+    const parsed = parseFleetAnalysisJSON(JSON.stringify([{ ...baseShip, ktm_stage: 'E-4-3' }]))
+    expect(parsed[0].ktm_stage).toBe('E-4-3')
+  })
+
+  it('ktm_stage の型が不正なら弾く', () => {
+    expect(() => parseFleetAnalysisJSON(JSON.stringify([{ ...baseShip, ktm_stage: 4 }]))).toThrow()
+  })
 })

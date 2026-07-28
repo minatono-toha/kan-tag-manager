@@ -19,6 +19,7 @@ import {
   type FleetAnalysisShip,
 } from '@/utils/jsonUtils'
 import type { ImportMode } from '@/types/ui'
+import { parseTagFromTargetStage } from '@/utils/tagStage'
 import {
   getAmbiguousBannerIds,
   normalizeShipName,
@@ -42,6 +43,8 @@ export interface ImportFleetOptions {
   selectedEventId: number
   tagMap: Record<number, FleetTagDef>
   stageTagMap: Record<string, FleetTagDef[]>
+  // 札の付いていない海域は stageTagMap に含まれないため、海域一覧も受け取る
+  stageOptions: string[]
   mode: 'overwrite' | 'new'
 }
 
@@ -146,7 +149,15 @@ export const useDatasetStore = defineStore('dataset', () => {
   }
 
   const importDataset = async (options: ImportFleetOptions): Promise<void> => {
-    const { fileContent, newDatasetName, allShips, selectedEventId, stageTagMap, mode } = options
+    const {
+      fileContent,
+      newDatasetName,
+      allShips,
+      selectedEventId,
+      stageTagMap,
+      stageOptions,
+      mode,
+    } = options
     const parsed = parseFleetAnalysisJSON(fileContent)
 
     const originalDB = getActiveDBName()
@@ -192,13 +203,26 @@ export const useDatasetStore = defineStore('dataset', () => {
 
         if (selectedEventId) {
           let foundStage = ''
-          let foundTagName = ''
-          for (const [stage, tags] of Object.entries(stageTagMap)) {
-            const tag = tags.find((t) => t.tagId === p.area)
+
+          // 本アプリが出力したコードには割当先の海域が入っているので、それを優先する。
+          // 同じ札が複数の海域で使われるため、札からの推測では最初の海域になってしまう。
+          if (p.ktm_stage) {
+            const tag = stageTagMap[p.ktm_stage]?.find((t) => t.tagId === p.area)
             if (tag) {
-              foundStage = stage
-              foundTagName = tag.tagName || ''
-              break
+              foundStage = p.ktm_stage
+            } else if (p.area === 0 && stageOptions.includes(p.ktm_stage)) {
+              // 札を選ばずに海域だけ決めていた場合。
+              foundStage = p.ktm_stage
+            }
+          }
+
+          // 海域が特定できなければ(ゲーム由来のコードなど)従来どおり札から推測する。
+          if (!foundStage) {
+            for (const [stage, tags] of Object.entries(stageTagMap)) {
+              if (tags.some((t) => t.tagId === p.area)) {
+                foundStage = stage
+                break
+              }
             }
           }
 
@@ -208,8 +232,8 @@ export const useDatasetStore = defineStore('dataset', () => {
             shipIndex: currentIndex,
             // ゲーム由来のコードには ktm_assigned が無いので、その場合は札あり=割当済みとみなす。
             assigned: p.ktm_assigned ?? p.area > 0,
-            targetStage:
-              foundStage && foundTagName ? `${foundStage} (${foundTagName})` : foundStage,
+            // 手動割当と同じく海域名のみを保持する(札は tagId で持つ)。
+            targetStage: foundStage,
             tagId: p.area,
             preserve: false,
             comment: '',
@@ -249,6 +273,9 @@ export const useDatasetStore = defineStore('dataset', () => {
       // area には割当先の札IDをそのまま出す(割当先だけ決めた艦も札を保持する)。
       // 「割当済み」かどうかは area では表現できないので ktm_assigned に持たせる。
       const area = tm?.tagId || 0
+      // 同じ札が複数の海域で使われるため、割当先の海域も別に出力する。
+      // 旧バージョンが保存した "E-4-3 (札名)" 形式のデータも海域だけにして出す。
+      const stage = tm?.targetStage ? parseTagFromTargetStage(tm.targetStage)?.stage : ''
 
       let shipId = ship.uniqueId
       if (!shipId) {
@@ -266,6 +293,7 @@ export const useDatasetStore = defineStore('dataset', () => {
         ex: ship.ex,
         sp: ship.sp,
         ktm_assigned: tm?.assigned ?? false,
+        ...(stage ? { ktm_stage: stage } : {}),
       })
     }
 

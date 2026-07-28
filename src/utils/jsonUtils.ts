@@ -11,6 +11,9 @@ export interface FleetAnalysisShip {
   // 「実際に札が付いている」を区別できないため、割当済みかどうかを別に持たせる。
   // ゲーム由来のコードには存在しないので、無い場合は area > 0 を割当済みとみなす。
   ktm_assigned?: boolean
+  // 本アプリ独自の拡張。同じ札が複数の海域で使われるため area だけでは割当先の海域を
+  // 特定できない。割当先の海域(例: "E-4-3")を保持する。無い場合は札から推測する。
+  ktm_stage?: string
 }
 
 // Helper to convert array to JSON string nicely
@@ -27,6 +30,7 @@ function isFleetAnalysisShip(v: unknown): v is FleetAnalysisShip {
   const o = v as Record<string, unknown>
   return (
     (o.ktm_assigned === undefined || typeof o.ktm_assigned === 'boolean') &&
+    (o.ktm_stage === undefined || typeof o.ktm_stage === 'string') &&
     typeof o.ship_id === 'number' &&
     typeof o.lv === 'number' &&
     typeof o.area === 'number' &&

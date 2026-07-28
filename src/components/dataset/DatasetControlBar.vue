@@ -224,7 +224,10 @@ export default defineComponent({
     const datasetStore = useDatasetStore()
     const { allShips } = useShips()
     const selectedEventIdRef = ref(props.selectedEventId)
-    const { tagMap, stageTagMap, fetchData } = useTagManagement(selectedEventIdRef, ref([]))
+    const { tagMap, stageTagMap, stageOptions, fetchData } = useTagManagement(
+      selectedEventIdRef,
+      ref([]),
+    )
 
     const loading = ref(false)
     const codeText = ref('')
@@ -415,6 +418,7 @@ export default defineComponent({
             selectedEventId: props.selectedEventId,
             tagMap: tMap,
             stageTagMap: sTagMap,
+            stageOptions: stageOptions.value,
             mode,
           })
           window.location.reload()
