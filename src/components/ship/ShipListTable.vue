@@ -300,7 +300,9 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', orig: number, shipIndex: number): void
-  (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean): void
+  // columnFiltered は「未所持艦の表示切替を除いた」列の絞り込みが効いているか。
+  // isFiltering は表示行の決定に使うため未所持切替も含むが、こちらは絞り込み中の表示に使う。
+  (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean, columnFiltered: boolean): void
   (e: 'increment-ship', orig: number): void
   (e: 'decrement-ship', orig: number): void
   (e: 'update-variant', orig: number, shipIndex: number, variantId: number): void
@@ -637,11 +639,22 @@ const filteredShips = computed(() => {
   })
 })
 
+// 列(艦名・艦型・速力・艦種・対地装備)の絞り込みが効いているか。未所持艦の表示切替は含めない。
+const hasColumnFilter = computed(() =>
+  !!(
+    searchQuery.value.trim() ||
+    classSearchQuery.value.trim() ||
+    speedFilterValue.value ||
+    shipTypeFilter.value.length > 0 ||
+    groundAtkFilter.value.length > 0
+  ),
+)
+
 watchDebounced(
   filteredShips,
   (newFilteredShips) => {
-    const isFiltering = !!(searchQuery.value.trim() || classSearchQuery.value.trim() || speedFilterValue.value || shipTypeFilter.value.length > 0 || groundAtkFilter.value.length > 0 || !props.showUnownedShips)
-    emit('filter-change', newFilteredShips, isFiltering)
+    const isFiltering = hasColumnFilter.value || !props.showUnownedShips
+    emit('filter-change', newFilteredShips, isFiltering, hasColumnFilter.value)
   },
   { debounce: 150, maxWait: 300 }
 )

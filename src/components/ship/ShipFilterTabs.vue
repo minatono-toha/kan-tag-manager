@@ -27,6 +27,16 @@
       >
         {{ filter.label }}
       </button>
+
+      <!-- 各表の絞り込みが効いているときだけ、最後の艦種ボタン(補助艦級)の隣に表示中の隻数を出す。
+           「未所持艦を表示する/しない」だけの状態では出さない(絞り込みとは扱わないため)。 -->
+      <span
+        v-if="filterActive"
+        class="self-center ml-3 text-xs whitespace-nowrap"
+        :class="isDarkTheme ? 'text-gray-400' : 'text-gray-500'"
+      >
+        フィルタ中：{{ filteredCount }}隻
+      </span>
     </div>
   </div>
 </template>
@@ -39,8 +49,13 @@ const props = withDefaults(defineProps<{
   selectedFilterIds: number[]
   isAllSelected: boolean
   theme?: 'light' | 'dark' | 'gradient'
+  // 各表の絞り込みが効いているか(未所持艦の表示切替は含めない)と、そのときの表示行数。
+  filterActive?: boolean
+  filteredCount?: number
 }>(), {
-  theme: 'light'
+  theme: 'light',
+  filterActive: false,
+  filteredCount: 0
 })
 
 defineEmits<{

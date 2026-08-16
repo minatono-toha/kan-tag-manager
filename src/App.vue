@@ -39,6 +39,8 @@
           :selectedFilterIds="selectedFilterIds"
           :isAllSelected="isAllSelected"
           :theme="theme"
+          :filterActive="isTableFilterActive"
+          :filteredCount="filteredShipCount"
           @toggle-filter="toggleFilter"
           @toggle-all="toggleAllFilters"
         />
@@ -441,8 +443,22 @@ export default defineComponent({
       return shipsToDisplay.value
     })
 
+    // 「未所持艦を表示する/しない」は絞り込みとして扱わない(艦種選択ボタンも同様に、
+    // 選択状態がボタンで見えているため対象にしない)。
+    const isTableFilterActive = computed(() => tagFilterActive.value || shipListColumnFilterActive.value)
+    // 3表は同じ行集合を描くので、絞り込み後の行数がそのまま表示中の隻数になる。
+    // finalShips は特攻表の並べ替え待ちで一瞬空になることがあるため、こちらを数える。
+    const filteredShipCount = computed(() => intersectedShips.value.length)
+
+    // 艦船情報表の列の絞り込みが効いているか(未所持艦の表示切替は除く)。
+    const shipListColumnFilterActive = ref(false)
+
     // Loop prevention: Only update if IDs change or length changes
-    const handleSafeShipFilterChange = (filtered: ExpandedShip[], isActive: boolean) => {
+    const handleSafeShipFilterChange = (filtered: ExpandedShip[], isActive: boolean, columnFiltered = false) => {
+      // 行の同一性チェックで早期 return する経路があるので、絞り込み中の表示に使う
+      // フラグはその前に必ず反映しておく。
+      shipListColumnFilterActive.value = columnFiltered
+
       // If active state changes, update immediately
       if (isSearchActive.value !== isActive) {
         handleShipFilterChange(filtered, isActive)
@@ -679,6 +695,8 @@ export default defineComponent({
       tagFilterActive,
       handleTagFilterChange,
       intersectedShips,
+      isTableFilterActive,
+      filteredShipCount,
       filteredShipsFromSearch,
       isSearchActive,
       handleSafeShipFilterChange,
