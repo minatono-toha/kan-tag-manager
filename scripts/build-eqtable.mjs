@@ -62,13 +62,18 @@ const mapsOfEvent = eventmap.filter((m) => m.eventId === eventId).sort((a, b) =>
 const mapLabel = new Map(mapsOfEvent.map((m) => [m.mapId, `${m.stage}(${m.mapPlace})`]))
 const knownMapIds = new Set(mapsOfEvent.map((m) => m.mapId))
 
-const rateOf = new Map() // grp -> { mapId -> 倍率 }
+// 積んだ数で倍率が変わる組があるため、倍率は (組, 個数) 単位で持つ。
+// A/B/C 組のように「同組は重複しない」ものは count=1 の1行だけになる。
+const rateOf = new Map() // grp -> { count -> { mapId -> 倍率 } }
 const slotOf = new Map() // grp -> '艦上' | '基地'
-const put = (grp, slot, mapId, value) => {
+const put = (grp, slot, mapId, value, count = 1) => {
   if (!rateOf.has(grp)) rateOf.set(grp, {})
-  rateOf.get(grp)[mapId] = round8(value)
+  const byCount = rateOf.get(grp)
+  if (!byCount[count]) byCount[count] = {}
+  byCount[count][mapId] = round8(value)
   slotOf.set(grp, slot)
 }
+const rateAt = (grp, mapId, count = 1) => rateOf.get(grp)?.[count]?.[mapId]
 
 for (const stage of rules.stages) {
   for (const node of stage.nodes) {
@@ -79,13 +84,19 @@ for (const stage of rules.stages) {
         put(grp, '艦上', mapId, (stage.mapWide?.[grp] ?? 1) * rate)
       }
       for (const [grp, rate] of Object.entries(node.base ?? {})) put(grp, '基地', mapId, rate)
+      // 機数倍率。個数ごとに倍率が違うので、そのまま個数別の行にする。
+      for (const [grp, table] of Object.entries(node.countRates ?? {})) {
+        for (const [count, rate] of Object.entries(table)) {
+          put(grp, '艦上', mapId, rate, Number(count))
+        }
+      }
     }
   }
   // 個別マス倍率が無いマスでも、全マップ倍率だけは効く(A組)
   for (const [grp, wide] of Object.entries(stage.mapWide ?? {})) {
     for (const node of stage.nodes) {
       for (const mapId of node.mapIds) {
-        if (rateOf.get(grp)?.[mapId] == null) put(grp, '艦上', mapId, wide)
+        if (rateAt(grp, mapId) == null) put(grp, '艦上', mapId, wide)
       }
     }
   }
@@ -101,10 +112,19 @@ for (const node of rules.ground?.nodes ?? []) {
 }
 for (const grp of UNKNOWN_RATE_GROUPS) {
   if (!rateOf.has(grp)) {
-    rateOf.set(grp, {})
+    rateOf.set(grp, { 1: {} })
     slotOf.set(grp, grp.startsWith('C') ? '基地' : '艦上')
   }
 }
+
+// (組, 個数) の行を出力順に並べる。個数が2以上ある組は機数倍率。
+const rateRows = []
+for (const grp of [...rateOf.keys()].sort()) {
+  for (const count of Object.keys(rateOf.get(grp)).map(Number).sort((a, b) => a - b)) {
+    rateRows.push({ grp, count })
+  }
+}
+const maxCountOf = (grp) => Math.max(...Object.keys(rateOf.get(grp)).map(Number))
 
 // --- 装備行 ---
 const rows = []
@@ -168,17 +188,17 @@ write(`eqattack_event${eventId}.json`, JSON.stringify(rows.map((r) => {
 
 // 2. eqrate
 const grps = [...rateOf.keys()].sort()
-const rateHeader = ['eventId', 'grp', 'slot', ...mapsOfEvent.map((m) => `mapId_${m.mapId}`)]
+const rateHeader = ['eventId', 'grp', 'slot', 'count', ...mapsOfEvent.map((m) => `mapId_${m.mapId}`)]
 const rateCsv = [rateHeader]
-for (const g of grps) {
-  rateCsv.push([eventId, g, slotOf.get(g),
-    ...mapsOfEvent.map((m) => rateOf.get(g)[m.mapId] ?? '')])
+for (const { grp, count } of rateRows) {
+  rateCsv.push([eventId, grp, slotOf.get(grp), count,
+    ...mapsOfEvent.map((m) => rateAt(grp, m.mapId, count) ?? '')])
 }
 write(`eqrate_event${eventId}.csv`, toCsv(rateCsv))
-write(`eqrate_event${eventId}.json`, JSON.stringify(grps.map((g) => {
-  const doc = { eventId, grp: g, slot: slotOf.get(g) }
+write(`eqrate_event${eventId}.json`, JSON.stringify(rateRows.map(({ grp, count }) => {
+  const doc = { eventId, grp, slot: slotOf.get(grp), count }
   for (const m of mapsOfEvent) {
-    const v = rateOf.get(g)[m.mapId]
+    const v = rateAt(grp, m.mapId, count)
     if (v != null) doc[`mapId_${m.mapId}`] = v
   }
   return doc
@@ -195,7 +215,8 @@ const report = [
   `# 装備特攻テーブル 生成レポート (eventId=${eventId})`,
   '',
   `- 装備: ${rows.length}件 (航空機 ${Object.keys(EQUIPMENT).length} / 対地 ${Object.keys(GROUND_EQUIPMENT).length})`,
-  `- グループ: ${grps.length} (${grps.join(' / ')})`,
+  `- グループ: ${grps.length} (${grps.map((g) => (maxCountOf(g) > 1 ? `${g}(機数${maxCountOf(g)}まで)` : g)).join(' / ')})`,
+  `- eqrate の行数: ${rateRows.length} (組 × 個数)`,
   `- 列: ${mapsOfEvent.length} (${mapsOfEvent.map((m) => mapLabel.get(m.mapId)).join(' / ')})`,
   `- 艦上で特効が付く装備: ${rows.filter((r) => inSlot(r, 'AB')).length}`,
   `- 基地で特効が付く装備: ${rows.filter((r) => inSlot(r, 'C')).length}`,
@@ -207,10 +228,10 @@ const report = [
   '',
   '## グループ倍率',
   '',
-  '| 組 | 搭載先 | ' + mapsOfEvent.map((m) => mapLabel.get(m.mapId)).join(' | ') + ' |',
-  '|---|---|' + mapsOfEvent.map(() => '---|').join(''),
-  ...grps.map((g) => `| ${g} | ${slotOf.get(g)} | ` +
-    mapsOfEvent.map((m) => rateOf.get(g)[m.mapId] ?? '').join(' | ') + ' |'),
+  '| 組 | 搭載先 | 個数 | ' + mapsOfEvent.map((m) => mapLabel.get(m.mapId)).join(' | ') + ' |',
+  '|---|---|---|' + mapsOfEvent.map(() => '---|').join(''),
+  ...rateRows.map(({ grp, count }) => `| ${grp} | ${slotOf.get(grp)} | ${count} | ` +
+    mapsOfEvent.map((m) => rateAt(grp, m.mapId, count) ?? '').join(' | ') + ' |'),
   '',
   '## 警告',
   ...(warnings.length ? warnings.map((w) => `- ${w}`) : ['- なし']),
@@ -218,5 +239,5 @@ const report = [
 write('eq_report.md', report.join('\n') + '\n')
 
 console.log(`out/eqattack_event${eventId}.csv   ${rows.length}行`)
-console.log(`out/eqrate_event${eventId}.csv     ${grps.length}行 x ${mapsOfEvent.length}列`)
+console.log(`out/eqrate_event${eventId}.csv     ${rateRows.length}行(${grps.length}組) x ${mapsOfEvent.length}列`)
 console.log(`out/eq_report.md                  警告 ${warnings.length}件`)
