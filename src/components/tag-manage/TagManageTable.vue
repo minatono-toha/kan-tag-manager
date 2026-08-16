@@ -417,20 +417,38 @@
       }"
       @click.stop
     >
-      <div
-        v-for="stage in stagesForArea(hoveredArea)"
-        :key="stage"
-        @click="handleStageClick($event, stage)"
-        @keydown.enter="handleStageClick($event, stage)"
-        @keydown.space.prevent="handleStageClick($event, stage)"
-        @mouseenter="handleStageHover($event, stage)"
-        class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center popup-item focus:outline-none"
-        tabindex="0"
-        :class="{ 'popup-item-active': hoveredStage === stage }"
-      >
-        <span>{{ stage }}</span>
-        <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2">▶</span>
-      </div>
+      <!-- ギミック用は海域を持たないので、2段目に札を直接並べる(札が無ければ '-') -->
+      <template v-if="hoveredArea === GIMMICK_STAGE">
+        <div v-if="gimmickTags.length === 0" class="px-2 py-1 text-sm text-gray-500">-</div>
+        <div
+          v-for="tag in gimmickTags"
+          :key="tag.tagId"
+          @click="applyTagSelection(GIMMICK_STAGE, tag.tagName)"
+          @keydown.enter="applyTagSelection(GIMMICK_STAGE, tag.tagName)"
+          @keydown.space.prevent="applyTagSelection(GIMMICK_STAGE, tag.tagName)"
+          class="px-2 py-1 cursor-pointer text-sm popup-item focus:outline-none focus:ring-1 focus:ring-blue-500"
+          tabindex="0"
+          :style="{ backgroundColor: tag.tagColor, color: contrastingTextColor(tag.tagColor) }"
+        >
+          {{ tag.tagName }}
+        </div>
+      </template>
+      <template v-else>
+        <div
+          v-for="stage in stagesForArea(hoveredArea)"
+          :key="stage"
+          @click="handleStageClick($event, stage)"
+          @keydown.enter="handleStageClick($event, stage)"
+          @keydown.space.prevent="handleStageClick($event, stage)"
+          @mouseenter="handleStageHover($event, stage)"
+          class="px-2 py-1 cursor-pointer text-sm flex justify-between items-center popup-item focus:outline-none"
+          tabindex="0"
+          :class="{ 'popup-item-active': hoveredStage === stage }"
+        >
+          <span>{{ stage }}</span>
+          <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2">▶</span>
+        </div>
+      </template>
     </div>
 
     <!-- 3rd Level Menu: List of Tags for Hovered Stage -->
@@ -520,6 +538,7 @@ import { resolveTagId } from '@/utils/tagAssignment'
 import { parseTagFromTargetStage } from '@/utils/tagStage'
 import { uniqueAreasFromStages, parseStage } from '@/utils/stageUtils'
 import { contrastingTextColor } from '@/utils/color'
+import { GIMMICK_STAGE } from '@/utils/gimmickTags'
 
 const props = withDefaults(
   defineProps<{
@@ -1010,7 +1029,15 @@ const getTagCellColorStyle = (orig: number, shipIndex: number): CSSProperties =>
 // ----------------------------------------------------
 
 // 3段構成: 1段目=エリア(E-1, E-2 ...) → 2段目=そのエリアのステージ(E-1-1 ...) → 3段目=札
-const uniqueAreas = computed(() => uniqueAreasFromStages(props.stageOptions))
+// 末尾の「ギミック用」だけは海域を持たないので 2段目に札が直接並ぶ。
+// 該当する札が無いイベントでも枠は出し、2段目に '-' を表示する。
+const uniqueAreas = computed(() => [
+  ...uniqueAreasFromStages(props.stageOptions),
+  GIMMICK_STAGE,
+])
+
+// eventmap に出てこない札(useTagManagement が擬似海域として詰めたもの)
+const gimmickTags = computed(() => props.stageTagMap[GIMMICK_STAGE] || [])
 
 // stageOptions は compareStages 順で渡ってくるため、絞り込むだけで並び順は保たれる
 const stagesForArea = (area: string) =>

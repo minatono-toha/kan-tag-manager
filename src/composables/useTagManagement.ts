@@ -9,6 +9,7 @@ import {
   getAllTagManagementForEvent
 } from '@/utils/indexedDB'
 import { compareStages } from '@/utils/stageUtils'
+import { GIMMICK_STAGE, collectGimmickTags } from '@/utils/gimmickTags'
 
 export interface TagDef {
   tagId: number
@@ -80,8 +81,17 @@ export function useTagManagement(selectedEventId: Ref<number | null>, ships: Ref
         }
       })
 
+      // 攻略に使われない札(ギミック用)は eventmap に出てこないので、
+      // 擬似海域「ギミック用」の札として持たせて割当先から選べるようにする。
+      // 該当が無いイベントではキーごと作らない(選択肢は '-' 表示になる)。
+      const gimmickTags = collectGimmickTags(tMap, sTagMap)
+      if (gimmickTags.length > 0) {
+        sTagMap[GIMMICK_STAGE] = gimmickTags
+      }
+
       stageTagMap.value = sTagMap
 
+      // stageOptions は eventmap 由来の海域のみ。擬似海域は札選択側で別枠に出す。
       stageOptions.value = Array.from(stages).sort(compareStages)
     } catch (error) {
       console.error('Error fetching stage and tag options:', error)

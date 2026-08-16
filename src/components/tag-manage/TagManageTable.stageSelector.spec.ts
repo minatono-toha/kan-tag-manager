@@ -47,7 +47,8 @@ describe('割当先はエリア→ステージ→札の3段で選ぶ', () => {
 
     await w.get('.stage-trigger').trigger('click')
 
-    expect(itemLabels(w)).toEqual(['E-1', 'E-2', '選択解除'])
+    // 末尾の「ギミック用」は海域を持たない札用の枠(該当が無くても常に出す)
+    expect(itemLabels(w)).toEqual(['E-1', 'E-2', 'ギミック用', '選択解除'])
   })
 
   it('2段目はマウスオーバーしたエリアのステージだけを出す', async () => {

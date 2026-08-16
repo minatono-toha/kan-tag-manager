@@ -118,19 +118,34 @@
         }"
         @click.stop
       >
-        <div
-          v-for="stage in stagesForSelectedArea"
-          :key="stage"
-          @click="handleStageClick($event, stage)"
-          @mouseenter="handleStageHover($event, stage)"
-          class="px-2 py-1 cursor-pointer hover:bg-gray-700 text-sm flex justify-between items-center"
-          :class="{ 'bg-gray-700': hoveredStage === stage }"
-        >
-          <span>{{ stage }}</span>
-          <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2"
-            >▶</span
+        <!-- ギミック用は海域を持たないので、ここに札を直接並べる(札が無ければ '-') -->
+        <template v-if="selectedArea === GIMMICK_STAGE">
+          <div v-if="gimmickTags.length === 0" class="px-2 py-1 text-sm text-gray-400">-</div>
+          <div
+            v-for="tag in gimmickTags"
+            :key="tag.tagId"
+            @click="applyTagSelection(GIMMICK_STAGE, tag.tagName)"
+            class="px-2 py-1 cursor-pointer hover:opacity-80 text-sm"
+            :style="{ backgroundColor: tag.tagColor, color: contrastingTextColor(tag.tagColor) }"
           >
-        </div>
+            {{ tag.tagName }}
+          </div>
+        </template>
+        <template v-else>
+          <div
+            v-for="stage in stagesForSelectedArea"
+            :key="stage"
+            @click="handleStageClick($event, stage)"
+            @mouseenter="handleStageHover($event, stage)"
+            class="px-2 py-1 cursor-pointer hover:bg-gray-700 text-sm flex justify-between items-center"
+            :class="{ 'bg-gray-700': hoveredStage === stage }"
+          >
+            <span>{{ stage }}</span>
+            <span v-if="getTagsForStage(stage).length > 0" class="text-gray-400 text-xs ml-2"
+              >▶</span
+            >
+          </div>
+        </template>
       </div>
 
       <!-- Tag Selection Popup (3rd level) -->
@@ -221,6 +236,7 @@ import { resolveTagId } from '@/utils/tagAssignment'
 import { uniqueAreasFromStages, parseStage } from '@/utils/stageUtils'
 import { useTooltip } from '@/composables/useTooltip'
 import { contrastingTextColor } from '@/utils/color'
+import { GIMMICK_STAGE } from '@/utils/gimmickTags'
 
 const props = withDefaults(
   defineProps<{
@@ -373,7 +389,12 @@ const selectedArea = ref<string | null>(null)
 const hoveredStage = ref<string | null>(null)
 const tagMenuPosition = ref({ x: 0, y: 0 })
 
-const uniqueAreas = computed(() => uniqueAreasFromStages(props.stageOptions))
+// 末尾の「ギミック用」は海域を持たず、押すと札が直接並ぶ。
+// 該当する札が無いイベントでもボタンは出し、中身は '-' を表示する。
+const uniqueAreas = computed(() => [...uniqueAreasFromStages(props.stageOptions), GIMMICK_STAGE])
+
+// eventmap に出てこない札(useTagManagement が擬似海域として詰めたもの)
+const gimmickTags = computed(() => props.stageTagMap[GIMMICK_STAGE] || [])
 
 const currentStageArea = computed(() => {
   if (!tagData.value.targetStage) return null
