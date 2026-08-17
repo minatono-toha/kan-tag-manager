@@ -23,10 +23,12 @@
         <div v-if="loading" class="p-8 text-center eq-muted text-sm">読み込み中...</div>
 
         <template v-else>
-          <!-- 装備種別(複数選択) と 搭載先(3択) -->
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 border-b">
-            <span class="eq-label">装備種別</span>
-            <div class="flex flex-wrap gap-1">
+          <!-- 操作は常に2行。搭載先で装備種別チップの数が変わっても、
+               どのボタンも位置が動かないように行を固定している。
+               1行目=装備種別(複数選択) / 2行目=搭載先(3択)と対象海域 -->
+          <div class="flex items-center gap-x-4 px-4 pt-2 pb-1" data-row="types">
+            <span class="eq-label flex-none">装備種別</span>
+            <div class="flex flex-wrap gap-1 flex-1 min-w-0">
               <button
                 v-for="t in slotTypes"
                 :key="t.name"
@@ -45,14 +47,16 @@
             <!-- 表示切替は本体(艦船情報表)と同じボタン。既定は装備名だけの短い表 -->
             <button
               type="button"
-              class="ml-auto px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              class="flex-none px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
               @click="detailMode = !detailMode"
             >
               {{ detailMode ? '装備名のみ' : '詳細表示' }}
             </button>
+          </div>
 
-            <span class="eq-label">搭載先</span>
-            <div class="eq-seg">
+          <div class="flex items-center gap-x-4 px-4 pb-2 border-b" data-row="scope">
+            <span class="eq-label flex-none">搭載先</span>
+            <div class="eq-seg flex-none">
               <button
                 v-for="s in EQ_SLOTS"
                 :key="s.id"
@@ -62,6 +66,20 @@
                 @click="setSlot(s.id)"
               >
                 {{ s.label }}
+              </button>
+            </div>
+
+            <span class="eq-label flex-none">対象海域</span>
+            <div class="eq-seg flex-none">
+              <button
+                v-for="(f, i) in families"
+                :key="f.label"
+                type="button"
+                class="eq-chip"
+                :aria-selected="familyIndex === i"
+                @click="setFamily(i)"
+              >
+                {{ f.label }}
               </button>
             </div>
           </div>
@@ -124,7 +142,7 @@
                   <!-- 海域は E-3 / E-4 のように束ね、見出しクリックで展開・格納する。
                        装備特攻が無い海域は畳まず「-」だけの1列にする -->
                   <th v-for="ng in nodeGroups" :key="ng.area"
-                      :colspan="ng.empty ? 1 : ng.maps.length" class="eq-sep"
+                      :colspan="ng.empty || !isAreaOpen(ng.area) ? 1 : ng.maps.length" class="eq-sep"
                       :class="ng.empty ? 'eq-areahead-static' : 'eq-areahead'"
                       :tabindex="ng.empty ? undefined : 0"
                       :title="ng.empty ? '装備特攻なし' : undefined"
@@ -145,7 +163,7 @@
                         <span v-if="sortKey === 'map:' + m.mapId" class="eq-arrow">{{ arrow }}</span>
                       </th>
                     </template>
-                    <th v-else :colspan="ng.maps.length" class="eq-collapsed eq-sep"></th>
+                    <th v-else class="eq-num eq-sep"></th>
                   </template>
                 </tr>
               </thead>
@@ -187,7 +205,7 @@
                         {{ fmt(soloOf(item, m.mapId)) }}
                       </td>
                     </template>
-                    <td v-else :colspan="ng.maps.length" class="eq-collapsed eq-sep"></td>
+                    <td v-else class="eq-num eq-sep"></td>
                   </template>
                 </tr>
                 <tr v-if="sortedItems.length === 0">
@@ -218,7 +236,7 @@
                         {{ fmt(totalOf(m.mapId)) }}
                       </td>
                     </template>
-                    <td v-else :colspan="ng.maps.length" class="eq-collapsed eq-sep"></td>
+                    <td v-else class="eq-num eq-sep"></td>
                   </template>
                 </tr>
               </tfoot>
@@ -234,8 +252,8 @@
 import { computed, ref, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import {
-  useEquipmentAttack, EQ_SLOTS, typeOfItem, totalRate, soloRate,
-  itemsForSlot, isStackingGroup, type EqItem, type EqSlotDef,
+  useEquipmentAttack, EQ_SLOTS, typeOfItem, chipTypeOf, totalRate, soloRate,
+  itemsForSlot, isStackingGroup, buildFamilies, type EqItem, type EqSlotDef,
 } from '@/composables/useEquipmentAttack'
 
 const props = defineProps<{
@@ -268,6 +286,7 @@ const STAT_COLS = [
 const TYPE_COLOR: Record<string, string> = {
   艦戦: 'var(--eq-fighter)', 陸戦: 'var(--eq-fighter)',
   艦攻: 'var(--eq-attacker)', 陸攻: 'var(--eq-attacker)',
+  夜戦: 'var(--eq-night)', 夜攻: 'var(--eq-night)',
   艦爆: 'var(--eq-bomber)',
   艦偵: 'var(--eq-recon)', 陸偵: 'var(--eq-recon)',
   水戦: 'var(--eq-sea)', 水偵: 'var(--eq-sea)', 水爆: 'var(--eq-sea)', 水攻: 'var(--eq-sea)',
@@ -276,6 +295,7 @@ const TYPE_COLOR: Record<string, string> = {
 const TYPE_INK: Record<string, string> = {
   艦戦: 'var(--eq-fighter-ink)', 陸戦: 'var(--eq-fighter-ink)',
   艦攻: 'var(--eq-attacker-ink)', 陸攻: 'var(--eq-attacker-ink)',
+  夜戦: 'var(--eq-night-ink)', 夜攻: 'var(--eq-night-ink)',
   艦爆: 'var(--eq-bomber-ink)',
   艦偵: 'var(--eq-recon-ink)', 陸偵: 'var(--eq-recon-ink)',
   水戦: 'var(--eq-sea-ink)', 水偵: 'var(--eq-sea-ink)', 水爆: 'var(--eq-sea-ink)', 水攻: 'var(--eq-sea-ink)',
@@ -287,7 +307,7 @@ const slotId = ref<EqSlotDef['id']>('cv')
 const detailMode = ref(false)
 const selectedTypes = ref<string[]>([])
 const pickedIds = ref<number[]>([])
-const openAreas = ref<string[]>([])
+const openArea = ref<string | null>(null)
 // 既定は種別の昇順(艦戦 → 艦攻 → 艦爆 → 艦偵 …)。種別ごとにまとまって見えるようにする。
 const DEFAULT_SORT = 'type'
 const sortKey = ref<string | null>(DEFAULT_SORT)
@@ -295,23 +315,44 @@ const sortOrder = ref<'asc' | 'desc'>('asc')
 
 const slotDef = computed(() => EQ_SLOTS.find((s) => s.id === slotId.value) ?? EQ_SLOTS[0])
 
-// その搭載先で選べる装備(有効なグループを持つものだけ)。件数はチップに出す。
-const slotItems = computed(() => itemsForSlot(items.value, rates.value, slotDef.value))
+// 倍率を持つマスが重ならない組は別の特攻として分ける(E-3 の KA と E-4/E-5 の A/B/C)。
+// 混ぜて出すと「E-4 で KA を積む」ような誤読を招くため、系統を1つ選んで見る。
+const areaOfMap = (mapId: number) => {
+  const m = maps.value.find((x) => x.mapId === mapId)
+  return m ? `E-${m.stageNum}` : ''
+}
+const families = computed(() => buildFamilies(rates.value, areaOfMap))
+const familyIndex = ref(0)
+const familyGroups = computed(() => families.value[familyIndex.value]?.groups ?? new Set<string>())
+const inFamily = (item: EqItem) => item.groups.some((g) => familyGroups.value.has(g))
+
+const setFamily = (i: number) => {
+  familyIndex.value = i
+  resetTypes()
+  pickedIds.value = []
+  // 見ている系統の海域だけ開いておく(他の系統は畳んで幅を取らない)
+  openArea.value = families.value[i]?.areas[0] ?? null
+}
+
+// その搭載先・その系統で選べる装備(有効なグループを持つものだけ)。件数はチップに出す。
+const slotItems = computed(() =>
+  itemsForSlot(items.value, rates.value, slotDef.value).filter(inFamily),
+)
 const slotTypes = computed(() =>
   slotDef.value.types.map((name) => ({
     name,
     label: TYPE_LABEL[name] ?? name,
-    count: slotItems.value.filter((it) => typeOfItem(it, slotDef.value) === name).length,
+    count: slotItems.value.filter((it) => chipTypeOf(it, slotDef.value) === name).length,
   })),
 )
 const TYPE_LABEL: Record<string, string> = {
-  艦戦: '艦戦', 艦攻: '艦攻', 艦爆: '艦爆', 艦偵: '艦偵',
+  艦戦: '艦戦', 艦攻: '艦攻', 艦爆: '艦爆', 艦偵: '艦偵', 夜戦: '夜戦', 夜攻: '夜攻',
   水戦: '水上戦闘機', 水偵: '水上偵察機', 水爆: '水上爆撃機', 対地: '対地装備',
   陸攻: '陸上攻撃機', 陸戦: '陸上戦闘機', 陸偵: '陸上偵察機', 水攻: '水上攻撃機',
 }
 
 const visibleItems = computed(() =>
-  slotItems.value.filter((it) => selectedTypes.value.includes(typeOfItem(it, slotDef.value))),
+  slotItems.value.filter((it) => selectedTypes.value.includes(chipTypeOf(it, slotDef.value))),
 )
 
 // 既定は「その搭載先で中身がある航空機の種別すべて」。
@@ -358,11 +399,11 @@ const nodeGroups = computed(() => {
   for (const g of groups) g.empty = !g.maps.some((m) => hasRate(m.mapId))
   return groups
 })
-const isAreaOpen = (area: string) => openAreas.value.includes(area)
+// 装備特攻は海域を見比べる使い方をしないので、開くのは常に1海域だけにする
+// (E-5 を開けば E-4 は閉じる)。本体の特攻表は見比べるので従来どおり複数開ける。
+const isAreaOpen = (area: string) => openArea.value === area
 const toggleArea = (area: string) => {
-  openAreas.value = isAreaOpen(area)
-    ? openAreas.value.filter((a) => a !== area)
-    : [...openAreas.value, area]
+  openArea.value = isAreaOpen(area) ? null : area
   // 格納した海域で並べ替えたままだと、基準が見えないのに並びだけ変わる
   const m = /^map:(\d+)$/.exec(sortKey.value ?? '')
   if (m && !visibleMapIds.value.has(Number(m[1]))) sortKey.value = null
@@ -379,7 +420,7 @@ const visibleGroups = computed(() => {
   const used = new Set<string>()
   for (const it of visibleItems.value) for (const g of it.groups) used.add(g)
   return [...new Set(rates.value.filter((r) => r.slot === slotDef.value.rateSlot).map((r) => r.grp))]
-    .filter((g) => used.has(g))
+    .filter((g) => used.has(g) && familyGroups.value.has(g))
     .sort()
 })
 
@@ -459,7 +500,9 @@ const cycleSort = (key: string) => {
     sortOrder.value = 'desc'
   }
 }
-const TYPE_ORDER = ['艦戦', '艦攻', '艦爆', '艦偵', '水戦', '水偵', '水爆', '対地', '陸攻', '陸戦', '陸偵', '水攻']
+// 夜戦・夜攻は昼の相方の直後に置く
+const TYPE_ORDER = ['艦戦', '夜戦', '艦攻', '夜攻', '艦爆', '艦偵',
+  '水戦', '水偵', '水爆', '対地', '陸攻', '陸戦', '陸偵', '水攻']
 const sortValue = (item: EqItem, key: string): string | number | null => {
   const [kind, arg] = key.split(':')
   if (kind === 'name') return item.name
@@ -491,9 +534,13 @@ const sortedItems = computed(() => {
 watch(
   () => [props.visible, items.value.length, nodeGroups.value.length] as const,
   ([vis]) => {
-    if (!vis) return
+    if (!vis || families.value.length === 0) return
+    if (openArea.value === null) {
+      // 既定は最後の系統(後段)。開いた時点で見たいのは進行中の海域であることが多い。
+      familyIndex.value = families.value.length - 1
+      openArea.value = families.value[familyIndex.value].areas[0] ?? null
+    }
     if (selectedTypes.value.length === 0) resetTypes()
-    if (openAreas.value.length === 0) openAreas.value = nodeGroups.value.map((g) => g.area)
   },
   { immediate: true },
 )
@@ -518,6 +565,8 @@ watch(
   --eq-recon: #f3e6bd;    --eq-recon-ink: #6b5210;
   --eq-sea: #e0eab8;      --eq-sea-ink: #4a6013;
   --eq-ground: #dfe3e6;   --eq-ground-ink: #3d4952;
+  /* 夜戦・夜攻は群青。他が淡い色なので、濃色＋白文字で夜間機だと分かるようにする */
+  --eq-night: #3f4a8f;    --eq-night-ink: #f2f4ff;
 }
 .eq-bar { background: var(--eq-panel); border-color: var(--eq-line); }
 .eq-calc { background: var(--eq-panel); }
@@ -579,7 +628,6 @@ table.eq-table { border-collapse: separate; border-spacing: 0; width: 100%; }
 /* 展開・格納の三角。見出し文字(11px)に対して小さすぎたので大きくする */
 .eq-caret { font-size: 20px; line-height: 0.8; margin-left: 5px; color: var(--eq-accent); vertical-align: -3px; }
 .eq-areahead-static { text-align: center; color: var(--text-secondary, #6a7681); }
-.eq-collapsed { padding: 0; min-width: 30px; }
 
 .eq-chk { width: 30px; text-align: center; padding-left: 6px; padding-right: 6px; }
 /* 装備名は長いものが多いので幅を決め打ちし、あふれたら省略する(正式名は title で出す) */

@@ -45,6 +45,9 @@ const SHIP_TYPE = {
   艦上戦闘機: '艦戦', 艦上攻撃機: '艦攻', 艦上爆撃機: '艦爆', 艦上偵察機: '艦偵',
   水上戦闘機: '水戦', 水上偵察機: '水偵', 水上爆撃機: '水爆',
 }
+// 夜間戦闘機・夜間攻撃機は装備種別が艦上戦闘機/艦上攻撃機のままなので、
+// アイコンID でしか判別できない。夜戦・夜攻として別種別にする。
+const NIGHT_TYPE = { 45: '夜戦', 46: '夜攻' }
 // 基地に置いたときの種別。陸上/水上 × 攻撃機/戦闘機/偵察機 の6分類に畳む。
 const BASE_TYPE = {
   陸上攻撃機: '陸攻', 大型陸上機: '陸攻', 噴式戦闘爆撃機: '陸攻',
@@ -133,7 +136,7 @@ const rows = []
 const buildRow = (name, groups, ctx) => {
   const m = lookup(name, ctx)
   const isGround = groups.every((g) => g.startsWith('G'))
-  const shipType = isGround ? '対地' : SHIP_TYPE[m.type] ?? ''
+  const shipType = isGround ? '対地' : NIGHT_TYPE[m.icon] ?? SHIP_TYPE[m.type] ?? ''
   const baseType = isGround ? '' : BASE_TYPE[m.type] ?? ''
   if (!isGround && !shipType && !baseType) warn(`【種別不明】${name}: 公式の装備種別「${m.type}」に対応する分類が無い`)
   for (const g of groups) {

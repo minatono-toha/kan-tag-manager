@@ -44,6 +44,14 @@ export const EQ_SLOTS: EqSlotDef[] = [
 export const typeOfItem = (item: EqItem, slot: EqSlotDef): string =>
   slot.id === 'base' ? item.baseType : item.eqType
 
+// 装備種別チップ上の分類。夜戦・夜攻は昼の相方のチップに含める
+// (表の種別列では夜戦・夜攻のまま出し分ける)。
+const CHIP_TYPE: Record<string, string> = { 夜戦: '艦戦', 夜攻: '艦攻' }
+export const chipTypeOf = (item: EqItem, slot: EqSlotDef): string => {
+  const t = typeOfItem(item, slot)
+  return CHIP_TYPE[t] ?? t
+}
+
 export interface EqMap {
   mapId: number
   stage: string
@@ -186,9 +194,64 @@ export const inSlot = (rates: EqRate[], item: EqItem, slot: EqSlotDef): boolean 
 
 // 表に出す装備。搭載先で種別を絞り、さらに有効なグループを持つものだけにする。
 export const itemsForSlot = (items: EqItem[], rates: EqRate[], slot: EqSlotDef): EqItem[] =>
-  items.filter((it) => slot.types.includes(typeOfItem(it, slot)) && inSlot(rates, it, slot))
+  items.filter((it) => slot.types.includes(chipTypeOf(it, slot)) && inSlot(rates, it, slot))
 
 // 積んだ数で倍率が変わる組か(count が2以上定義されているか)。
 // ⭕の重複表示や掛け合わせ式の出し方をこれで切り替える。
 export const isStackingGroup = (rates: EqRate[], grp: string): boolean =>
   rates.some((r) => r.grp === grp && r.count > 1)
+
+// 特攻の系統。倍率を持つマスが重ならない組は、別物として分けて扱う。
+// E-3 の KA(艦載機A組)と E-4/E-5 の A/B/C 組は同じマスに同居しないため、
+// 混ぜて出すと「E-4 で KA を積む」ような誤読を招く。
+export interface EqFamily {
+  label: string
+  areas: string[]
+  groups: Set<string>
+}
+
+// 同じ海域に倍率を持つ組同士を繋ぎ、繋がった海域のまとまりを1系統とする。
+// (C3 は E-4 だけ、A1 は E-4/E-5 → A1 経由で E-4 と E-5 が同じ系統になる)
+export const buildFamilies = (rates: EqRate[], areaOf: (mapId: number) => string): EqFamily[] => {
+  const areasOfGroup = new Map<string, Set<string>>()
+  for (const r of rates) {
+    for (const mapId of Object.keys(r.byMapId)) {
+      if (!areasOfGroup.has(r.grp)) areasOfGroup.set(r.grp, new Set())
+      areasOfGroup.get(r.grp)!.add(areaOf(Number(mapId)))
+    }
+  }
+
+  // 海域を頂点にした union-find。同じ組が跨いでいる海域を1つに束ねる。
+  const parent = new Map<string, string>()
+  const find = (a: string): string => {
+    if (!parent.has(a)) parent.set(a, a)
+    const p = parent.get(a)!
+    if (p === a) return a
+    const root = find(p)
+    parent.set(a, root)
+    return root
+  }
+  const union = (a: string, b: string) => {
+    const [ra, rb] = [find(a), find(b)]
+    if (ra !== rb) parent.set(rb, ra)
+  }
+  for (const areas of areasOfGroup.values()) {
+    const list = [...areas]
+    for (let i = 1; i < list.length; i++) union(list[0], list[i])
+  }
+
+  const byRoot = new Map<string, EqFamily>()
+  for (const [grp, areas] of areasOfGroup) {
+    const root = find([...areas][0])
+    if (!byRoot.has(root)) byRoot.set(root, { label: '', areas: [], groups: new Set() })
+    const fam = byRoot.get(root)!
+    fam.groups.add(grp)
+    for (const a of areas) if (!fam.areas.includes(a)) fam.areas.push(a)
+  }
+  const families = [...byRoot.values()]
+  for (const f of families) {
+    f.areas.sort()
+    f.label = f.areas.join('・')
+  }
+  return families.sort((a, b) => a.areas[0].localeCompare(b.areas[0]))
+}

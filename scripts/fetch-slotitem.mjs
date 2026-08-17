@@ -17,13 +17,16 @@ const start2 = JSON.parse(readFileSync(SRC, 'utf8'))
 const typeName = new Map(start2.api_mst_slotitem_equiptype.map((t) => [t.api_id, t.api_name]))
 
 // 生成器が使う項目だけに絞る(START2 は 2MB あり、全部は要らない)。
-// api_type[2] が装備種別ID。半径(api_distance)は陸上機・水上機にしか無い。
+// api_type[2] が装備種別ID、api_type[3] がアイコンID。
+// 夜間戦闘機・夜間攻撃機は装備種別が艦上戦闘機/艦上攻撃機のままなので、
+// アイコンID(45=夜戦 / 46=夜攻)でしか区別できない。半径は陸上機・水上機にしか無い。
 // 項目名は Firestore の eqattack に合わせる(対空=AA, 雷装=Torpedo, 爆装=Bombing,
 // 対潜=ASW, 索敵=LoS, 半径=CombatRadius)。
 const items = start2.api_mst_slotitem.map((it) => ({
   id: it.api_id,
   name: it.api_name,
   type: typeName.get(it.api_type[2]) ?? '',
+  icon: it.api_type[3] ?? 0,
   AA: it.api_tyku ?? 0,
   Torpedo: it.api_raig ?? 0,
   Bombing: it.api_baku ?? 0,
