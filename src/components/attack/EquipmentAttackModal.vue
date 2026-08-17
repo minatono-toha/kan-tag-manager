@@ -153,7 +153,7 @@
                     />
                   </td>
                   <td class="eq-type-col" :style="typeCellStyle(item)">{{ typeOfItem(item, slotDef) }}</td>
-                  <td class="eq-name">{{ item.name }}</td>
+                  <td class="eq-name" :title="item.name">{{ item.name }}</td>
                   <td v-for="s in statCols" :key="s.key" class="eq-num">
                     {{ item.stats[s.key] || '' }}
                   </td>
@@ -269,8 +269,10 @@ const slotId = ref<EqSlotDef['id']>('cv')
 const selectedTypes = ref<string[]>([])
 const pickedIds = ref<number[]>([])
 const openAreas = ref<string[]>([])
-const sortKey = ref<string | null>(null)
-const sortOrder = ref<'asc' | 'desc'>('desc')
+// 既定は種別の昇順(艦戦 → 艦攻 → 艦爆 → 艦偵 …)。種別ごとにまとまって見えるようにする。
+const DEFAULT_SORT = 'type'
+const sortKey = ref<string | null>(DEFAULT_SORT)
+const sortOrder = ref<'asc' | 'desc'>('asc')
 
 const slotDef = computed(() => EQ_SLOTS.find((s) => s.id === slotId.value) ?? EQ_SLOTS[0])
 
@@ -293,8 +295,10 @@ const visibleItems = computed(() =>
   slotItems.value.filter((it) => selectedTypes.value.includes(typeOfItem(it, slotDef.value))),
 )
 
-// 既定は「その搭載先で中身がある種別すべて」
-const defaultTypes = () => slotTypes.value.filter((t) => t.count > 0).map((t) => t.name)
+// 既定は「その搭載先で中身がある航空機の種別すべて」。
+// 対地は航空機と同じ表に出せないので、既定では選ばない(チップを押すと対地だけの表になる)。
+const defaultTypes = () =>
+  slotTypes.value.filter((t) => t.count > 0 && t.name !== '対地').map((t) => t.name)
 const resetTypes = () => { selectedTypes.value = defaultTypes() }
 
 const setSlot = (id: EqSlotDef['id']) => {
@@ -302,12 +306,20 @@ const setSlot = (id: EqSlotDef['id']) => {
   // 搭載先で有効なグループが入れ替わるため、選択と並べ替えは持ち越さない
   resetTypes()
   pickedIds.value = []
-  sortKey.value = null
+  sortKey.value = DEFAULT_SORT
+  sortOrder.value = 'asc'
 }
+
+// 対地装備は所属する組(GA/GB/GC)が航空機と全く別なので、同じ表には混ぜない。
+// 対地を選ぶと航空機の種別が外れ、その逆も同じ。
 const toggleType = (name: string) => {
-  selectedTypes.value = selectedTypes.value.includes(name)
-    ? selectedTypes.value.filter((t) => t !== name)
-    : [...selectedTypes.value, name]
+  const has = selectedTypes.value.includes(name)
+  if (name === '対地') {
+    selectedTypes.value = has ? [] : ['対地']
+  } else {
+    const next = selectedTypes.value.filter((t) => t !== '対地')
+    selectedTypes.value = has ? next.filter((t) => t !== name) : [...next, name]
+  }
   // 表から消えた行の選択は落とす
   const live = new Set(visibleItems.value.map((i) => i.eqId))
   pickedIds.value = pickedIds.value.filter((id) => live.has(id))
@@ -340,14 +352,13 @@ const visibleMapIds = computed(() => {
   return s
 })
 
-// 列として出すグループ。倍率があるか、表に出ている装備が所属しているもの。
+// 列として出すグループ。表に出ている装備が実際に所属している組だけを出す。
+// これで航空機の表に対地の GA/GB/GC が出ず、対地の表に A/B 組が出ない。
 const visibleGroups = computed(() => {
-  const all = [...new Set(rates.value.filter((r) => r.slot === slotDef.value.rateSlot).map((r) => r.grp))]
-  return all
-    .filter((g) =>
-      rates.value.some((r) => r.grp === g && Object.keys(r.byMapId).length > 0) ||
-      visibleItems.value.some((it) => it.groups.includes(g)),
-    )
+  const used = new Set<string>()
+  for (const it of visibleItems.value) for (const g of it.groups) used.add(g)
+  return [...new Set(rates.value.filter((r) => r.slot === slotDef.value.rateSlot).map((r) => r.grp))]
+    .filter((g) => used.has(g))
     .sort()
 })
 
@@ -458,9 +469,11 @@ watch(
 </script>
 
 <style scoped>
+/* 種別チップの選択で中身が増減しても大きさが変わらないよう、幅も高さも固定する
+   (表の側がスクロールで吸収する)。開くたびに位置が動くと操作しづらいため。 */
 .eq-modal {
   width: min(1180px, 96vw);
-  max-height: 90vh;
+  height: min(90vh, 900px);
   background: var(--bg-popup, #fff);
   color: var(--text-popup, #141a1f);
 
@@ -536,7 +549,8 @@ table.eq-table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .eq-collapsed { padding: 0; min-width: 30px; }
 
 .eq-chk { width: 30px; text-align: center; padding-left: 6px; padding-right: 6px; }
-.eq-name { width: 100%; }
+/* 装備名は長いものが多いので幅を決め打ちし、あふれたら省略する(正式名は title で出す) */
+.eq-name { width: 220px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .eq-num { text-align: right; font-variant-numeric: tabular-nums; }
 .eq-grp { text-align: center; width: 44px; }
 .eq-type-col { width: 58px; text-align: center; }

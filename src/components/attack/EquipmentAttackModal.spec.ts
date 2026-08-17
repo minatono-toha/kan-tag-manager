@@ -13,6 +13,8 @@ const EQRATE = [
   { eventId: 3, grp: '飛機A', slot: '艦上', count: 2, mapId_7: 1.16, mapId_10: 1.18 },
   { eventId: 3, grp: '飛機A', slot: '艦上', count: 3, mapId_10: 1.28 },
   { eventId: 3, grp: 'A1', slot: '艦上', count: 1, mapId_10: 1.05 },
+  { eventId: 3, grp: 'GA', slot: '艦上', count: 1, mapId_10: 1.12 },
+  { eventId: 3, grp: 'GB', slot: '艦上', count: 1, mapId_10: 1.08 },
 ]
 const air = (eqId: number, name: string) => ({
   eventId: 3, eqId, name, officialType: '艦上攻撃機', eqType: '艦攻', baseType: '陸攻',
@@ -22,9 +24,14 @@ const fighter = (eqId: number, name: string) => ({
   eventId: 3, eqId, name, officialType: '艦上戦闘機', eqType: '艦戦', baseType: '陸戦',
   AA: 10, grp1: 'A1',
 })
+// 対地装備は GA/GB/GC だけに所属し、航空機の A/B 組とは重ならない
+const ground = (eqId: number, name: string, grp1: string) => ({
+  eventId: 3, eqId, name, officialType: '上陸用舟艇', eqType: '対地', baseType: '', grp1,
+})
 const EQATTACK = [
   air(1, '流星改(一航戦)'), air(2, '天山一二型甲改'), air(3, '彗星(江草隊)'), air(4, '彩雲(偵四)'),
   fighter(5, 'Corsair Mk.II'), fighter(6, 'Corsair Mk.II(Ace)'),
+  ground(7, '特二式内火艇', 'GA'), ground(8, '陸軍歩兵部隊', 'GB'),
 ]
 
 vi.mock('@/firebase', () => ({ db: {} }))
@@ -140,6 +147,42 @@ describe('装備特攻モーダル', () => {
     const inputs = $('input.eq-input').map((i) => (i as HTMLInputElement).value)
     expect(inputs[0]).toBe('流星改(一航戦) × 天山一二型甲改 × Corsair Mk.II')
     expect(inputs[1]).toBe('A1 × 飛機A×2')
+  })
+
+  it('既定は種別の昇順で並ぶ', async () => {
+    await openModal()
+
+    // 艦戦 → 艦攻 の順(TYPE_ORDER 準拠)。同種別の中は出典の掲載順のまま
+    expect(rows().map((r) => text(r.querySelector('td.eq-type-col')!))).toEqual([
+      '艦戦', '艦戦', '艦攻', '艦攻', '艦攻', '艦攻',
+    ])
+  })
+
+  it('航空機の表に対地の組(GA/GB)は出ない', async () => {
+    await openModal()
+
+    expect($('th.eq-grp').map(text)).toEqual(['A1', '飛機A'])
+  })
+
+  it('対地装備を選ぶと、対地の組だけの表に切り替わる', async () => {
+    await openModal()
+
+    // 空母以外へ。既定では対地は選ばれていない(航空機と同じ表に出せないため)
+    await click($('.eq-chip').find((c) => text(c) === '空母以外')!)
+    expect($('th.eq-grp').map(text)).not.toContain('GA')
+
+    await click($('.eq-chip').find((c) => text(c) === '対地装備0' || text(c).startsWith('対地装備'))!)
+    expect($('th.eq-grp').map(text)).toEqual(['GA', 'GB'])
+    expect(rows().map((r) => text(r.querySelector('td.eq-name')!))).toEqual([
+      '特二式内火艇', '陸軍歩兵部隊',
+    ])
+  })
+
+  it('装備名は省略表示にし、正式名を title で出す', async () => {
+    await openModal()
+
+    const cell = rowByName('流星改(一航戦)').querySelector('td.eq-name')!
+    expect(cell.getAttribute('title')).toBe('流星改(一航戦)')
   })
 
   it('海域の見出しクリックで展開・格納する', async () => {
