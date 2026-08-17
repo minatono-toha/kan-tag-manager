@@ -252,6 +252,31 @@ describe('装備特攻モーダル', () => {
     expect(text(rowByName('天山一二型甲改').querySelector('td.eq-type-col')!)).toBe('夜攻')
   })
 
+  it('掛け合わせ欄の✕で選択をまとめて外せる', async () => {
+    await openModal()
+
+    // 何も選んでいないうちは出さない
+    expect($('.eq-clear')).toHaveLength(0)
+
+    await click(rowByName('Corsair Mk.II'))
+    await click(rowByName('F6F-5'))
+    expect($('tbody tr[aria-selected="true"]')).toHaveLength(2)
+
+    await click($('.eq-clear')[0])
+    expect($('tbody tr[aria-selected="true"]')).toHaveLength(0)
+    expect(($('input.eq-input')[0] as HTMLInputElement).value).toBe('')
+    expect($('.eq-clear')).toHaveLength(0)
+  })
+
+  it('種別セルは淡色背景なので、テーマの白文字に勝つよう文字色を !important で指定する', async () => {
+    await openModal()
+
+    // ダーク系テーマは `td { color: ... !important }` で白文字を強制してくる
+    const cell = rowByName('Corsair Mk.II').querySelector('td.eq-type-col') as HTMLElement
+    expect(cell.style.getPropertyPriority('color')).toBe('important')
+    expect(cell.style.backgroundColor).not.toBe('')
+  })
+
   it('操作は常に2行で、搭載先は搭載先を切り替えても2行目の左端にある', async () => {
     await openModal()
 

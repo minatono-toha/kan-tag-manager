@@ -88,13 +88,25 @@
           <div class="eq-calc flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 border-b">
             <span class="eq-label">掛け合わせ</span>
             <div class="flex-1 min-w-0 flex flex-col gap-1">
-              <input
-                type="text"
-                readonly
-                class="eq-input"
-                :value="pickedNamesExpr"
-                placeholder="装備をチェックすると、選んだ装備名が並びます（最大5つ）"
-              />
+              <div class="eq-inputwrap">
+                <input
+                  type="text"
+                  readonly
+                  class="eq-input"
+                  :value="pickedNamesExpr"
+                  placeholder="装備をチェックすると、選んだ装備名が並びます（最大5つ）"
+                />
+                <button
+                  v-if="picked.length > 0"
+                  type="button"
+                  class="eq-clear"
+                  aria-label="選択をすべて外す"
+                  title="選択をすべて外す"
+                  @click="clearPicked"
+                >
+                  ✕
+                </button>
+              </div>
               <input
                 type="text"
                 readonly
@@ -482,11 +494,19 @@ const fmt = (v: number | null) => (v == null ? '-' : v.toFixed(3))
 const heatStyle = (v: number | null): CSSProperties => {
   if (v == null) return {}
   const heat = Math.max(0, Math.min(1, (v - 1) / 0.5))
-  return { '--eq-heat': String(heat) } as CSSProperties
+  // 熱色(橙)が濃く乗ったセルは背景が明るくなる。ダーク系の白文字だと読めないので黒に落とす。
+  const ink = heat >= 0.45 ? { color: '#111827 !important' } : {}
+  return { '--eq-heat': String(heat), ...ink } as CSSProperties
 }
+// ダーク系テーマは `td { color: ... !important }` で白文字を強制してくるので、
+// 背景をこちらで塗っているセルは文字色も !important で勝たせる(本体の札列と同じ)。
 const typeCellStyle = (item: EqItem): CSSProperties => {
   const t = typeOfItem(item, slotDef.value)
-  return { backgroundColor: TYPE_COLOR[t] ?? 'transparent', color: TYPE_INK[t] ?? 'inherit' }
+  const ink = TYPE_INK[t]
+  return {
+    backgroundColor: TYPE_COLOR[t] ?? 'transparent',
+    ...(ink ? { color: `${ink} !important` } : {}),
+  }
 }
 
 // --- 並べ替え。降順 → 昇順 → 解除 の3状態(本体の特攻表と同じ) ---
@@ -602,6 +622,16 @@ watch(
   width: 100%; font-size: 12.5px; padding: 4px 9px; border-radius: 3px;
   border: 1px solid var(--eq-line); background: var(--bg-popup, #fff); color: inherit;
 }
+/* テキストボックス右端のクリア。中身があるときだけ出す */
+.eq-inputwrap { position: relative; }
+.eq-inputwrap .eq-input { padding-right: 26px; }
+.eq-clear {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  border: 0; background: none; cursor: pointer; line-height: 1;
+  font-size: 12px; padding: 2px 4px; color: var(--text-secondary, #6a7681);
+}
+.eq-clear:hover { color: var(--text-primary, #141a1f); }
+.eq-clear:focus-visible { outline: 2px solid var(--eq-accent); outline-offset: 1px; }
 .eq-full { color: #8a5a12; font-weight: 700; }
 .eq-link {
   font-size: 11.5px; background: none; border: 0; color: var(--eq-accent);
@@ -654,7 +684,10 @@ table.eq-table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .eq-mark.eq-dup { color: var(--text-secondary, #6a7681); opacity: .45; font-weight: 400; }
 .eq-times { font-size: 10px; margin-left: 1px; }
 .eq-dash { color: var(--text-secondary, #6a7681); opacity: .4; }
-.eq-table th.eq-grp[data-covered='1'] { background: var(--eq-accent); color: #fff; }
+.eq-table th.eq-grp[data-covered='1'] {
+  background: var(--eq-accent) !important;
+  color: #fff !important;
+}
 
 .eq-table tfoot td {
   position: sticky; bottom: 0; z-index: 3; background: var(--eq-panel);
