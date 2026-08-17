@@ -22,7 +22,7 @@ const app = initializeApp({
 const db = getFirestore(app)
 
 mkdirSync(OUT_DIR, { recursive: true })
-for (const name of ['shiplist', 'eventmap', 'maintable']) {
+for (const name of ['shiplist', 'eventmap', 'maintable', 'eqattack', 'eqrate']) {
   const snap = await getDocs(collection(db, name))
   const docs = snap.docs.map((d) => ({ _id: d.id, ...d.data() }))
   writeFileSync(join(OUT_DIR, `${name}.json`), JSON.stringify(docs, null, 1))

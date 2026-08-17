@@ -53,7 +53,9 @@ const BASE_TYPE = {
   陸上偵察機: '陸偵', 大型飛行艇: '陸偵', 艦上偵察機: '陸偵',
   水上戦闘機: '水戦', 水上偵察機: '水偵', 水上爆撃機: '水攻',
 }
-const STATS = ['対空', '雷装', '爆装', '対潜', '索敵', '半径']
+// 列名は Firestore の eqattack に合わせる(対空=AA, 雷装=Torpedo, 爆装=Bombing,
+// 対潜=ASW, 索敵=LoS, 半径=CombatRadius)。値は公式マスタから引く。
+const STATS = ['AA', 'Torpedo', 'Bombing', 'ASW', 'LoS', 'CombatRadius']
 
 // --- 倍率の計算 ---
 // 艦上: A組は全マップ倍率 × 個別マス倍率、B組は個別マス倍率のみ。基地: C組の個別マス倍率のみ。

@@ -239,3 +239,15 @@ node scripts/build-eqtable.mjs 3   # eventId
 - **E5 の B2/B3 に「全マップ有効」値(1.07/1.12)が付いた**が、個別マス倍率と積算するのか、
   個別マス値が既に総倍率なのかが読み取れない。現状は後者を採用し、`unresolvedMapWide` に
   数値を残したうえでレポートに注意書きを出している。前者なら E-5-2(J2) の B2 は 1.07×1.1148 になる。
+
+## Firestore の項目名
+
+ステータスの項目名は英語表記で持つ。生成器の出力もこれに合わせてある。
+
+| 出典・公式マスタ | Firestore / CSV |
+|---|---|
+| 対空 / 雷装 / 爆装 | `AA` / `Torpedo` / `Bombing` |
+| 対潜 / 索敵 / 半径 | `ASW` / `LoS` / `CombatRadius` |
+
+`fetch-master.mjs` は `eqattack` / `eqrate` も取得するので、投入後に実行すれば
+`out/` の生成結果と突き合わせて差分を確認できる。

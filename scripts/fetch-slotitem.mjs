@@ -18,16 +18,18 @@ const typeName = new Map(start2.api_mst_slotitem_equiptype.map((t) => [t.api_id,
 
 // 生成器が使う項目だけに絞る(START2 は 2MB あり、全部は要らない)。
 // api_type[2] が装備種別ID。半径(api_distance)は陸上機・水上機にしか無い。
+// 項目名は Firestore の eqattack に合わせる(対空=AA, 雷装=Torpedo, 爆装=Bombing,
+// 対潜=ASW, 索敵=LoS, 半径=CombatRadius)。
 const items = start2.api_mst_slotitem.map((it) => ({
   id: it.api_id,
   name: it.api_name,
   type: typeName.get(it.api_type[2]) ?? '',
-  対空: it.api_tyku ?? 0,
-  雷装: it.api_raig ?? 0,
-  爆装: it.api_baku ?? 0,
-  対潜: it.api_tais ?? 0,
-  索敵: it.api_saku ?? 0,
-  半径: it.api_distance ?? 0,
+  AA: it.api_tyku ?? 0,
+  Torpedo: it.api_raig ?? 0,
+  Bombing: it.api_baku ?? 0,
+  ASW: it.api_tais ?? 0,
+  LoS: it.api_saku ?? 0,
+  CombatRadius: it.api_distance ?? 0,
 }))
 
 mkdirSync(OUT_DIR, { recursive: true })
