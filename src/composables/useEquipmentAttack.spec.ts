@@ -14,9 +14,9 @@ const RATES: EqRate[] = [
   { grp: 'A3', slot: '艦上', count: 1, byMapId: { 11: 1.0712 } },
   { grp: 'C2', slot: '基地', count: 1, byMapId: { 11: 1.06 } },
   // 機数倍率。O は2個で頭打ち、Z は3個まで伸びる
-  { grp: '飛機A', slot: '艦上', count: 1, byMapId: { 7: 1.08, 10: 1.11 } },
-  { grp: '飛機A', slot: '艦上', count: 2, byMapId: { 7: 1.16, 10: 1.18 } },
-  { grp: '飛機A', slot: '艦上', count: 3, byMapId: { 10: 1.28 } },
+  { grp: 'KA', slot: '艦上', count: 1, byMapId: { 7: 1.08, 10: 1.11 } },
+  { grp: 'KA', slot: '艦上', count: 2, byMapId: { 7: 1.16, 10: 1.18 } },
+  { grp: 'KA', slot: '艦上', count: 3, byMapId: { 10: 1.28 } },
 ]
 
 const item = (p: Partial<EqItem> & { name: string; groups: string[] }): EqItem => ({
@@ -25,8 +25,8 @@ const item = (p: Partial<EqItem> & { name: string; groups: string[] }): EqItem =
 
 const corsair = item({ name: 'Corsair Mk.II', groups: ['A1', 'C2'], eqId: 434 })
 const xf5u = item({ name: 'XF5U', groups: ['A3'], eqId: 375 })
-const 流星改 = item({ name: '流星改(一航戦)', groups: ['飛機A'], eqType: '艦攻', baseType: '陸攻', eqId: 342 })
-const 瑞雲 = item({ name: '瑞雲(六三四空)', groups: ['飛機A'], eqType: '水爆', baseType: '水攻', eqId: 79 })
+const 流星改 = item({ name: '流星改(一航戦)', groups: ['KA'], eqType: '艦攻', baseType: '陸攻', eqId: 342 })
+const 瑞雲 = item({ name: '瑞雲(六三四空)', groups: ['KA'], eqType: '水爆', baseType: '水攻', eqId: 79 })
 
 describe('rateFor(組と個数から倍率を引く)', () => {
   it('count=1 の行しか無い組は、何個積んでも同じ倍率', () => {
@@ -35,22 +35,22 @@ describe('rateFor(組と個数から倍率を引く)', () => {
   })
 
   it('機数倍率は積んだ数の行を引く', () => {
-    expect(rateFor(RATES, '飛機A', 1, 10)).toBe(1.11)
-    expect(rateFor(RATES, '飛機A', 2, 10)).toBe(1.18)
-    expect(rateFor(RATES, '飛機A', 3, 10)).toBe(1.28)
+    expect(rateFor(RATES, 'KA', 1, 10)).toBe(1.11)
+    expect(rateFor(RATES, 'KA', 2, 10)).toBe(1.18)
+    expect(rateFor(RATES, 'KA', 3, 10)).toBe(1.28)
   })
 
   it('そのマスに値が無い個数は、値のある一段下の行に落ちる(出典の「≥2」)', () => {
     // E-3-1(O) は count=3 の行にO列の値が無いので、3個積んでも 2個分の 1.16
-    expect(rateFor(RATES, '飛機A', 3, 7)).toBe(1.16)
+    expect(rateFor(RATES, 'KA', 3, 7)).toBe(1.16)
   })
 
   it('定義より多く積んでも頭打ちになる', () => {
-    expect(rateFor(RATES, '飛機A', 9, 10)).toBe(1.28)
+    expect(rateFor(RATES, 'KA', 9, 10)).toBe(1.28)
   })
 
   it('倍率が無いマス・無い組は null', () => {
-    expect(rateFor(RATES, '飛機A', 1, 11)).toBeNull()
+    expect(rateFor(RATES, 'KA', 1, 11)).toBeNull()
     expect(rateFor(RATES, 'B9', 1, 11)).toBeNull()
   })
 })
@@ -114,7 +114,7 @@ describe('soloRate / isStackingGroup', () => {
   })
 
   it('機数で伸びる組かどうかを判別できる', () => {
-    expect(isStackingGroup(RATES, '飛機A')).toBe(true)
+    expect(isStackingGroup(RATES, 'KA')).toBe(true)
     expect(isStackingGroup(RATES, 'A1')).toBe(false)
   })
 })

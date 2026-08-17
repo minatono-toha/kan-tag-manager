@@ -4,25 +4,28 @@ import { nextTick } from 'vue'
 
 // Firestore は使わず、実データと同じ形の固定データを返す
 const EVENTMAP = [
+  // E-1 は装備特攻が無い海域。データ欠落と疑われないよう「-」の1列として出す
+  { eventId: 3, mapId: 1, stage: 'E-1-1', mapPlace: 'I', stageNum: 1 },
   { eventId: 3, mapId: 7, stage: 'E-3-1', mapPlace: 'O', stageNum: 3 },
   { eventId: 3, mapId: 10, stage: 'E-3-4', mapPlace: 'Z', stageNum: 3 },
 ]
-// 飛機A は機数で伸びる組(O は2個で頭打ち、Z は3個まで)。A1 は重複しない組。
+// KA は機数で伸びる組(O は2個で頭打ち、Z は3個まで)。A1 は重複しない組。
 const EQRATE = [
-  { eventId: 3, grp: '飛機A', slot: '艦上', count: 1, mapId_7: 1.08, mapId_10: 1.11 },
-  { eventId: 3, grp: '飛機A', slot: '艦上', count: 2, mapId_7: 1.16, mapId_10: 1.18 },
-  { eventId: 3, grp: '飛機A', slot: '艦上', count: 3, mapId_10: 1.28 },
+  { eventId: 3, grp: 'KA', slot: '艦上', count: 1, mapId_7: 1.08, mapId_10: 1.11 },
+  { eventId: 3, grp: 'KA', slot: '艦上', count: 2, mapId_7: 1.16, mapId_10: 1.18 },
+  { eventId: 3, grp: 'KA', slot: '艦上', count: 3, mapId_10: 1.28 },
   { eventId: 3, grp: 'A1', slot: '艦上', count: 1, mapId_10: 1.05 },
   { eventId: 3, grp: 'GA', slot: '艦上', count: 1, mapId_10: 1.12 },
   { eventId: 3, grp: 'GB', slot: '艦上', count: 1, mapId_10: 1.08 },
+  { eventId: 3, grp: 'C2', slot: '基地', count: 1, mapId_10: 1.06 },
 ]
 const air = (eqId: number, name: string) => ({
   eventId: 3, eqId, name, officialType: '艦上攻撃機', eqType: '艦攻', baseType: '陸攻',
-  Torpedo: 5, grp1: '飛機A',
+  Torpedo: 5, CombatRadius: 4, grp1: 'KA',
 })
 const fighter = (eqId: number, name: string) => ({
   eventId: 3, eqId, name, officialType: '艦上戦闘機', eqType: '艦戦', baseType: '陸戦',
-  AA: 10, grp1: 'A1',
+  AA: 10, CombatRadius: 5, grp1: 'A1', grp2: 'C2',
 })
 // 対地装備は GA/GB/GC だけに所属し、航空機の A/B 組とは重ならない
 const ground = (eqId: number, name: string, grp1: string) => ({
@@ -146,7 +149,7 @@ describe('装備特攻モーダル', () => {
 
     const inputs = $('input.eq-input').map((i) => (i as HTMLInputElement).value)
     expect(inputs[0]).toBe('流星改(一航戦) × 天山一二型甲改 × Corsair Mk.II')
-    expect(inputs[1]).toBe('A1 × 飛機A×2')
+    expect(inputs[1]).toBe('A1 × KA×2')
   })
 
   it('既定は種別の昇順で並ぶ', async () => {
@@ -161,7 +164,7 @@ describe('装備特攻モーダル', () => {
   it('航空機の表に対地の組(GA/GB)は出ない', async () => {
     await openModal()
 
-    expect($('th.eq-grp').map(text)).toEqual(['A1', '飛機A'])
+    expect($('th.eq-grp').map(text)).toEqual(['A1', 'KA'])
   })
 
   it('対地装備を選ぶと、対地の組だけの表に切り替わる', async () => {
@@ -183,6 +186,40 @@ describe('装備特攻モーダル', () => {
 
     const cell = rowByName('流星改(一航戦)').querySelector('td.eq-name')!
     expect(cell.getAttribute('title')).toBe('流星改(一航戦)')
+  })
+
+  it('既定はステータス列を出さず、詳細表示で出す', async () => {
+    await openModal()
+
+    const heads = () => $('thead th').map(text)
+    expect(heads()).not.toContain('対空')
+    expect(heads()).not.toContain('半径')
+
+    await click($('button').find((b) => text(b) === '詳細表示')!)
+    expect(heads()).toContain('対空')
+    expect(heads()).toContain('雷装')
+    expect(heads()).toContain('半径')
+  })
+
+  it('基地は行動半径だけ既定でも出す', async () => {
+    await openModal()
+
+    await click($('.eq-chip').find((c) => text(c) === '基地')!)
+    const heads = $('thead th').map(text)
+    expect(heads).toContain('半径')
+    expect(heads).not.toContain('対空')
+  })
+
+  it('装備特攻が無い海域は「-」だけの1列で出す', async () => {
+    await openModal()
+
+    // 見出しは E-1(展開・格納しないので三角なし)
+    const e1 = $('th.eq-areahead-static').find((t) => text(t).startsWith('E-1'))!
+    expect(text(e1)).toBe('E-1')
+    expect(e1.getAttribute('colspan')).toBe('1')
+
+    // 各行と合計行に「-」が入る
+    expect(text(rowByName('流星改(一航戦)').querySelector('td.eq-dash')!)).toBe('-')
   })
 
   it('海域の見出しクリックで展開・格納する', async () => {

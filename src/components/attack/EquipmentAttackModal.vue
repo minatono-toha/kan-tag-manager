@@ -42,7 +42,16 @@
               </button>
             </div>
 
-            <span class="eq-label ml-auto">搭載先</span>
+            <!-- 表示切替は本体(艦船情報表)と同じボタン。既定は装備名だけの短い表 -->
+            <button
+              type="button"
+              class="ml-auto px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap"
+              @click="detailMode = !detailMode"
+            >
+              {{ detailMode ? '装備名のみ' : '詳細表示' }}
+            </button>
+
+            <span class="eq-label">搭載先</span>
             <div class="eq-seg">
               <button
                 v-for="s in EQ_SLOTS"
@@ -112,16 +121,23 @@
                       @click="cycleSort('grp:' + g)" @keydown.enter="cycleSort('grp:' + g)">
                     {{ g }}<span v-if="sortKey === 'grp:' + g" class="eq-arrow">{{ arrow }}</span>
                   </th>
-                  <!-- 海域は E-3 / E-4 のように束ね、見出しクリックで展開・格納する -->
-                  <th v-for="ng in nodeGroups" :key="ng.area" :colspan="ng.maps.length"
-                      class="eq-areahead eq-sep" tabindex="0"
-                      @click="toggleArea(ng.area)" @keydown.enter="toggleArea(ng.area)">
-                    {{ ng.area }}<span class="eq-caret">{{ isAreaOpen(ng.area) ? '▾' : '▸' }}</span>
+                  <!-- 海域は E-3 / E-4 のように束ね、見出しクリックで展開・格納する。
+                       装備特攻が無い海域は畳まず「-」だけの1列にする -->
+                  <th v-for="ng in nodeGroups" :key="ng.area"
+                      :colspan="ng.empty ? 1 : ng.maps.length" class="eq-sep"
+                      :class="ng.empty ? 'eq-areahead-static' : 'eq-areahead'"
+                      :tabindex="ng.empty ? undefined : 0"
+                      :title="ng.empty ? '装備特攻なし' : undefined"
+                      @click="ng.empty || toggleArea(ng.area)"
+                      @keydown.enter="ng.empty || toggleArea(ng.area)">
+                    {{ ng.area }}
+                    <span v-if="!ng.empty" class="eq-caret">{{ isAreaOpen(ng.area) ? '▾' : '▸' }}</span>
                   </th>
                 </tr>
                 <tr>
                   <template v-for="ng in nodeGroups" :key="ng.area">
-                    <template v-if="isAreaOpen(ng.area)">
+                    <th v-if="ng.empty" class="eq-num eq-sep"></th>
+                    <template v-else-if="isAreaOpen(ng.area)">
                       <th v-for="(m, i) in ng.maps" :key="m.mapId" class="eq-sortable eq-num"
                           :class="{ 'eq-sep': i === 0 }" tabindex="0"
                           @click="cycleSort('map:' + m.mapId)" @keydown.enter="cycleSort('map:' + m.mapId)">
@@ -164,7 +180,8 @@
                     <span v-else class="eq-mark">⭕</span>
                   </td>
                   <template v-for="ng in nodeGroups" :key="ng.area">
-                    <template v-if="isAreaOpen(ng.area)">
+                    <td v-if="ng.empty" class="eq-num eq-sep eq-dash">-</td>
+                    <template v-else-if="isAreaOpen(ng.area)">
                       <td v-for="(m, i) in ng.maps" :key="m.mapId" class="eq-num eq-heat"
                           :class="{ 'eq-sep': i === 0 }" :style="heatStyle(soloOf(item, m.mapId))">
                         {{ fmt(soloOf(item, m.mapId)) }}
@@ -194,7 +211,8 @@
                     <span v-else class="eq-dash">·</span>
                   </td>
                   <template v-for="ng in nodeGroups" :key="ng.area">
-                    <template v-if="isAreaOpen(ng.area)">
+                    <td v-if="ng.empty" class="eq-num eq-sep eq-dash">-</td>
+                    <template v-else-if="isAreaOpen(ng.area)">
                       <td v-for="(m, i) in ng.maps" :key="m.mapId" class="eq-num eq-heat"
                           :class="{ 'eq-sep': i === 0 }" :style="heatStyle(totalOf(m.mapId))">
                         {{ fmt(totalOf(m.mapId)) }}
@@ -266,6 +284,7 @@ const TYPE_INK: Record<string, string> = {
 const typeColor = (t: string) => TYPE_COLOR[t] ?? 'transparent'
 
 const slotId = ref<EqSlotDef['id']>('cv')
+const detailMode = ref(false)
 const selectedTypes = ref<string[]>([])
 const pickedIds = ref<number[]>([])
 const openAreas = ref<string[]>([])
@@ -325,17 +344,19 @@ const toggleType = (name: string) => {
   pickedIds.value = pickedIds.value.filter((id) => live.has(id))
 }
 
-// 海域は E-3 / E-4 のように束ねる。特攻が1つも無い海域(E-1/E-2)は列ごと出さない。
+// 海域は E-3 / E-4 のように束ねる。装備特攻が1つも無い海域(E-1/E-2)も、
+// データ欠落と疑われないよう「-」だけの1列として残す(展開・格納はしない)。
 const nodeGroups = computed(() => {
   const hasRate = (mapId: number) => rates.value.some((r) => r.byMapId[mapId] != null)
-  const groups: { area: string; maps: typeof maps.value }[] = []
+  const groups: { area: string; maps: typeof maps.value; empty: boolean }[] = []
   for (const m of maps.value) {
     const area = `E-${m.stageNum}`
     const last = groups[groups.length - 1]
     if (last && last.area === area) last.maps.push(m)
-    else groups.push({ area, maps: [m] })
+    else groups.push({ area, maps: [m], empty: false })
   }
-  return groups.filter((g) => g.maps.some((m) => hasRate(m.mapId)))
+  for (const g of groups) g.empty = !g.maps.some((m) => hasRate(m.mapId))
+  return groups
 })
 const isAreaOpen = (area: string) => openAreas.value.includes(area)
 const toggleArea = (area: string) => {
@@ -362,11 +383,21 @@ const visibleGroups = computed(() => {
     .sort()
 })
 
-const statCols = computed(() =>
-  STAT_COLS.filter((s) => visibleItems.value.some((it) => (it.stats[s.key] ?? 0) !== 0)),
+// 既定はステータス列を出さない。ただし基地は行動半径が置ける航空隊の判断に要るので常に出す。
+const statCols = computed(() => {
+  const avail = STAT_COLS.filter((s) => visibleItems.value.some((it) => (it.stats[s.key] ?? 0) !== 0))
+  if (detailMode.value) return avail
+  return slotDef.value.id === 'base' ? avail.filter((s) => s.key === 'CombatRadius') : []
+})
+// 海域列は、展開中ならマス数ぶん、格納中と特攻なしの海域は1列
+const nodeColCount = computed(() =>
+  nodeGroups.value.reduce(
+    (n, ng) => n + (ng.empty || !isAreaOpen(ng.area) ? 1 : ng.maps.length),
+    0,
+  ),
 )
 const totalCols = computed(
-  () => 3 + statCols.value.length + visibleGroups.value.length + visibleMapIds.value.size,
+  () => 3 + statCols.value.length + visibleGroups.value.length + nodeColCount.value,
 )
 
 // --- 選択 ---
@@ -545,7 +576,9 @@ table.eq-table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .eq-arrow { font-size: 9px; margin-left: 2px; color: var(--eq-accent); }
 .eq-areahead { text-align: center; cursor: pointer; user-select: none; }
 .eq-areahead:hover { background: var(--bg-popup-hover, #e4e9ec); }
-.eq-caret { font-size: 9px; margin-left: 5px; color: var(--eq-accent); }
+/* 展開・格納の三角。見出し文字(11px)に対して小さすぎたので大きくする */
+.eq-caret { font-size: 20px; line-height: 0.8; margin-left: 5px; color: var(--eq-accent); vertical-align: -3px; }
+.eq-areahead-static { text-align: center; color: var(--text-secondary, #6a7681); }
 .eq-collapsed { padding: 0; min-width: 30px; }
 
 .eq-chk { width: 30px; text-align: center; padding-left: 6px; padding-right: 6px; }

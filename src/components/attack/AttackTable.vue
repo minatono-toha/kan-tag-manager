@@ -19,6 +19,7 @@
                 @click="toggleStage(group.stageNum)"
               >
                 E-{{ group.stageNum }}
+                <span class="sp-caret">{{ isExpanded(group.stageNum) ? '▾' : '▸' }}</span>
               </th>
             </tr>
             <tr>
@@ -96,6 +97,7 @@
                 @click="toggleTag(group.tagId)"
               >
                 {{ group.tagName }}
+                <span class="sp-caret">{{ isTagExpanded(group.tagId) ? '▾' : '▸' }}</span>
               </th>
             </tr>
             <tr>
@@ -603,6 +605,14 @@ table.sp-attack-table td.sp-col {
   overflow: hidden;
   box-sizing: border-box;
   word-break: keep-all;
+}
+
+/* 展開・格納の三角。見出し文字に対して小さすぎると気付かれないので大きく出す。 */
+.sp-caret {
+  font-size: 20px;
+  line-height: 0.8;
+  margin-left: 4px;
+  vertical-align: -3px;
 }
 
 /* 折りたたんだ海域グループのプレースホルダ。中身が無いので、
