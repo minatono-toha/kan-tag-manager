@@ -277,7 +277,10 @@ for (const [gid, def] of Object.entries(SP_GROUP_SPLITS)) {
   const parentOrig = shiplist.find((s) => s.bannerId === def.banners[0])?.orig
   const sourceId = def.legacyId ?? parentOrig
   for (const old of maintable.filter((d) => (d.spGroupId ?? d.orig) === sourceId && d.eventId !== eventId)) {
-    const { _id, shipTypeCategory, ...rest } = old
+    // 旧行をそのまま引き継ぐが、docId は新規作成させるため、
+    // shipTypeCategory は上の投入用と同じ理由(二重管理を避ける)で落とす。
+    const { _id, ...rest } = old
+    delete rest.shipTypeCategory
     backfill.push({ ...rest, orig: Number(gid), spGroupId: Number(gid), name: def.label })
     if (def.legacyId) orphans.push({ _id, eventId: old.eventId, orig: old.orig, name: old.name, 置換後: Number(gid) })
   }
