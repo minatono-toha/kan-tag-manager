@@ -98,6 +98,7 @@ const resolveGroup = (stage, gname, def) => {
     for (const g of groups.values()) {
       if (cats.size > 0 && !cats.has(g.category)) continue
       if (def.nationality && g.nationality !== def.nationality) continue
+      if (def.excludeNationality && g.nationality === def.excludeNationality) continue
       members.add(g.gid)
     }
   }
