@@ -44,18 +44,29 @@ export const EQ_SLOTS: EqSlotDef[] = [
 export const typeOfItem = (item: EqItem, slot: EqSlotDef): string =>
   slot.id === 'base' ? item.baseType : item.eqType
 
-export function useEquipmentAttack(selectedEventId: Ref<number | null>) {
+export interface EqMap {
+  mapId: number
+  stage: string
+  mapPlace: string
+  stageNum: number
+}
+
+// active を渡すと、モーダルを開くまで読み込まない(装備特攻はモーダルでしか使わないため)。
+export function useEquipmentAttack(selectedEventId: Ref<number | null>, active?: Ref<boolean>) {
   const items = ref<EqItem[]>([])
   const rates = ref<EqRate[]>([])
+  const maps = ref<EqMap[]>([])
   const loading = ref(false)
+  const loadedEventId = ref<number | null>(null)
 
   const fetchData = async (eventId: number) => {
     if (!eventId) return
     loading.value = true
     try {
-      const [itemSnap, rateSnap] = await Promise.all([
+      const [itemSnap, rateSnap, mapSnap] = await Promise.all([
         getDocs(query(collection(db, 'eqattack'), where('eventId', '==', eventId))),
         getDocs(query(collection(db, 'eqrate'), where('eventId', '==', eventId))),
+        getDocs(query(collection(db, 'eventmap'), where('eventId', '==', eventId))),
       ])
 
       items.value = itemSnap.docs.map((doc) => {
@@ -83,28 +94,40 @@ export function useEquipmentAttack(selectedEventId: Ref<number | null>) {
         }
         return { grp: d.grp ?? '', slot: d.slot ?? '', count: Number(d.count ?? 1), byMapId }
       })
+
+      maps.value = mapSnap.docs
+        .map((doc) => doc.data() as EqMap)
+        .sort((a, b) => a.mapId - b.mapId)
+
+      loadedEventId.value = eventId
     } catch (error) {
       console.error('Error fetching equipment attack data:', error)
       items.value = []
       rates.value = []
+      maps.value = []
+      loadedEventId.value = null
     } finally {
       loading.value = false
     }
   }
 
   watch(
-    () => selectedEventId.value,
-    async (id) => {
-      if (id) await fetchData(id)
-      else {
+    [() => selectedEventId.value, () => active?.value ?? true],
+    async ([id, on]) => {
+      if (!id) {
         items.value = []
         rates.value = []
+        maps.value = []
+        loadedEventId.value = null
+        return
       }
+      // 同じイベントを開き直したときに読み直さない
+      if (on && loadedEventId.value !== id) await fetchData(id)
     },
     { immediate: true },
   )
 
-  return { items, rates, loading, fetchData }
+  return { items, rates, maps, loading, fetchData }
 }
 
 // --- 倍率の計算(Firestore に依存しない純関数。テストしやすいよう composable の外に置く) ---

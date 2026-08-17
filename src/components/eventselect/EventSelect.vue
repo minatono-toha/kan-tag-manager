@@ -1,8 +1,9 @@
 <template>
   <div class="event-select-container p-3 relative min-h-[120px]">
-    <div class="flex items-start gap-6">
+    <!-- 右端の更新履歴(絶対配置 w-64)に潜り込まないよう、行全体に右余白を取る -->
+    <div class="flex items-start gap-4 mr-72">
       <!-- イベント選択 -->
-      <div class="w-32">
+      <div class="w-32 flex-none">
         <label for="event-select" class="block text-xs font-medium text-gray-700 mb-1">
           イベント選択
         </label>
@@ -20,12 +21,13 @@
         </select>
       </div>
 
-      <!-- イベント名 -->
-      <div class="flex-1 mr-72">
+      <!-- イベント名。装備特攻ボタンを置くぶん幅を詰めている -->
+      <div class="flex-1 min-w-0">
         <div class="block text-xs font-medium text-gray-700 mb-1">イベント名</div>
         <div
           v-if="selectedEvent && !loading"
-          class="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm"
+          class="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm truncate"
+          :title="selectedEvent.eventName"
         >
           {{ selectedEvent.eventName }}
         </div>
@@ -36,7 +38,27 @@
           イベントを選択してください
         </div>
       </div>
+
+      <!-- 装備特攻。ラベル分の高さを空けて、入力枠と天地を合わせる -->
+      <div class="flex-none">
+        <div class="block text-xs font-medium mb-1 invisible" aria-hidden="true">装備特攻</div>
+        <button
+          type="button"
+          class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="!selectedEventId || loading"
+          @click="eqModalVisible = true"
+        >
+          装備特攻
+        </button>
+      </div>
     </div>
+
+    <EquipmentAttackModal
+      :visible="eqModalVisible"
+      :selectedEventId="selectedEventId"
+      :eventName="selectedEvent?.eventName"
+      @close="eqModalVisible = false"
+    />
 
 
 
@@ -98,11 +120,12 @@ import { defineComponent, ref, computed, onMounted, watch, onUnmounted, type Pro
 import { useEvents } from '@/composables/useEvents'
 import ChangelogDisplay from './ChangelogDisplay.vue'
 import QASheetModal from '../common/QASheetModal.vue'
+import EquipmentAttackModal from '../attack/EquipmentAttackModal.vue'
 import { toJsDate } from '@/utils/date'
 
 export default defineComponent({
   name: 'EventSelect',
-  components: { ChangelogDisplay, QASheetModal },
+  components: { ChangelogDisplay, QASheetModal, EquipmentAttackModal },
   props: {
     selectedEventId: {
       type: Number as PropType<number | null>,
@@ -119,6 +142,7 @@ export default defineComponent({
     // const events = ref<EventInfo[]>([])
     const localSelectedEventId = ref<number | null>(props.selectedEventId)
     const qaModalVisible = ref(false)
+    const eqModalVisible = ref(false)
     // const loading = ref(true)
     const currentTime = ref(new Date())
     let timer: number | null = null
@@ -276,6 +300,7 @@ export default defineComponent({
       statusColorClass,
       handleThemeChange,
       qaModalVisible,
+      eqModalVisible,
     }
   },
 })
