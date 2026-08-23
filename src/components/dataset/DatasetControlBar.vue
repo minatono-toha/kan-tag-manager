@@ -120,7 +120,7 @@
             </svg>
           </a>
           <a
-            href="https://x.com/kan_tag_mng"
+            href="https://x.com/kantagmng2"
             target="_blank"
             rel="noopener noreferrer"
             class="flex items-center text-gray-500 hover:text-gray-700 transition-colors"
