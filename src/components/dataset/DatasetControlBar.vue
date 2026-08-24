@@ -4,7 +4,24 @@
       <!-- Expanded Content -->
       <div class="flex items-center gap-2 flex-1 w-full justify-between">
         <!-- Left: Controls -->
-        <div class="flex items-center gap-2 flex-1 max-w-[900px]">
+        <div class="flex items-center gap-2 flex-none">
+          <!-- 使い方ガイド。新規ユーザーが最初に目に入る左端に置く。
+               別ドキュメント(public/readme.html)なので新しいタブで開く。 -->
+          <a
+            :href="readmeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="px-2 py-1 bg-lime-100 text-lime-900 border border-lime-500 rounded hover:bg-lime-200 text-xs flex items-center gap-1 shadow-sm transition-colors whitespace-nowrap"
+            @mouseenter="handleMouseEnter($event, '使い方ガイドを新しいタブで開きます')"
+            @mouseleave="handleMouseLeave"
+          >
+            <span aria-hidden="true">🔰</span>
+            <span>使い方ガイド</span>
+          </a>
+        </div>
+
+        <!-- Right: 取り込み/生成 と外部リンク。データ操作系はまとめて右に寄せる -->
+        <div class="flex items-center gap-2 ml-4 flex-1 justify-end">
           <!-- JSON Section -->
           <div class="relative flex items-center gap-2 flex-1 max-w-[550px]">
             <div class="flex items-center gap-2 w-full transition-opacity duration-300">
@@ -33,8 +50,6 @@
                   </svg>
                 </button>
               </div>
-
-              <div class="h-4 w-px bg-gray-400 mx-1"></div>
 
               <button
                 type="button"
@@ -70,7 +85,7 @@
           <button
             type="button"
             @click="triggerCsvImport"
-            class="px-2 py-1 bg-gray-300 text-gray-800 border border-gray-400 rounded hover:bg-gray-400 text-xs flex items-center gap-1 shadow-sm transition-colors whitespace-nowrap"
+            class="px-2 py-1 bg-gray-300 text-gray-800 border border-gray-400 rounded hover:bg-gray-400 text-xs flex items-center gap-1 shadow-sm transition-colors whitespace-nowrap flex-none"
             :disabled="loading"
             @mouseenter="
               handleMouseEnter(
@@ -82,10 +97,9 @@
           >
             <span>csvから取り込み(艦船のみ)</span>
           </button>
-        </div>
 
-        <!-- Right: Feedback Link -->
-        <div class="flex items-center gap-2 ml-4">
+          <div class="h-4 w-px bg-gray-400 mx-1"></div>
+
           <a
             href="https://github.com/minatono-toha/kan-tag-manager"
             target="_blank"
@@ -137,17 +151,29 @@
               />
             </svg>
           </a>
+          <!-- 公開QA。ご意見箱と並べて「読む/送る」の導線をひとまとめにする -->
+          <button
+            type="button"
+            @click="qaModalVisible = true"
+            class="text-xs hover:underline whitespace-nowrap transition-colors"
+            :class="textLinkClass"
+          >
+            公開QA
+          </button>
           <a
             href="https://tally.so/r/2EaBrD"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-xs text-blue-600 hover:text-blue-800 hover:underline whitespace-nowrap"
+            class="text-xs hover:underline whitespace-nowrap transition-colors"
+            :class="textLinkClass"
           >
             ご意見箱
           </a>
         </div>
       </div>
     </div>
+
+    <QASheetModal :visible="qaModalVisible" :theme="theme" @close="qaModalVisible = false" />
 
     <!-- Modals -->
     <ImportDestinationModal
@@ -194,7 +220,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed } from 'vue'
+import { defineComponent, ref, computed, onMounted, type PropType } from 'vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useDatasetStore } from '@/stores/datasetStore'
 import { useShips } from '@/composables/useShips'
@@ -205,6 +231,7 @@ import type { AmbiguousShipPrompt } from '@/utils/ambiguousShips'
 import ImportDestinationModal from './ImportDestinationModal.vue'
 import ImportResultModal from './ImportResultModal.vue'
 import AmbiguousShipSelectModal from './AmbiguousShipSelectModal.vue'
+import QASheetModal from '@/components/common/QASheetModal.vue'
 
 export default defineComponent({
   name: 'DatasetControlBar',
@@ -212,12 +239,17 @@ export default defineComponent({
     ImportDestinationModal,
     ImportResultModal,
     AmbiguousShipSelectModal,
+    QASheetModal,
     BaseDialog,
   },
   props: {
     selectedEventId: {
       type: Number,
       default: 0,
+    },
+    theme: {
+      type: String as PropType<'light' | 'dark' | 'gradient'>,
+      default: 'light',
     },
   },
   setup(props) {
@@ -232,6 +264,31 @@ export default defineComponent({
     const loading = ref(false)
     const codeText = ref('')
     const fileInput = ref<HTMLInputElement | null>(null)
+    const qaModalVisible = ref(false)
+
+    // 最上段のテキストリンク(公開QA / ご意見箱)。ダーク系テーマではバー自体が暗くなり、
+    // blue-600 だと背景と同系統に沈んで読みにくいので、明度を上げた青に切り替える。
+    const textLinkClass = computed(() =>
+      props.theme === 'light'
+        ? 'text-blue-600 hover:text-blue-800'
+        : 'text-blue-300 hover:text-blue-200',
+    )
+
+    // ?qa=true 付きのURLで開かれたら公開QAを開く(QAへの直リンク用)。
+    // 公開QAボタンと一緒に EventSelect から移してきた。
+    onMounted(() => {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('qa') === 'true') {
+        qaModalVisible.value = true
+      }
+    })
+
+    // 使い方ガイド(public/readme.html)へのリンク。
+    // 単なる './readme.html' だと、開発サーバーで /kan-tag-manager/ のような
+    // サブパスを開いているときにそのディレクトリ基準で解決され、存在しないパスへ飛んで
+    // SPA フォールバック(＝本体)が返ってしまう。BASE_URL から組み立てておくと、
+    // 開発時は '/' 起点、ビルド後(base: './')は配信ディレクトリ起点になり、どちらでも正しく指す。
+    const readmeUrl = `${import.meta.env.BASE_URL}readme.html`
 
     const { state: tooltipState, show: handleMouseEnter, hide: handleMouseLeave } = useTooltip()
 
@@ -441,6 +498,9 @@ export default defineComponent({
     }
 
     return {
+      readmeUrl,
+      qaModalVisible,
+      textLinkClass,
       triggerImport,
       triggerExport,
       loading,

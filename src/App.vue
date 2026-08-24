@@ -20,15 +20,14 @@
       <DatasetControlBar
          :selectedEventId="selectedEventId || 0"
          :all-ships="allShips"
+         :theme="theme"
       />
 
       <!-- イベント選択 -->
       <div class="px-1 pt-0.5 pb-0.5">
         <EventSelect
           :selectedEventId="selectedEventId"
-          :theme="theme"
           @event-selected="handleEventSelected"
-          @theme-change="handleThemeChange"
         />
       </div>
 
