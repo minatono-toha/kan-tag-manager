@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 本体(index.html)とは別ドキュメントなので CSP もここに書く。
+         このページは外部通信を一切しないため、既定を 'self' に絞っている。 -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none';"
+    />
+    <title>使い方 | 艦隊札管理帖</title>
+    <link rel="stylesheet" href="./readme.css" />
+    <!-- 描画前にテーマクラスを付けたいので defer は付けない -->
+    <script src="./readme.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <h1 class="site-title">
+          艦隊札管理帖 の使い方
+          <small>はじめて使う方向けの説明ページです</small>
+        </h1>
+        <a class="back-link" href="./index.html">← ツールに戻る</a>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <nav class="tabs" role="tablist" aria-label="使い方の項目">
+        <button type="button" role="tab" id="tab-intro" aria-controls="intro" aria-selected="true">
+          はじめに
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-ships"
+          aria-controls="ships"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          ①着任状況を反映する
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-attack"
+          aria-controls="attack"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          ②特攻値を確認する
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-tags"
+          aria-controls="tags"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          ③札を割り当てる
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-tips"
+          aria-controls="tips"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          便利な使い方
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-misc"
+          aria-controls="misc"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          その他
+        </button>
+      </nav>
+
+      <!-- ============ はじめに ============ -->
+      <section class="panel" id="intro" role="tabpanel" aria-labelledby="tab-intro">
+        <h2>艦隊札管理帖とは</h2>
+        <p class="lead">
+          「艦隊これくしょん
+          -艦これ-」の期間限定イベントに向けて、<b>どの艦娘にどの出撃札を付けるか</b>を出撃前にブラウザ上で計画したり、札を既に付与した艦娘を管理することで攻略に役立てるためのサイトです。手持ちの艦娘・海域ごとの特攻値・札の割り当てを
+          横に並べて見比べながら、編成を組み立てられます。
+        </p>
+
+        <div class="note">
+          <strong>開催中のイベントがすぐ開きます</strong>
+          デフォルトでは最新のイベントの情報を表示します。もし過去のイベント情報を確認したい場合は、画面左上の
+          <span class="ui">イベント選択</span> プルダウンから選択できます。
+        </div>
+
+        <h3>画面は3つの表でできています</h3>
+
+        <ul class="card-list">
+          <li>
+            <b>制御札管理（左の表）</b>
+            艦娘ごとの札の割り当てを記録する表です。ここで札の配分を検討し、記録します。
+          </li>
+          <li>
+            <b>艦船情報（中央の表）</b>
+            手持ちの艦娘の一覧です。ここで着任状況（所持しているかどうか）を反映させます。
+          </li>
+          <li>
+            <b>海域特攻情報（右の表）</b>
+            海域ごとの特攻値の一覧です。どの艦をどこに出すと効果的かを確認します。
+          </li>
+        </ul>
+        <figure>
+          <img
+            src="./img/guide/overview.png"
+            alt="艦種選択ボタンと、制御札管理・艦船情報・海域特攻情報の3つの表が横に並んだ画面"
+            loading="lazy"
+          />
+          <figcaption>
+            画面全体。上部の艦種選択ボタンで絞り込むと、3つの表が同時に絞り込まれます。
+          </figcaption>
+        </figure>
+
+        <h3>作業の流れ</h3>
+        <ol class="steps">
+          <li>
+            <span class="step-title">着任状況を反映する</span>
+            <p>
+              手持ちの艦娘を画面に反映させます。クリックで1隻ずつ、CSV
+              や艦隊分析コードでまとめて、の いずれでも行えます。→
+              <a class="tab-link" href="#ships">①着任状況を反映する</a> タブ
+            </p>
+          </li>
+          <li>
+            <span class="step-title">特攻値を確認する</span>
+            <p>
+              海域ごとの特攻艦と倍率を見て、出撃先の候補を絞ります。→
+              <a class="tab-link" href="#attack">②特攻値を確認する</a> タブ
+            </p>
+          </li>
+          <li>
+            <span class="step-title">札を割り当てる</span>
+            <p>
+              艦娘ごとに出撃先の海域と札を決めていきます。→
+              <a class="tab-link" href="#tags">③札を割り当てる</a> タブ
+            </p>
+          </li>
+        </ol>
+
+        <div class="note">
+          <strong>PC での利用を想定しています</strong>
+          横に3つの表を並べる画面構成のため、スマートフォンなど幅の狭い画面では正しく表示されない場合があります。
+        </div>
+
+        <div class="note">
+          <strong>非公式ツールです</strong>
+          本サイトは DMM GAMES / C2機関
+          とは関係のない非公式の攻略支援ツールです。ゲーム内で使用されている画像は、
+          説明・識別のために必要最小限の範囲で引用しています。画像の著作権は DMM GAMES
+          様および原著作物の権利者に帰属します。
+        </div>
+      </section>
+
+      <!-- ============ ①着任状況を反映する ============ -->
+      <section class="panel" id="ships" role="tabpanel" aria-labelledby="tab-ships" hidden>
+        <h2>①着任状況を反映する<small class="sub">― 艦船情報表</small></h2>
+        <p class="lead">
+          画面中央の <span class="ui">艦船情報</span> が、手持ちの艦娘を管理する表です。
+          ここに着任状況（所持しているかどうか）を反映させるところから始めます。
+        </p>
+
+        <h3>艦船情報表の見かた</h3>
+        <ul class="card-list">
+          <li>
+            <b>詳細表示 / 艦名のみ</b>
+            表示密度を切り替えます。多くの艦を一度に見渡したいときは「艦名のみ」が便利です。
+          </li>
+          <li>
+            <b>未所持艦を表示する</b>
+            まだ着任していない艦娘も一覧に含めます。着任状況を入力するときはこちらに切り替えます。
+          </li>
+          <li>
+            <b>艦種タブ</b>
+            画面上部のタブ（駆逐 / 軽巡 / 戦艦 …）で艦種を絞り込めます。複数選択もできます。
+          </li>
+        </ul>
+        <figure>
+          <img
+            src="./img/guide/ship-list-detail.png"
+            alt="詳細表示にした艦船情報。艦種・艦名・艦型艦番・速力・対地装備の列が並ぶ"
+            loading="lazy"
+          />
+          <figcaption>
+            詳細表示にすると、艦種・艦型・艦番・速力・対地装備まで確認できます
+          </figcaption>
+        </figure>
+
+        <h3>方法1: クリックで反映する（基本）</h3>
+        <p>いちばん手軽な方法です。特別な準備は要りません。</p>
+        <ol class="steps">
+          <li>
+            <span class="step-title">未所持艦を表示する</span>
+            <p>
+              艦船情報の <span class="ui">未所持艦を表示する</span>
+              を押して、まだ着任していない艦娘も一覧に出します。
+            </p>
+          </li>
+          <li>
+            <span class="step-title">所持数を増やす</span>
+            <p>
+              各行の <span class="ui">＋</span> を押すと所持数が1つ増え、着任済みとして扱われます。
+              同じ艦を複数所持している場合は、その数だけ押してください。
+            </p>
+            <figure>
+              <img
+                src="./img/guide/ship-count-buttons.png"
+                alt="艦名の左にある＋と−のボタン。未着任の艦は「(0隻:未着任)」と表示される"
+                loading="lazy"
+              />
+              <figcaption>艦名の左にある ＋ / − が所持数の増減ボタンです</figcaption>
+            </figure>
+          </li>
+          <li>
+            <span class="step-title">複数所持の艦は行が増える</span>
+            <p>
+              2隻目以降は <b>(2隻目) (3隻目)</b> と表示され、行が分かれます。
+              1隻ずつ別々の海域へ割り当てられるので、増設した分だけ計画を立てられます。
+            </p>
+            <figure>
+              <img
+                src="./img/guide/ship-count-multiple.png"
+                alt="同じ艦娘が (2隻目)(3隻目)(4隻目) として行が分かれて表示されている"
+                loading="lazy"
+              />
+              <figcaption>所持数を増やすと隻数ぶんの行に分かれます</figcaption>
+            </figure>
+          </li>
+          <li>
+            <span class="step-title">間違えたら戻す</span>
+            <p>
+              <span class="ui">−</span> を押すと所持数が1つ減ります。0
+              にすると未所持の状態に戻ります。
+            </p>
+          </li>
+        </ol>
+        <div class="note">
+          <strong>先に着任させてください</strong>
+          未着任の艦娘には札を割り当てられません。③で札を付けようとして反応しない場合は、
+          まずこの表で着任状態にしてください。
+        </div>
+
+        <h3>方法2: CSV から取り込む（艦船のみ）</h3>
+        <p>
+          手持ちの艦名リストがある場合は、こちらでまとめて反映できます。 画面最上部の
+          <span class="ui">csvから取り込み(艦船のみ)</span> ボタンから、
+          <b>艦名のみを改行区切りで並べたファイル</b>を読み込みます。
+        </p>
+        <ul>
+          <li>文字コードは UTF-8 / Shift_JIS を自動判定します</li>
+          <li>反映されるのは着任状況だけで、レベルなどの情報は含まれません</li>
+          <li>同名で複数の候補がある艦は、どれを指すか選ぶダイアログが表示されます</li>
+        </ul>
+
+        <h3>方法3: 艦隊分析コード（JSON）から取り込む</h3>
+        <p>
+          制空権シミュレータなど、艦隊分析コードに対応したツールを使っている場合は、そのコードを貼り付けるだけで
+          <b>レベルや改造状態まで含めて</b>反映できます。
+        </p>
+        <ol class="steps">
+          <li>
+            <span class="step-title">コードを貼り付ける</span>
+            <p>
+              画面最上部の <span class="ui">艦隊分析コード（JSON）</span> の入力欄に貼り付けます。
+            </p>
+          </li>
+          <li>
+            <span class="step-title">取り込む</span>
+            <p><span class="ui">コードから取り込み</span> を押します。</p>
+          </li>
+          <li>
+            <span class="step-title">取り込み先を選ぶ</span>
+            <p>
+              <span class="ui">現在のタブに上書き</span> か
+              <span class="ui">新規データセットに出力</span> を選びます。
+            </p>
+          </li>
+        </ol>
+
+        <div class="note">
+          <strong>「現在のタブに上書き」に注意</strong>
+          上書きを選ぶと、現在のデータセットの所持数データが取り込み内容で置き換わります。
+          今の内容を残しておきたい場合は「新規データセットに出力」を選んでください。
+        </div>
+
+        <details class="advanced">
+          <summary>より高度な方法: 艦隊分析コードを自分で取得する</summary>
+          <div class="advanced-body">
+            <p>
+              艦隊分析コードをまだ持っていない場合は、艦これのブラウザ画面から通信内容を取り出し、
+              艦隊分析に対応したツール（制空権シミュレータ 等）に読み込ませて出力します。
+              ブラウザの開発者ツールを使うため、慣れていない方は上の
+              <b>方法1・方法2</b> をおすすめします。
+            </p>
+
+            <ol class="steps">
+              <li>
+                <span class="step-title">開発者ツールを開く</span>
+                <p>
+                  艦これのゲーム画面を開いた状態で右クリックし、<span class="ui"
+                    >開発者ツールで調査する</span
+                  >（Firefox では <span class="ui">検証</span>）を選びます。
+                </p>
+                <figure>
+                  <img
+                    src="./img/tutorial/step1.webp"
+                    alt="ゲーム画面を右クリックして開発者ツールを開くメニュー（Edge）"
+                    loading="lazy"
+                  />
+                  <figcaption>Microsoft Edge の場合</figcaption>
+                </figure>
+                <figure>
+                  <img
+                    src="./img/tutorial/step1-2.webp"
+                    alt="ゲーム画面を右クリックして検証を選ぶメニュー（Chrome / Firefox）"
+                    loading="lazy"
+                  />
+                  <figcaption>Google Chrome / Firefox の場合</figcaption>
+                </figure>
+              </li>
+              <li>
+                <span class="step-title">ネットワークタブで記録を開始する</span>
+                <p>
+                  <span class="ui">ネットワーク</span>
+                  タブを開き、記録ボタン（赤丸）が有効なことと、フィルタが
+                  <span class="ui">すべて</span> になっていることを確認します。その状態で
+                  <span class="ui">GAME START</span> を押してログインします。
+                </p>
+                <figure>
+                  <img
+                    src="./img/tutorial/step2.webp"
+                    alt="開発者ツールのネットワークタブで記録を開始し、GAME START を押す"
+                    loading="lazy"
+                  />
+                  <figcaption>
+                    記録を開始してからログインすると、必要な通信が一覧に流れてきます
+                  </figcaption>
+                </figure>
+              </li>
+              <li>
+                <span class="step-title">所持艦娘のデータをコピーする</span>
+                <p>
+                  一覧から <span class="ui">port</span> を探して右クリックし、
+                  <span class="ui">コピー</span> → <span class="ui">応答のコピー</span>
+                  を選びます。これが母港（所持艦娘）のデータです。
+                </p>
+                <figure>
+                  <img
+                    src="./img/tutorial/step3.webp"
+                    alt="ネットワーク一覧の port を右クリックして応答をコピーする"
+                    loading="lazy"
+                  />
+                </figure>
+                <figure>
+                  <img
+                    src="./img/tutorial/step3-1.webp"
+                    alt="Google Chrome と Firefox それぞれのメニュー項目の違い"
+                    loading="lazy"
+                  />
+                  <figcaption>
+                    メニューの名称はブラウザによって異なります（Chrome:「レスポンスをコピー」／
+                    Firefox:「応答をコピー」）
+                  </figcaption>
+                </figure>
+              </li>
+              <li>
+                <span class="step-title">所持装備のデータをコピーする</span>
+                <p>
+                  装備の情報も必要な場合は、同じ手順で <span class="ui">require_info</span>
+                  の応答をコピーします。
+                </p>
+                <figure>
+                  <img
+                    src="./img/tutorial/step5.webp"
+                    alt="ネットワーク一覧の require_info を右クリックして応答をコピーする"
+                    loading="lazy"
+                  />
+                </figure>
+              </li>
+              <li>
+                <span class="step-title">艦隊分析コードを出力する</span>
+                <p>
+                  コピーした内容を艦隊分析コードに対応したツールに読み込ませ、艦隊分析コードを出力します。
+                  あとは上の <b>方法3</b> の手順で貼り付けます。
+                </p>
+              </li>
+            </ol>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============ ②特攻値を確認する ============ -->
+      <section class="panel" id="attack" role="tabpanel" aria-labelledby="tab-attack" hidden>
+        <h2>②特攻値を確認する<small class="sub">― 海域特攻情報表</small></h2>
+        <p class="lead">
+          画面右側の <span class="ui">海域特攻情報</span> が、海域ごとの特攻値をまとめた表です。
+          左の2つの表と行が揃っているので、<b>着任している艦の特攻値だけ</b>を横並びで確認できます。
+        </p>
+
+        <h3>表の見かた</h3>
+        <ul class="card-list">
+          <li>
+            <b>行 = 艦娘</b>
+            艦船情報の表と同じ行が並びます。絞り込みも連動します。
+          </li>
+          <li>
+            <b>列 = 海域</b>
+            イベントの各海域が列になります。上段に札、下段に海域が表示されます。
+          </li>
+          <li>
+            <b>セル = 特攻倍率</b>
+            その艦をその海域に出したときの倍率です。値の大きさに応じて色が付きます。
+          </li>
+        </ul>
+        <figure>
+          <img
+            src="./img/guide/attack-table.png"
+            alt="海域特攻情報の表。海域ごとの列に札の名前が色付きで並び、各セルに1.08や1.33などの倍率が表示されている"
+            loading="lazy"
+          />
+          <figcaption>
+            上段が海域、その下が札、セルが特攻倍率です。倍率が高いほどセルの色が濃くなります
+          </figcaption>
+        </figure>
+        <p>
+          イベントを選択していないときは表示されません。まず左上のプルダウンでイベントを選んでください。
+        </p>
+
+        <h3>特攻値の高い順に並べ替える</h3>
+        <p>
+          海域のヘッダを<b>クリック</b>すると、その海域の特攻値で全体が並べ替わります（もう一度押すと昇順・降順が入れ替わります）。
+          「この海域に出すならどの艦が有効か」を一発で把握できるので、割り当てを決める前にまずこれを使うのが近道です。
+        </p>
+        <figure>
+          <img
+            src="./img/guide/attack-sort.png"
+            alt="E-3-4 の列を選んで並べ替えた状態の特攻表。右上に出典リンクが表示されている"
+            loading="lazy"
+          />
+          <figcaption>
+            E-3-4 の列で並べ替えた例。右上のリンクから倍率の出典と参照時点を確認できます
+          </figcaption>
+        </figure>
+
+        <h3>並べ替えと折りたたみ</h3>
+        <ul>
+          <li>
+            <span class="ui">札で並べ替え</span> / <span class="ui">海域で並べ替え</span> …
+            列のまとめ方を切り替えます。札単位で見ると「この札をどこで使用するか」が把握しやすくなります
+          </li>
+          <li>
+            <span class="ui">全展開</span> / <span class="ui">全格納</span> …
+            海域グループをまとめて開閉します。見たい海域だけ開いておくと横幅を節約できます
+          </li>
+        </ul>
+
+        <h3>編成サンプルを見る</h3>
+        <p>
+          海域のヘッダを<b>ダブルクリック</b>すると、その海域の編成サンプルが表示されます（用意されている海域のみ）。
+        </p>
+
+        <h3>装備の特攻を調べる</h3>
+        <p>
+          艦娘だけでなく装備にも特攻があります。画面上部の <span class="ui">装備特攻</span>
+          ボタンから確認できます。
+        </p>
+        <ul>
+          <li>
+            <span class="ui">装備種別</span> / <span class="ui">搭載先</span> /
+            <span class="ui">対象海域</span> で絞り込み
+          </li>
+          <li>装備をチェックすると<b>掛け合わせ</b>の式が出ます（最大5つまで）</li>
+          <li>クリアボタンで選択をまとめて解除できます</li>
+        </ul>
+
+        <div class="note">
+          <strong>倍率の出典について</strong>
+          特攻倍率は外部の情報を出典としています。表の右上に出典名と参照時点が表示され、リンクから原典を確認できます。
+          イベント開催直後は情報が更新されることがあるため、重要な判断の前は出典もあわせてご確認ください。
+        </div>
+      </section>
+
+      <!-- ============ ③札を割り当てる ============ -->
+      <section class="panel" id="tags" role="tabpanel" aria-labelledby="tab-tags" hidden>
+        <h2>③札を割り当てる<small class="sub">― 制御札管理表</small></h2>
+        <p class="lead">
+          画面左側の <span class="ui">制御札管理</span> が、このツールの中心となる表です。
+          艦娘ごとに「どの海域に出すか」「どの札が付くか」「使わずに温存するか」を記録していきます。
+        </p>
+
+        <h3>各列の意味</h3>
+        <ul class="card-list">
+          <li>
+            <b>割当先</b>
+            出撃させる予定の海域（例: E-4-3）です。まだ札が付いていない「予定」の状態を表します。
+          </li>
+          <li>
+            <b>割当札</b>
+            割当先の海域で付く札です。海域を選ぶと候補から選択できます。
+          </li>
+          <li>
+            <b>割当済</b>
+            実際にゲーム内で札が付いた艦を表します。予定と実績を区別するための項目です。
+          </li>
+          <li>
+            <b>温存</b>
+            このイベントでは出撃させない、と決めた艦に付けます。割当済の艦は温存にできません。
+          </li>
+          <li>
+            <b>コメント</b>
+            自由記入のメモ欄です。<span class="ui">コメント欄表示</span> で表示を切り替えます。
+          </li>
+        </ul>
+        <figure>
+          <img
+            src="./img/guide/tag-columns.png"
+            alt="制御札管理の割当先・割当札の列と、右隣の艦船情報の艦名が並んで表示されている"
+            loading="lazy"
+          />
+          <figcaption>
+            割当先・割当札は、右隣の艦船情報の艦名と行が揃っています。どの艦にどの札を付けたかが一目で分かります
+          </figcaption>
+        </figure>
+        <figure>
+          <img
+            src="./img/guide/tag-preserve-comment.png"
+            alt="温存にチェックが入った行と、「後段用」「嫁」などが書かれたコメント欄"
+            loading="lazy"
+          />
+          <figcaption>
+            温存にチェックを入れた艦は色が変わります。コメント欄には「後段用」などの理由を残せます
+          </figcaption>
+        </figure>
+
+        <h3>割り当ての手順</h3>
+        <ol class="steps">
+          <li>
+            <span class="step-title">表から直接割り当てる（最短）</span>
+            <p>
+              制御札管理の <span class="ui">割当先</span> のセルをクリックすると、 海域 → 小海域 →
+              札 の順にメニューがたどれます。まとめて割り当てるときはこれが一番速い方法です。
+            </p>
+            <figure>
+              <img
+                src="./img/guide/tag-assign-menu.png"
+                alt="割当先のセルから E-3 → E-3-4 → ウルシー攻撃部隊 とメニューをたどっている様子"
+                loading="lazy"
+              />
+              <figcaption>
+                E-3 → E-3-4 → ウルシー攻撃部隊 と選ぶと、割当先と割当札がまとめて記録されます。
+                <span class="ui">選択解除</span> で取り消せます
+              </figcaption>
+            </figure>
+          </li>
+          <li>
+            <span class="step-title">艦娘の詳細から割り当てる</span>
+            <p>
+              艦船情報の艦名をクリックすると詳細が開き、そこでも同じ操作ができます。
+              改装段階や艦型を確認しながら決めたいときはこちらが便利です。
+            </p>
+            <figure>
+              <img
+                src="./img/guide/tag-modal.png"
+                alt="艦娘の詳細画面。下部の制御札管理に、割当前・温存の切替と E-1〜E-3 のボタンが並んでいる"
+                loading="lazy"
+              />
+              <figcaption>
+                詳細画面の下部が制御札管理です。「クリックで切替」「クリックで割当先・割当札を選択」の案内どおりに操作します
+              </figcaption>
+            </figure>
+          </li>
+          <li>
+            <span class="step-title">実際に出撃したら「割当済」に切り替える</span>
+            <p>
+              「割当前」の表示をクリックすると「割当済」に変わります。予定と実績を分けておくことで、
+              計画を見直している最中でも、実際に札が付いてしまった艦を取り違えずに済みます。
+            </p>
+            <figure>
+              <img
+                src="./img/guide/tag-assigned.png"
+                alt="割当済に切り替わり、出撃海域 E-2-3 と連合艦隊札が表示されている制御札管理"
+                loading="lazy"
+              />
+              <figcaption>
+                割当済にすると「出撃(予定)海域」の (予定) が外れ、確定した状態として表示されます
+              </figcaption>
+            </figure>
+          </li>
+        </ol>
+
+        <div class="note">
+          <strong>同じ札が複数の海域で使われることがあります</strong>
+          そのため本ツールでは札だけでなく「割当先の海域」も一緒に保持しています。
+          エクスポートしたコードを読み込み直したときも、海域の情報が保たれます。
+        </div>
+
+        <h3>割り当て状況を確認する</h3>
+        <p>
+          <span class="ui">割当済</span> や <span class="ui">割当札</span> の列で絞り込めば、
+          「この札を付けた艦だけ」を一覧できます。艦種タブと組み合わせると、
+          札ごとの艦種の偏りや不足を把握しやすくなります。
+        </p>
+      </section>
+
+      <!-- ============ 便利な使い方 ============ -->
+      <section class="panel" id="tips" role="tabpanel" aria-labelledby="tab-tips" hidden>
+        <h2>便利な使い方</h2>
+
+        <h3>キーボードで札の割り当てを繰り返す</h3>
+        <p>
+          同じ札を大量に割り当てるときに効きます。いずれも、割り当てたい行に<b>マウスを乗せた状態</b>で押します。
+        </p>
+        <ul class="card-list">
+          <li>
+            <b>Ctrl + D</b>
+            一つ上の行の札情報を、カーソルが乗っている行へ複製します。
+          </li>
+          <li>
+            <b>F4</b>
+            直前に行った割り当てを、カーソルが乗っている行へ繰り返します。
+          </li>
+        </ul>
+        <p>
+          割当済の艦を上書きしようとした場合は確認ダイアログが出るので、誤操作の心配はありません。
+        </p>
+
+        <h3>絞り込みを組み合わせる</h3>
+        <p>
+          各表のヘッダ右下にある虫眼鏡アイコンから、その列の値で絞り込めます。絞り込み中はヘッダの色が変わり、
+          アイコンがフィルタの形になります。<b>3つの表の絞り込みは連動する</b>ため、
+          「特攻を持つ艦のうち、まだ札を割り当てていない駆逐艦」といった見方ができます。
+        </p>
+        <ul>
+          <li>艦名で検索（部分一致・ひらがな、カタカナ、ローマ字読みに対応）</li>
+          <li>艦型・艦番で検索</li>
+          <li>速力で絞り込み</li>
+          <li>対地装備で絞り込み</li>
+          <li>艦種タブ（複数選択可・まとめて選択／解除）</li>
+        </ul>
+        <figure>
+          <img
+            src="./img/guide/ship-list-groundatk.png"
+            alt="艦船情報の対地装備の列。「大発系のみ」「内火艇のみ」「(改造後)大発系・内火艇OK」などが並ぶ"
+            loading="lazy"
+          />
+          <figcaption>
+            対地装備の列では、その艦が積める装備の種別まで確認できます。陸上型が出る海域に対する艦娘の選抜に役立ちます。
+          </figcaption>
+        </figure>
+
+        <h3>改造段階を切り替える</h3>
+        <p>
+          特攻倍率は改造段階によって変わります。艦名の右にある <span class="ui">▼</span>
+          を押すと改装段階の一覧が出るので、そこから切り替えると特攻表の値もその段階のものに変わります。
+          改装元と倍率が異なる場合は、その旨の注意が表示されます。
+        </p>
+        <figure>
+          <img
+            src="./img/guide/variant-switch.png"
+            alt="榛名の行の▼を押して、榛名・榛名改・榛名改二・榛名改二乙・榛名改二丙の候補が表示されている"
+            loading="lazy"
+          />
+          <figcaption>▼ から改装段階を選ぶと、その段階の特攻倍率で表が引き直されます</figcaption>
+        </figure>
+
+        <h3>プランを分けて持つ（データセット）</h3>
+        <p>
+          イベントごと、あるいは「甲でいく案」「乙に落とす案」のように、複数のプランをデータセットとして
+          分けて保存し、画面上のタブで素早く切り替えられます。名前の変更・複製・削除も行えます。
+        </p>
+
+        <h3>表示テーマを変える</h3>
+        <p>
+          ライト / ダーク / ダークブルー
+          の3種類から選べます。長時間の作業では暗いテーマが目に優しく、
+          この使い方ページの配色も選択に合わせて変わります。
+        </p>
+        <figure>
+          <img
+            src="./img/guide/theme-dark.png"
+            alt="ダークテーマで表示した艦娘の詳細画面"
+            loading="lazy"
+          />
+          <figcaption>ダークテーマでの表示例。表もモーダルもまとめて配色が変わります</figcaption>
+        </figure>
+
+        <h3>メモを残す</h3>
+        <p>
+          <span class="ui">コメント欄表示</span> を押すと、艦娘ごとに自由記入のメモを書けます。
+          「掘り要員」「高速化が必要」など、後から自分が迷わないための覚え書きに使えます。
+        </p>
+      </section>
+
+      <!-- ============ その他 ============ -->
+      <section class="panel" id="misc" role="tabpanel" aria-labelledby="tab-misc" hidden>
+        <h2>その他</h2>
+
+        <h3>データは自動でブラウザに保存されます</h3>
+        <p>
+          入力した内容（所持艦娘・札の割り当てなど）は、すべてお使いのブラウザ内（IndexedDB）に保存されます。
+          外部サーバーに送信されることはありません。サイトの表示に必要なマスタデータ（イベント情報・艦船一覧など）の
+          取得のため Firebase との通信、および利用状況の把握のため Google Analytics
+          によるアクセス解析を行っています。
+        </p>
+
+        <div class="note">
+          <strong>ブラウザのデータを消すと失われます</strong>
+          「閲覧データの削除」やプライベートウィンドウの終了、別のブラウザ・別の端末への移行では、
+          保存内容は引き継がれません。大事な計画は下記のエクスポートでバックアップしてください。
+        </div>
+
+        <h3>バックアップと持ち出し</h3>
+        <p>
+          <span class="ui">コードを生成</span>
+          を押すと、現在のデータセットの内容が艦隊分析コード（JSON）として入力欄に出力されます。
+          コピーボタンでクリップボードに控えておけば、<span class="ui">コードから取り込み</span>
+          でいつでも復元できます。別の端末へ移すときもこの方法が使えます。
+        </p>
+        <p>
+          出力されるコードは一般的な艦隊分析コードの形式に、本ツール独自の割り当て情報を追加したものです。
+          他のツールは知らない項目を無視するため、そのまま他ツールに読み込ませることもできます。
+        </p>
+
+        <h3>更新履歴・QA</h3>
+        <ul>
+          <li>
+            画面右上に<b>更新履歴</b>が表示されます。データの修正や機能追加はここでお知らせします
+          </li>
+          <li>
+            <span class="ui">公開QA</span>
+            から、よくある質問と回答をカテゴリ・検索付きで確認できます
+          </li>
+        </ul>
+
+        <h3>お問い合わせ</h3>
+        <p>
+          不具合の報告・要望は、画面右上の GitHub アイコン、メールアイコン、X（旧Twitter）、 または
+          <span class="ui">ご意見箱</span> からお寄せください。
+        </p>
+
+        <h3>免責事項</h3>
+        <ul>
+          <li>本サイトは非公式の攻略支援ツールです。運営元とは一切関係ありません</li>
+          <li>
+            特攻倍率をはじめとする掲載情報の正確性は保証できません。最終的な判断はご自身の責任でお願いします
+          </li>
+          <li>
+            ゲーム内で使用されている画像は、説明・識別のために必要最小限の範囲で引用しています。
+            著作権は DMM GAMES 様および原著作物の権利者に帰属します
+          </li>
+        </ul>
+      </section>
+
+      <footer class="site-footer">
+        <p>
+          艦隊札管理帖は非公式の攻略支援ツールです。「艦隊これくしょん -艦これ-」の著作権は DMM
+          GAMES / C2機関 に帰属します。
+        </p>
+        <p><a class="back-link" href="./index.html">← ツールに戻る</a></p>
+      </footer>
+    </div>
+  </body>
+</html>
