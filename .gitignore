@@ -35,3 +35,6 @@ coverage
 eslint-results.txt
 
 .claude/
+
+# ツイート下書き(ローカル作業用)
+tweet/
