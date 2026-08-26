@@ -430,13 +430,22 @@ export default defineComponent({
       showTypeChangeDialog.value = false
     }
 
-    const handleTagFilterChange = (filteredShips: ExpandedShip[], isFiltering: boolean) => {
+    // 制御札管理表の札順ソートが効いているか。絞り込みとは別に持つ(「絞り込み中」表示には出さない)。
+    const tagSortActive = ref(false)
+
+    const handleTagFilterChange = (
+      filteredShips: ExpandedShip[],
+      isFiltering: boolean,
+      isSorting = false,
+    ) => {
       filteredShipsFromTagTable.value = filteredShips
       tagFilterActive.value = isFiltering
+      tagSortActive.value = isSorting
     }
 
     const intersectedShips = computed(() => {
-      if (tagFilterActive.value) {
+      // 札順ソート中は絞り込みが無くても、並べ替え済みの行順を3表へ流す必要がある。
+      if (tagFilterActive.value || tagSortActive.value) {
         return filteredShipsFromTagTable.value
       }
       return shipsToDisplay.value
@@ -692,6 +701,7 @@ export default defineComponent({
       updateTagManagement,
       filteredShipsFromTagTable,
       tagFilterActive,
+      tagSortActive,
       handleTagFilterChange,
       intersectedShips,
       isTableFilterActive,

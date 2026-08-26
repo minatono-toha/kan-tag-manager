@@ -42,13 +42,16 @@
           </th>
           <th
             :style="{ ...cellStyle, ...headerStyle, ...columnWidth('targetStage') }"
-            class="border text-left align-top relative pb-6"
+            class="border text-left align-top relative pb-6 cursor-pointer select-none"
             :class="targetStageFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
+            title="クリックで札順ソート(昇順→降順→解除)"
+            @click="handleHeaderSortClick($event, 'targetStage')"
           >
             割当先
+            <span v-if="tagSortColumn === 'targetStage'">{{ tagSortMark }}</span>
             <span
               @click="toggleTargetStageFilter($event)"
-              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              class="filter-icon cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
               title="絞り込み"
               ref="targetStageIconRef"
             >
@@ -58,13 +61,16 @@
           </th>
           <th
             :style="{ ...cellStyle, ...headerStyle, ...columnWidth('assignedTag') }"
-            class="border text-left align-top relative pb-6"
+            class="border text-left align-top relative pb-6 cursor-pointer select-none"
             :class="assignedTagFilter.length > 0 ? 'filter-active' : 'bg-gray-100'"
+            title="クリックで札順ソート(昇順→降順→解除)"
+            @click="handleHeaderSortClick($event, 'assignedTag')"
           >
             割当札
+            <span v-if="tagSortColumn === 'assignedTag'">{{ tagSortMark }}</span>
             <span
               @click="toggleAssignedTagFilter($event)"
-              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              class="filter-icon cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
               title="絞り込み"
               ref="assignedTagIconRef"
             >
@@ -565,7 +571,12 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'filter-change', filteredShips: ExpandedShip[], isFiltering: boolean): void
+  (
+    e: 'filter-change',
+    filteredShips: ExpandedShip[],
+    isFiltering: boolean,
+    isSorting: boolean,
+  ): void
 }>()
 
 // ヘッダ用と本体用の2つのテーブルに同じ列幅を与える(表を分けた以上 auto は使えない)
@@ -592,6 +603,39 @@ const getTagData = (orig: number, shipIndex: number): TagManagement => {
     tagId: 0,
     comment: '',
   }
+}
+
+// 札順ソート。割当先/割当札の見出しクリックで操作し、
+// 掛かるソートは常に1つ(片方を起動すればもう片方は解除される)。
+type TagSortColumn = 'targetStage' | 'assignedTag'
+type TagSortOrder = 'asc' | 'desc'
+
+const tagSortColumn = ref<TagSortColumn | null>(null)
+const tagSortOrder = ref<TagSortOrder | null>(null)
+
+const tagSortMark = computed(() => (tagSortOrder.value === 'desc' ? '▼' : '▲'))
+
+// 見出しのクリックで巡回する(特攻情報表と同じ操作)。ただし絞り込みアイコンは
+// 同じ見出しの中にあるので、そちらのクリックはソートに使わない。
+const handleHeaderSortClick = (event: MouseEvent, column: TagSortColumn) => {
+  if ((event.target as HTMLElement).closest('.filter-icon')) return
+  cycleTagSort(column)
+}
+
+// 昇順 → 降順 → 解除 の巡回。別の列から呼ばれたときは昇順で始め直す。
+// (特攻情報表は降順から始まるが、札順は昇順から始める)
+const cycleTagSort = (column: TagSortColumn) => {
+  if (tagSortColumn.value !== column) {
+    tagSortColumn.value = column
+    tagSortOrder.value = 'asc'
+    return
+  }
+  if (tagSortOrder.value === 'asc') {
+    tagSortOrder.value = 'desc'
+    return
+  }
+  tagSortColumn.value = null
+  tagSortOrder.value = null
 }
 
 // Filter states
@@ -832,6 +876,47 @@ const uniqueAssignedTags = computed(() => {
 
 const displayedShips = computed(() => props.ships)
 
+// 割当先の並び順も firestore の tag.tagId に従わせる。海域そのものには順番が無いので、
+// その海域に紐づく札のうち最小の tagId を代表値として使う(札が無い海域は未割当と同じ扱い)。
+const stageSortKeyMap = computed(() => {
+  const map = new Map<string, number>()
+  Object.entries(props.stageTagMap).forEach(([stage, tags]) => {
+    if (!tags || tags.length === 0) return
+    map.set(
+      stage,
+      tags.reduce((min, tag) => Math.min(min, tag.tagId), Number.POSITIVE_INFINITY),
+    )
+  })
+  return map
+})
+
+// ソート基準値。札/海域が決まっていない行は昇順・降順どちらでも末尾に置く
+// (未割当が先頭に並んでも札順として役に立たないため)。
+const tagSortKey = (ship: ExpandedShip): number => {
+  if (tagSortColumn.value === 'assignedTag') {
+    const tagId = getTagData(ship.orig, ship.shipIndex).tagId
+    return tagId && props.tagMap[tagId] ? tagId : Number.POSITIVE_INFINITY
+  }
+  const stage = stageOnly(getTagData(ship.orig, ship.shipIndex).targetStage)
+  return stageSortKeyMap.value.get(stage) ?? Number.POSITIVE_INFINITY
+}
+
+// 同じ基準値の行は元の並び(艦種順)を保つ。Array#sort は安定なのでそのままで足りる。
+const sortByTagOrder = (ships: ExpandedShip[]): ExpandedShip[] => {
+  if (!tagSortColumn.value || !tagSortOrder.value) return ships
+
+  const sign = tagSortOrder.value === 'asc' ? 1 : -1
+  return [...ships].sort((a, b) => {
+    const aKey = tagSortKey(a)
+    const bKey = tagSortKey(b)
+    if (aKey === bKey) return 0
+    // 未割当(Infinity)は昇順・降順を問わず末尾
+    if (aKey === Number.POSITIVE_INFINITY) return 1
+    if (bKey === Number.POSITIVE_INFINITY) return -1
+    return (aKey - bKey) * sign
+  })
+}
+
 // Filtered ships for EMIT (based on sourceShips + local filters)
 const filteredShipsForEmit = computed(() => {
   let result = props.sourceShips
@@ -875,7 +960,7 @@ const filteredShipsForEmit = computed(() => {
     })
   }
 
-  return result
+  return sortByTagOrder(result)
 })
 
 // Watch filteredShipsForEmit and emit changes to parent
@@ -888,7 +973,9 @@ watch(
       targetStageFilter.value.length > 0 ||
       assignedTagFilter.value.length > 0 ||
       commentFilter.value.length > 0
-    emit('filter-change', newFiltered, isFiltering)
+    // ソートは絞り込みではないので isFiltering には混ぜない(「絞り込み中」表示が誤って点く)。
+    // 並び順だけを親へ届けるために別のフラグで伝える。
+    emit('filter-change', newFiltered, isFiltering, tagSortColumn.value !== null)
   },
   { immediate: true },
 )
