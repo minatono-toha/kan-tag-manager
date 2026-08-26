@@ -15,7 +15,9 @@ const 甲 = { tagId: 1, tagName: '甲', tagColor: '#fff' }
 const 乙 = { tagId: 2, tagName: '乙', tagColor: '#fff' }
 const 丙 = { tagId: 3, tagName: '丙', tagColor: '#fff' }
 
-const stageTagMap = { 'E-1-1': [丙], 'E-2-1': [甲], 'E-3-1': [乙] }
+// 甲は E-1-1 と E-3-1 の両方へ行ける。同じ札で割当先が割れる場合の並びを見るための配置。
+const stageOptions = ['E-1-1', 'E-2-1', 'E-3-1']
+const stageTagMap = { 'E-1-1': [甲, 丙], 'E-2-1': [乙], 'E-3-1': [甲] }
 const tagMap = { 1: 甲, 2: 乙, 3: 丙 }
 
 const tag = (orig: number, targetStage: string, tagId: number): TagManagement => ({
@@ -23,13 +25,22 @@ const tag = (orig: number, targetStage: string, tagId: number): TagManagement =>
 })
 
 // 入力順は昇順とも降順とも一致させない。並べ替えが本当に効いたことを見分けるため。
-const ships = [ship(20, '島風'), ship(10, '雪風'), ship(30, '時雨'), ship(40, '夕立')]
+// 特に島風(E-3-1/甲)を雪風(E-1-1/甲)より前に置き、第二ソートが無ければ
+// 安定ソートで島風が上に残ってしまう状態から始める。
+const ships = [
+  ship(20, '島風'),
+  ship(10, '雪風'),
+  ship(30, '時雨'),
+  ship(40, '夕立'),
+  ship(50, '綾波'),
+]
 
 const tagManagementData = new Map<string, TagManagement>([
-  ['10_0', tag(10, 'E-1-1', 3)], // 丙
-  ['20_0', tag(20, 'E-3-1', 2)], // 乙
-  ['30_0', tag(30, 'E-2-1', 1)], // 甲
-  ['40_0', tag(40, '', 0)], // 未割当
+  ['20_0', tag(20, 'E-3-1', 1)], // 甲 / E-3-1
+  ['10_0', tag(10, 'E-1-1', 1)], // 甲 / E-1-1
+  ['30_0', tag(30, 'E-2-1', 2)], // 乙 / E-2-1
+  ['40_0', tag(40, 'E-1-1', 3)], // 丙 / E-1-1
+  ['50_0', tag(50, '', 0)], // 未割当
 ])
 
 const mountTable = () =>
@@ -39,7 +50,7 @@ const mountTable = () =>
       sourceShips: ships,
       selectedEventId: 1,
       tagManagementData,
-      stageOptions: ['E-1-1', 'E-2-1', 'E-3-1'],
+      stageOptions,
       stageTagMap,
       tagMap,
       updateTagManagement: async () => {},
@@ -71,33 +82,44 @@ describe('割当札管理表の札順ソート', () => {
     const w = mountTable()
 
     // 初期状態は未ソート(入力順のまま)
-    expect(emittedOrder(w)).toEqual(['島風', '雪風', '時雨', '夕立'])
+    expect(emittedOrder(w)).toEqual(['島風', '雪風', '時雨', '夕立', '綾波'])
     expect(emittedIsSorting(w)).toBe(false)
 
     // 1回目: 昇順(甲=1 → 乙=2 → 丙=3)。未割当は末尾。
     await clickHeader(w, '割当札')
-    expect(emittedOrder(w)).toEqual(['時雨', '島風', '雪風', '夕立'])
+    expect(emittedOrder(w)).toEqual(['雪風', '島風', '時雨', '夕立', '綾波'])
     expect(emittedIsSorting(w)).toBe(true)
     expect(header(w, '割当札').text()).toContain('▲')
 
     // 2回目: 降順。未割当は降順でも末尾のまま。
     await clickHeader(w, '割当札')
-    expect(emittedOrder(w)).toEqual(['雪風', '島風', '時雨', '夕立'])
+    expect(emittedOrder(w)).toEqual(['夕立', '時雨', '島風', '雪風', '綾波'])
     expect(header(w, '割当札').text()).toContain('▼')
 
     // 3回目: 解除して元の並びへ戻る
     await clickHeader(w, '割当札')
-    expect(emittedOrder(w)).toEqual(['島風', '雪風', '時雨', '夕立'])
+    expect(emittedOrder(w)).toEqual(['島風', '雪風', '時雨', '夕立', '綾波'])
     expect(emittedIsSorting(w)).toBe(false)
     expect(header(w, '割当札').text()).not.toContain('▲')
   })
 
-  it('割当先は海域が持つ札の tagId 順に並ぶ', async () => {
+  it('同じ札の中は割当先の若い海域が上にくる(第二ソート)', async () => {
     const w = mountTable()
 
-    // E-2-1(甲=1) → E-3-1(乙=2) → E-1-1(丙=3)。海域名の昇順ではない点が肝。
+    // 雪風と島風はどちらも甲。入力順では島風が先だが、
+    // 割当先が E-1-1 の雪風が E-3-1 の島風より上に出る。
+    await clickHeader(w, '割当札')
+    const order = emittedOrder(w)
+    expect(order.indexOf('雪風')).toBeLessThan(order.indexOf('島風'))
+  })
+
+  it('割当先は海域が持つ札の tagId 順に並び、同じ札の海域同士は海域順で決まる', async () => {
+    const w = mountTable()
+
+    // 代表札は E-1-1(甲=1) / E-3-1(甲=1) / E-2-1(乙=2)。
+    // E-1-1 と E-3-1 は代表札が同じなので、第二ソートの海域順で E-1-1 が先にくる。
     await clickHeader(w, '割当先')
-    expect(emittedOrder(w)).toEqual(['時雨', '島風', '雪風', '夕立'])
+    expect(emittedOrder(w)).toEqual(['雪風', '夕立', '島風', '時雨', '綾波'])
   })
 
   it('絞り込みアイコンのクリックではソートしない(メニューを開くだけ)', async () => {

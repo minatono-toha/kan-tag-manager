@@ -876,44 +876,66 @@ const uniqueAssignedTags = computed(() => {
 
 const displayedShips = computed(() => props.ships)
 
-// 割当先の並び順も firestore の tag.tagId に従わせる。海域そのものには順番が無いので、
+// 札/海域が決まっていない行を置く位置。昇順・降順どちらでも末尾に寄せる
+// (未割当が先頭に並んでも札順として役に立たないため)。
+const TAG_SORT_LAST = Number.POSITIVE_INFINITY
+
+// 割当先の並び順も firestore の tag.tagId に従わせる。海域そのものには番号が無いので、
 // その海域に紐づく札のうち最小の tagId を代表値として使う(札が無い海域は未割当と同じ扱い)。
-const stageSortKeyMap = computed(() => {
+const stageTagKeyMap = computed(() => {
   const map = new Map<string, number>()
   Object.entries(props.stageTagMap).forEach(([stage, tags]) => {
     if (!tags || tags.length === 0) return
     map.set(
       stage,
-      tags.reduce((min, tag) => Math.min(min, tag.tagId), Number.POSITIVE_INFINITY),
+      tags.reduce((min, tag) => Math.min(min, tag.tagId), TAG_SORT_LAST),
     )
   })
   return map
 })
 
-// ソート基準値。札/海域が決まっていない行は昇順・降順どちらでも末尾に置く
-// (未割当が先頭に並んでも札順として役に立たないため)。
-const tagSortKey = (ship: ExpandedShip): number => {
+// 第二ソート用の海域の並び順。stageOptions は compareStages 済みで渡ってくるので、
+// その添字がそのまま E-1 → E-2 → E-3 の順になる。海域を持たないギミック用は末尾。
+const stageOrderMap = computed(() => {
+  const map = new Map<string, number>()
+  props.stageOptions.forEach((stage, index) => map.set(stage, index))
+  map.set(GIMMICK_STAGE, props.stageOptions.length)
+  return map
+})
+
+// ソート基準値を [第一キー=札順, 第二キー=割当先順] で返す。
+// 同じ札でも複数の海域へ行ける(甲で E-1 と E-3 の両方など)ため、
+// 札が並んだあとは割当先の若い方を上に出す。
+const tagSortKeys = (ship: ExpandedShip): [number, number] => {
+  const data = getTagData(ship.orig, ship.shipIndex)
+  const stage = stageOnly(data.targetStage)
+  const stageKey = stageOrderMap.value.get(stage) ?? TAG_SORT_LAST
+
   if (tagSortColumn.value === 'assignedTag') {
-    const tagId = getTagData(ship.orig, ship.shipIndex).tagId
-    return tagId && props.tagMap[tagId] ? tagId : Number.POSITIVE_INFINITY
+    const tagId = data.tagId && props.tagMap[data.tagId] ? data.tagId : TAG_SORT_LAST
+    return [tagId, stageKey]
   }
-  const stage = stageOnly(getTagData(ship.orig, ship.shipIndex).targetStage)
-  return stageSortKeyMap.value.get(stage) ?? Number.POSITIVE_INFINITY
+  return [stageTagKeyMap.value.get(stage) ?? TAG_SORT_LAST, stageKey]
 }
 
-// 同じ基準値の行は元の並び(艦種順)を保つ。Array#sort は安定なのでそのままで足りる。
+// 第一キー・第二キーとも同値の行は元の並び(艦種順)を保つ。Array#sort は安定なのでそれで足りる。
 const sortByTagOrder = (ships: ExpandedShip[]): ExpandedShip[] => {
   if (!tagSortColumn.value || !tagSortOrder.value) return ships
 
   const sign = tagSortOrder.value === 'asc' ? 1 : -1
+
+  // 未割当(TAG_SORT_LAST)だけは昇順・降順を問わず後ろへ回すので sign を掛けない
+  const compareKey = (a: number, b: number): number => {
+    if (a === b) return 0
+    if (a === TAG_SORT_LAST) return 1
+    if (b === TAG_SORT_LAST) return -1
+    return (a - b) * sign
+  }
+
   return [...ships].sort((a, b) => {
-    const aKey = tagSortKey(a)
-    const bKey = tagSortKey(b)
-    if (aKey === bKey) return 0
-    // 未割当(Infinity)は昇順・降順を問わず末尾
-    if (aKey === Number.POSITIVE_INFINITY) return 1
-    if (bKey === Number.POSITIVE_INFINITY) return -1
-    return (aKey - bKey) * sign
+    const [aTag, aStage] = tagSortKeys(a)
+    const [bTag, bStage] = tagSortKeys(b)
+    return compareKey(aTag, bTag) || compareKey(aStage, bStage)
   })
 }
 
