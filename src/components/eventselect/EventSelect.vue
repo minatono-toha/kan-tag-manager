@@ -171,10 +171,14 @@ export default defineComponent({
         return '開始前'
       } else if (now >= startDate && now <= endDate) {
         const remainingMs = endDate.getTime() - now.getTime()
-        const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24))
+        const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
         const remainingHours = Math.floor((remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
         const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
-        return `開催中(残り${remainingDays}日 ${String(remainingHours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')})`
+        const remainingTime = `${String(remainingHours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`
+        // 残り1日未満は日数を出さず時間のみ表示する
+        return remainingDays > 0
+          ? `開催中(残り${remainingDays}日 ${remainingTime})`
+          : `開催中(残り${remainingTime})`
       } else {
         return '終了済'
       }
@@ -196,7 +200,7 @@ export default defineComponent({
         return 'text-blue-600'
       } else if (now >= startDate && now <= endDate) {
         const remainingMs = endDate.getTime() - now.getTime()
-        const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24))
+        const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
 
         if (remainingDays < 7) {
           return 'text-red-600'
