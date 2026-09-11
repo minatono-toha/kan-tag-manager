@@ -39,10 +39,10 @@
             shipItemClass,
             {
               'selected-variant': ship.bannerId === currentVariantId,
-              'opacity-50 cursor-not-allowed': selectedShip && isVariantDisabled(selectedShip.name, ship.name)
+              'opacity-50 cursor-not-allowed': isDisplayShipDisabled(ship)
             }
           ]"
-          :title="selectedShip && isVariantDisabled(selectedShip.name, ship.name) ? '改装元と特攻倍率が異なるため、改装後の行を参照してください' : ''"
+          :title="displayShipDisabledReason(ship)"
           @click="handleShipItemClick(ship, $event)"
         >
           <a
@@ -145,9 +145,14 @@ const props = withDefaults(defineProps<{
   // このロットの系統が別の spGroupId に分割されている(=他行に別の改装段階がある)か。
   // props.ships は既に1グループ分に絞られているため、判定は呼び出し側(App.vue)で行い渡す。
   hasSpGroupSplit?: boolean
+  // 別の spGroupId に分割されている艦(=他行で扱っている改装段階)そのもの。
+  // 「すべての改装段階を表示」時に、選べない選択肢としてグレーアウト表示するために使う。
+  // props.ships と同様、判定は呼び出し側(App.vue)で行い渡す。
+  spGroupSiblings?: Ship[]
 }>(), {
   isUnowned: false,
-  hasSpGroupSplit: false
+  hasSpGroupSplit: false,
+  spGroupSiblings: () => []
 })
 
 const { theme } = useTheme()
@@ -177,12 +182,34 @@ const safeWikiUrl = (url?: string): string | undefined => {
   return undefined
 }
 
-const displayShips = computed(() => {
+// spGroupForeign: 特攻グループ分割で別行に切り出された艦(=クリックしても選べない)。
+// 「すべての改装段階を表示」で、実装漏れと誤認されないよう選択肢として並べて出す。
+type DisplayShip = Ship & { spGroupForeign: boolean }
+
+const displayShips = computed<DisplayShip[]>(() => {
   if (showOnlySelected.value && props.currentVariantId !== null) {
-    return filteredShips.value.filter((s) => s.bannerId === props.currentVariantId)
+    return filteredShips.value
+      .filter((s) => s.bannerId === props.currentVariantId)
+      .map((s) => ({ ...s, spGroupForeign: false }))
   }
-  return filteredShips.value
+  const own: DisplayShip[] = filteredShips.value.map((s) => ({ ...s, spGroupForeign: false }))
+  const foreign: DisplayShip[] = props.spGroupSiblings.map((s) => ({ ...s, spGroupForeign: true }))
+  return [...own, ...foreign].sort((a, b) => (a.updateLevel ?? 0) - (b.updateLevel ?? 0))
 })
+
+// 特攻倍率が異なる(SPAttackException)の判定。別 spGroupId への分割はこの対象外
+// (isDisplayShipDisabled 側で spGroupForeign として別途判定する)。
+const isAttackMismatchDisabled = (ship: Ship): boolean =>
+  !!selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name)
+
+const isDisplayShipDisabled = (ship: DisplayShip): boolean =>
+  ship.spGroupForeign || isAttackMismatchDisabled(ship)
+
+const displayShipDisabledReason = (ship: DisplayShip): string => {
+  if (ship.spGroupForeign) return '改装によって艦種が変わる艦は別の行で扱っています'
+  if (isAttackMismatchDisabled(ship)) return '改装元と特攻倍率が異なるため、改装後の行を参照してください'
+  return ''
+}
 
 const openCardModal = (bannerId: number) => {
   cardBannerId.value = bannerId
@@ -199,7 +226,7 @@ const handleCardOpen = (bannerId: number) => {
   openCardModal(bannerId)
 }
 
-const handleBannerClick = (event: MouseEvent, ship: Ship) => {
+const handleBannerClick = (event: MouseEvent, ship: DisplayShip) => {
   // Check if disabled (for variant selection logic via frame click)
   const target = event.target as HTMLElement
 
@@ -212,15 +239,15 @@ const handleBannerClick = (event: MouseEvent, ship: Ship) => {
   // Clicking the frame (outside the image) - select variant
   event.preventDefault()
 
-  if (selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name)) {
+  if (isDisplayShipDisabled(ship)) {
     return
   }
 
   emit('select-variant', ship.spGroupId, ship.bannerId)
 }
 
-const handleShipItemClick = (ship: Ship, event: MouseEvent) => {
-  if (selectedShip.value && isVariantDisabled(selectedShip.value.name, ship.name)) {
+const handleShipItemClick = (ship: DisplayShip, event: MouseEvent) => {
+  if (isDisplayShipDisabled(ship)) {
     return
   }
 

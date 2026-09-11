@@ -242,9 +242,9 @@
         class="cursor-pointer p-1 rounded whitespace-nowrap focus:outline-none focus:ring-1 focus:ring-blue-500"
         :class="[
           'popup-item',
-          { 'opacity-50 cursor-not-allowed': currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) }
+          { 'opacity-50 cursor-not-allowed': isVariantOptionDisabled(variant) }
         ]"
-        :title="currentTarget && isVariantDisabled(getDisplayShip(currentTarget.ship).name, variant.name) ? '改装元と特攻倍率が異なるため、改装後の行を参照してください' : ''"
+        :title="variantOptionDisabledReason(variant)"
         :data-variant-id="variant.bannerId"
         tabindex="0"
         @click="selectVariant(variant)"
@@ -276,7 +276,7 @@ import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { isVariantDisabled } from '@/components/attack/SPAttackException'
-import { hasSpGroupSplit } from '@/utils/shipSort'
+import { hasSpGroupSplit, getSpGroupSplitSiblings } from '@/utils/shipSort'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -393,10 +393,14 @@ const closeAllPopups = () => {
 }
 
 // Variant Selection Logic
+// spGroupForeign: 特攻グループ分割で別行に切り出された艦(=クリックしても選べない)。
+// このポップアップに実在の選択肢として出すことで、「実装漏れ」と誤認されないようにする。
+type VariantOption = Ship & { spGroupForeign: boolean }
+
 const showVariantPopup = ref(false)
 const variantPopupPosition = ref({ x: 0, y: 0 })
 const variantPopupRef = ref<HTMLElement | null>(null)
-const currentVariants = ref<Ship[]>([])
+const currentVariants = ref<VariantOption[]>([])
 const currentTarget = ref<{ orig: number; shipIndex: number; ship: ExpandedShip } | null>(null)
 
 // currentTarget.ship.orig は spGroupId(展開時に上書き済み)。その系統(orig)が
@@ -450,11 +454,15 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
     const variants = props.allShips.filter(s => s.spGroupId === ship.orig)
       .sort((a, b) => a.updateLevel - b.updateLevel)
 
-    if (variants.length === 0) {
-      currentVariants.value = [ship]
-    } else {
-      currentVariants.value = variants
-    }
+    const ownVariants: VariantOption[] = (variants.length === 0 ? [ship] : variants)
+      .map(v => ({ ...v, spGroupForeign: false }))
+
+    // 別の spGroupId に分割されている改装段階も、選べない選択肢としてそのまま並べる
+    const foreignVariants: VariantOption[] = getSpGroupSplitSiblings(props.allShips, ship.orig)
+      .map(v => ({ ...v, spGroupForeign: true }))
+
+    currentVariants.value = [...ownVariants, ...foreignVariants]
+      .sort((a, b) => a.updateLevel - b.updateLevel)
 
     // Position
     const rect = (event.target as HTMLElement).getBoundingClientRect()
@@ -476,10 +484,23 @@ const toggleVariantPopup = (event: MouseEvent, ship: ExpandedShip) => {
 }
 
 
-const selectVariant = (variant: Ship) => {
+// 特攻倍率が異なる(SPAttackException)の判定。別 spGroupId への分割はこの対象外
+// (isVariantOptionDisabled 側で spGroupForeign として別途判定する)。
+const isAttackMismatchDisabled = (variant: Ship): boolean =>
+  !!currentTarget.value && isVariantDisabled(getDisplayShip(currentTarget.value.ship).name, variant.name)
+
+const isVariantOptionDisabled = (variant: VariantOption): boolean =>
+  variant.spGroupForeign || isAttackMismatchDisabled(variant)
+
+const variantOptionDisabledReason = (variant: VariantOption): string => {
+  if (variant.spGroupForeign) return '改装によって艦種が変わる艦は別の行で扱っています'
+  if (isAttackMismatchDisabled(variant)) return '改装元と特攻倍率が異なるため、改装後の行を参照してください'
+  return ''
+}
+
+const selectVariant = (variant: VariantOption) => {
   if (currentTarget.value) {
-    const rowShip = currentTarget.value.ship
-    if (isVariantDisabled(getDisplayShip(rowShip).name, variant.name)) {
+    if (isVariantOptionDisabled(variant)) {
       return
     }
     emit('update-variant', currentTarget.value.orig, currentTarget.value.shipIndex, variant.bannerId)

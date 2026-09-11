@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
-import { isBaseFormOf, orderShipRows, hasSpGroupSplit } from '@/utils/shipSort'
+import { isBaseFormOf, orderShipRows, hasSpGroupSplit, getSpGroupSplitSiblings } from '@/utils/shipSort'
 import type { Ship } from '@/types/interfaces'
 
 // useShips.getUniqueOrigs と同じ選び方でグループの基本艦を決める
@@ -96,5 +96,28 @@ describe('hasSpGroupSplit(この系統は他の spGroupId に分割されてい�
 
   it('存在しない spGroupId は false', () => {
     expect(hasSpGroupSplit(all, 99999)).toBe(false)
+  })
+})
+
+describe('getSpGroupSplitSiblings(この系統の、別 spGroupId に分割された艦を返す)', () => {
+  const chitose = makeShip({ name: '千歳', spGroupId: 49, orig: 49 })
+  const chitoseCV = makeShip({ name: '千歳航', spGroupId: 9108, orig: 49 })
+  const zuiho = makeShip({ name: '瑞鳳', spGroupId: 60, orig: 60 })
+  const all = [chitose, chitoseCV, zuiho]
+
+  it('分割元(千歳)の spGroupId で調べると分割先(千歳航)が返る', () => {
+    expect(getSpGroupSplitSiblings(all, 49).map((s) => s.name)).toEqual(['千歳航'])
+  })
+
+  it('分割先(千歳航)の spGroupId で調べると分割元(千歳)が返る(対称)', () => {
+    expect(getSpGroupSplitSiblings(all, 9108).map((s) => s.name)).toEqual(['千歳'])
+  })
+
+  it('分割されていない艦は空配列', () => {
+    expect(getSpGroupSplitSiblings(all, 60)).toEqual([])
+  })
+
+  it('存在しない spGroupId は空配列', () => {
+    expect(getSpGroupSplitSiblings(all, 99999)).toEqual([])
   })
 })

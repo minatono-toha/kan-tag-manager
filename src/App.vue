@@ -227,6 +227,7 @@
       :currentVariantId="modalShips.length ? (shipVariantMap.get(`${modalShips[0].spGroupId}_${modalShipIndex}`) || modalShips[0].bannerId) : null"
       :isUnowned="isModalShipUnowned"
       :hasSpGroupSplit="modalHasSpGroupSplit"
+      :spGroupSiblings="modalSpGroupSiblings"
       :selectedEventId="selectedEventId"
       :tagManagementData="tagManagementData"
       :stageOptions="stageOptions"
@@ -267,7 +268,7 @@ import BaseDialog from './components/common/BaseDialog.vue'
 import FairyTips from './tips/FairyTips.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useShips } from '@/composables/useShips'
-import { hasSpGroupSplit } from '@/utils/shipSort'
+import { hasSpGroupSplit, getSpGroupSplitSiblings } from '@/utils/shipSort'
 import { useTagManagement } from '@/composables/useTagManagement'
 import { HEADER_SLOT_IDS, headerSlotSelector } from '@/constants/tableHeaderSlots'
 import { tagManageTableWidth } from '@/constants/tagManageColumns'
@@ -561,9 +562,13 @@ export default defineComponent({
     }
 
     // modalShips は既に1グループ分に絞られているため、系統(orig)全体を見ないと判定できない
-    // 分割の有無はここ(allShips 全体を持つ側)で計算し、ShipModal には結果だけ渡す。
+    // 分割の有無・分割先の艦そのものは、ここ(allShips 全体を持つ側)で計算し、
+    // ShipModal には結果だけ渡す。
     const modalHasSpGroupSplit = computed(() =>
       modalShips.value.length > 0 ? hasSpGroupSplit(allShips.value, modalShips.value[0].spGroupId) : false,
+    )
+    const modalSpGroupSiblings = computed(() =>
+      modalShips.value.length > 0 ? getSpGroupSplitSiblings(allShips.value, modalShips.value[0].spGroupId) : [],
     )
 
     const closeModal = () => {
@@ -674,6 +679,7 @@ export default defineComponent({
         attack: headerSlotSelector('attack'),
       },
       modalHasSpGroupSplit,
+      modalSpGroupSiblings,
       shipsToDisplay,
       handleShipFilterChange,
       theme,

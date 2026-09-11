@@ -77,3 +77,12 @@ export const hasSpGroupSplit = (allShips: ShipLineage[], spGroupId: number): boo
   const distinctGroups = new Set(allShips.filter((s) => s.orig === rep.orig).map((s) => s.spGroupId))
   return distinctGroups.size > 1
 }
+
+// spGroupId で指定したグループと同じ系統(orig)に属するが、別の spGroupId に分割されている
+// 艦(=このグループの一覧には出てこない改装段階)を返す。改装段階の選択UI(▼ポップアップ・
+// 詳細モーダル)で、実装漏れと誤認されないよう「別行に居る」ことをグレーアウト表示するために使う。
+export const getSpGroupSplitSiblings = <T extends ShipLineage>(allShips: T[], spGroupId: number): T[] => {
+  const rep = allShips.find((s) => s.spGroupId === spGroupId)
+  if (!rep) return []
+  return allShips.filter((s) => s.orig === rep.orig && s.spGroupId !== spGroupId)
+}

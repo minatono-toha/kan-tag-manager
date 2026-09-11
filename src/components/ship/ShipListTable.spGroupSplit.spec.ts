@@ -67,3 +67,35 @@ describe('改装段階選択プルダウンの分割注記', () => {
     expect(w.text()).not.toContain('改装によって艦種が変わる艦は別の行で扱っています')
   })
 })
+
+describe('改装段階選択プルダウンの分割先グレーアウト表示', () => {
+  it('分割先(大和改二重)がグレーアウトされた選択肢として一覧に出る', async () => {
+    const w = render()
+    await openVariantPopup(w, '大和')
+
+    const item = w.find(`[data-variant-id="${yamatoKai2Ju.bannerId}"]`)
+    expect(item.exists()).toBe(true)
+    expect(item.text()).toBe('大和改二重')
+    expect(item.classes()).toContain('opacity-50')
+    expect(item.classes()).toContain('cursor-not-allowed')
+    expect(item.attributes('title')).toBe('改装によって艦種が変わる艦は別の行で扱っています')
+  })
+
+  it('分割先の選択肢をクリックしても改装段階は変更されない', async () => {
+    const w = render()
+    await openVariantPopup(w, '大和')
+
+    await w.find(`[data-variant-id="${yamatoKai2Ju.bannerId}"]`).trigger('click')
+
+    expect(w.emitted('update-variant')).toBeUndefined()
+  })
+
+  it('分割の無い艦(長門)では分割先の選択肢は出ない', async () => {
+    const w = render()
+    await openVariantPopup(w, '長門')
+
+    expect(w.find(`[data-variant-id="${yamatoKai2Ju.bannerId}"]`).exists()).toBe(false)
+    const items = w.findAll('.popup-item')
+    expect(items.map((i) => i.text())).toEqual(['長門', '長門改'])
+  })
+})
