@@ -234,7 +234,7 @@
         class="text-xs opacity-70 mb-1 pb-1 border-b whitespace-normal"
         style="max-width: 200px;"
       >
-        改装によって艦種が変わる艦は別の行で扱っています
+        {{ SP_GROUP_SPLIT_NOTE }}
       </div>
       <div
         v-for="variant in currentVariants"
@@ -244,16 +244,28 @@
           'popup-item',
           { 'opacity-50 cursor-not-allowed': isVariantOptionDisabled(variant) }
         ]"
-        :title="variantOptionDisabledReason(variant)"
         :data-variant-id="variant.bannerId"
         tabindex="0"
         @click="selectVariant(variant)"
         @keydown.enter="selectVariant(variant)"
         @keydown.space.prevent="selectVariant(variant)"
+        @mouseenter="handleVariantMouseEnter($event, variant)"
+        @mouseleave="hideTooltip"
       >
         {{ variant.name }}
       </div>
     </div>
+
+    <!-- Custom Tooltip UI (title 属性のOS標準ディレイを避け、即時表示するため) -->
+    <Teleport to="body">
+      <div
+        v-if="tooltipState.show"
+        class="fixed z-[9999] px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg pointer-events-none whitespace-nowrap -translate-x-1/2 -translate-y-full mb-2 border border-gray-600"
+        :style="{ top: tooltipState.y + 'px', left: tooltipState.x + 'px' }"
+      >
+        {{ tooltipState.content }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -276,7 +288,8 @@ import FilterIcon from '@/components/common/FilterIcon.vue'
 import { useFilterPopupManager } from '@/composables/useFilterPopup'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { isVariantDisabled } from '@/components/attack/SPAttackException'
-import { hasSpGroupSplit, getSpGroupSplitSiblings } from '@/utils/shipSort'
+import { hasSpGroupSplit, getSpGroupSplitSiblings, SP_GROUP_SPLIT_NOTE } from '@/utils/shipSort'
+import { useTooltip } from '@/composables/useTooltip'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -493,9 +506,18 @@ const isVariantOptionDisabled = (variant: VariantOption): boolean =>
   variant.spGroupForeign || isAttackMismatchDisabled(variant)
 
 const variantOptionDisabledReason = (variant: VariantOption): string => {
-  if (variant.spGroupForeign) return '改装によって艦種が変わる艦は別の行で扱っています'
+  if (variant.spGroupForeign) return SP_GROUP_SPLIT_NOTE
   if (isAttackMismatchDisabled(variant)) return '改装元と特攻倍率が異なるため、改装後の行を参照してください'
   return ''
+}
+
+// title 属性(ネイティブtooltip)はOS標準の表示ディレイ(1秒弱)があるため、
+// カスタムtooltipで即時表示する。
+const { state: tooltipState, show: showTooltip, hide: hideTooltip } = useTooltip()
+
+const handleVariantMouseEnter = (event: MouseEvent, variant: VariantOption) => {
+  const reason = variantOptionDisabledReason(variant)
+  if (reason) showTooltip(event, reason)
 }
 
 const selectVariant = (variant: VariantOption) => {

@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ShipModal from './ShipModal.vue'
 import type { Ship } from '@/types/interfaces'
+import { SP_GROUP_SPLIT_NOTE } from '@/utils/shipSort'
 
 // jsdom には matchMedia が無い(useTheme が onMounted 時に参照する)。
 window.matchMedia ??= ((query: string) => ({
@@ -39,15 +40,22 @@ const baseProps = {
   arriveShip: async () => {},
 }
 
+// カスタムtooltipは body へ Teleport されるので、ラッパーではなく DOM から引く
+const tooltipText = () => document.body.querySelector('.z-\\[9999\\]')?.textContent ?? null
+
+beforeEach(() => {
+  document.body.innerHTML = ''
+})
+
 describe('改装段階選択モーダルの分割注記', () => {
   it('hasSpGroupSplit=true のとき注記が出る(App.vue が系統全体を見て渡す値)', () => {
     const w = mount(ShipModal, { props: { ...baseProps, hasSpGroupSplit: true } })
-    expect(w.text()).toContain('改装によって艦種が変わる艦は別の行で扱っています')
+    expect(w.text()).toContain(SP_GROUP_SPLIT_NOTE)
   })
 
   it('hasSpGroupSplit=false(既定)のときは注記が出ない', () => {
     const w = mount(ShipModal, { props: baseProps })
-    expect(w.text()).not.toContain('改装によって艦種が変わる艦は別の行で扱っています')
+    expect(w.text()).not.toContain(SP_GROUP_SPLIT_NOTE)
   })
 })
 
@@ -70,7 +78,21 @@ describe('改装段階選択モーダルの分割先グレーアウト表示', (
     expect(foreignItem.exists()).toBe(true)
     expect(foreignItem.classes()).toContain('opacity-50')
     expect(foreignItem.classes()).toContain('cursor-not-allowed')
-    expect(foreignItem.attributes('title')).toBe('改装によって艦種が変わる艦は別の行で扱っています')
+  })
+
+  it('分割先のバナーにマウスオーバーすると即時にtooltipが出て、離すと消える', async () => {
+    const w = mount(ShipModal, {
+      props: { ...baseProps, hasSpGroupSplit: true, spGroupSiblings: [yamatoKai2Ju] },
+    })
+    await w.find('span.cursor-pointer.text-blue-600').trigger('click')
+
+    const items = w.findAll('.ship-item')
+    const foreignItem = items.find((i) => i.text().includes('大和改二重'))!
+    await foreignItem.trigger('mouseenter')
+    expect(tooltipText()).toBe(SP_GROUP_SPLIT_NOTE)
+
+    await foreignItem.trigger('mouseleave')
+    expect(tooltipText()).toBeNull()
   })
 
   it('分割先のバナーをクリックしても改装段階は変更されない', async () => {

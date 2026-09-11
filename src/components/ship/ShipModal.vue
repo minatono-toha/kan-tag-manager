@@ -19,7 +19,7 @@
           class="text-xs mb-2"
           :class="theme !== 'light' ? 'text-gray-400' : 'text-gray-500'"
         >
-          改装によって艦種が変わる艦は別の行で扱っています
+          {{ SP_GROUP_SPLIT_NOTE }}
         </div>
         <span
           @click="showOnlySelected = !showOnlySelected"
@@ -42,8 +42,9 @@
               'opacity-50 cursor-not-allowed': isDisplayShipDisabled(ship)
             }
           ]"
-          :title="displayShipDisabledReason(ship)"
           @click="handleShipItemClick(ship, $event)"
+          @mouseenter="handleShipItemMouseEnter($event, ship)"
+          @mouseleave="hideTooltip"
         >
           <a
             v-if="safeWikiUrl(ship.wiki_url)"
@@ -116,6 +117,17 @@
         <img :src="`${baseUrl}img/ship/card/${cardBannerId}.png`" alt="カード画像" />
       </div>
     </div>
+
+    <!-- Custom Tooltip UI (title 属性のOS標準ディレイを避け、即時表示するため) -->
+    <Teleport to="body">
+      <div
+        v-if="tooltipState.show"
+        class="fixed z-[9999] px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg pointer-events-none whitespace-nowrap -translate-x-1/2 -translate-y-full mb-2 border border-gray-600"
+        :style="{ top: tooltipState.y + 'px', left: tooltipState.x + 'px' }"
+      >
+        {{ tooltipState.content }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -126,6 +138,8 @@ import ShipCard from './ShipCard.vue'
 import ModalTagManagement from './ModalTagManagement.vue'
 import { isVariantDisabled } from '@/components/attack/SPAttackException'
 import { useTheme } from '@/composables/useTheme'
+import { useTooltip } from '@/composables/useTooltip'
+import { SP_GROUP_SPLIT_NOTE } from '@/utils/shipSort'
 
 const props = withDefaults(defineProps<{
   ships: Ship[]
@@ -206,9 +220,18 @@ const isDisplayShipDisabled = (ship: DisplayShip): boolean =>
   ship.spGroupForeign || isAttackMismatchDisabled(ship)
 
 const displayShipDisabledReason = (ship: DisplayShip): string => {
-  if (ship.spGroupForeign) return '改装によって艦種が変わる艦は別の行で扱っています'
+  if (ship.spGroupForeign) return SP_GROUP_SPLIT_NOTE
   if (isAttackMismatchDisabled(ship)) return '改装元と特攻倍率が異なるため、改装後の行を参照してください'
   return ''
+}
+
+// title 属性(ネイティブtooltip)はOS標準の表示ディレイ(1秒弱)があるため、
+// カスタムtooltipで即時表示する。
+const { state: tooltipState, show: showTooltip, hide: hideTooltip } = useTooltip()
+
+const handleShipItemMouseEnter = (event: MouseEvent, ship: DisplayShip) => {
+  const reason = displayShipDisabledReason(ship)
+  if (reason) showTooltip(event, reason)
 }
 
 const openCardModal = (bannerId: number) => {

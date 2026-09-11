@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ShipListTable from './ShipListTable.vue'
 import type { Ship, ExpandedShip } from '@/types/interfaces'
+import { SP_GROUP_SPLIT_NOTE } from '@/utils/shipSort'
 
 // jsdom には ResizeObserver が無い(ヘッダ高さの実測に使っている)。
 class ResizeObserverStub {
@@ -54,17 +55,24 @@ const openVariantPopup = async (w: ReturnType<typeof render>, shipName: string) 
   await row.find('span[title="改装段階変更"]').trigger('click')
 }
 
+// カスタムtooltipは body へ Teleport されるので、ラッパーではなく DOM から引く
+const tooltipText = () => document.body.querySelector('.z-\\[9999\\]')?.textContent ?? null
+
+beforeEach(() => {
+  document.body.innerHTML = ''
+})
+
 describe('改装段階選択プルダウンの分割注記', () => {
   it('系統が spGroupId 分割されている艦(大和)では注記が出る', async () => {
     const w = render()
     await openVariantPopup(w, '大和')
-    expect(w.text()).toContain('改装によって艦種が変わる艦は別の行で扱っています')
+    expect(w.text()).toContain(SP_GROUP_SPLIT_NOTE)
   })
 
   it('分割されていない艦(長門)では注記が出ない', async () => {
     const w = render()
     await openVariantPopup(w, '長門')
-    expect(w.text()).not.toContain('改装によって艦種が変わる艦は別の行で扱っています')
+    expect(w.text()).not.toContain(SP_GROUP_SPLIT_NOTE)
   })
 })
 
@@ -78,7 +86,18 @@ describe('改装段階選択プルダウンの分割先グレーアウト表示'
     expect(item.text()).toBe('大和改二重')
     expect(item.classes()).toContain('opacity-50')
     expect(item.classes()).toContain('cursor-not-allowed')
-    expect(item.attributes('title')).toBe('改装によって艦種が変わる艦は別の行で扱っています')
+  })
+
+  it('分割先の選択肢にマウスオーバーすると即時にtooltipが出て、離すと消える', async () => {
+    const w = render()
+    await openVariantPopup(w, '大和')
+
+    const item = w.find(`[data-variant-id="${yamatoKai2Ju.bannerId}"]`)
+    await item.trigger('mouseenter')
+    expect(tooltipText()).toBe(SP_GROUP_SPLIT_NOTE)
+
+    await item.trigger('mouseleave')
+    expect(tooltipText()).toBeNull()
   })
 
   it('分割先の選択肢をクリックしても改装段階は変更されない', async () => {
