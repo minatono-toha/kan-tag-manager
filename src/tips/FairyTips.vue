@@ -16,7 +16,7 @@
       @click="handleCharacterClick"
       @contextmenu.prevent="handleRightClick"
     >
-      <img src="/img/fairy/503_fairy.png" alt="fairy" class="fairy-image" />
+      <img :src="`${baseUrl}img/fairy/503_fairy.png`" alt="fairy" class="fairy-image" />
     </div>
   </div>
 </template>
@@ -34,6 +34,7 @@ import { useFairyComments } from '@/composables/useFairyComments'
 export default defineComponent({
   name: 'FairyTips',
   setup() {
+    const baseUrl = import.meta.env.BASE_URL
     const { tips, tweets, loading, loaded, fetchComments } = useFairyComments()
 
     const isTweetMode = ref(false)
@@ -128,6 +129,7 @@ export default defineComponent({
     }
 
     return {
+      baseUrl,
       activeTip,
       isVisible,
       isTweetMode,
