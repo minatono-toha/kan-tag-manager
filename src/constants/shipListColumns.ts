@@ -13,6 +13,8 @@ export const SHIP_LIST_COLUMNS = {
   name: 320,
   class: 150,
   speed: 64,
+  // 国旗アイコン(SVG) + アルファベット2文字(例: 🇯🇵 JP)が収まる幅
+  nationality: 70,
   // 最長ラベル「(改造後)大発系・内火艇OK」が収まる幅
   groundAtk: 190,
 } as const
@@ -30,6 +32,7 @@ const DETAIL_COLUMNS: readonly ShipListColumn[] = [
   'name',
   'class',
   'speed',
+  'nationality',
   'groundAtk',
 ]
 

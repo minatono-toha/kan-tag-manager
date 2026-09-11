@@ -86,6 +86,16 @@
               <span v-else>{{ ship.name }}</span>
             </p>
             <p><strong>艦型・艦番:</strong> {{ ship.class }} {{ ship.shipType }}</p>
+            <p class="flex items-center gap-1">
+              <strong>国籍:</strong>
+              <img
+                v-if="nationalityFlagSrc(ship.nationality)"
+                :src="nationalityFlagSrc(ship.nationality)"
+                :alt="ship.nationality"
+                class="w-4 h-3 flex-none border border-gray-300"
+              />
+              {{ nationalityName(ship.nationality) }}
+            </p>
             <p><strong>速力:</strong> {{ ship.speed }}</p>
             <p><strong>改造段階:</strong> {{ ship.updateLevel ?? '未設定' }}</p>
           </div>
@@ -140,6 +150,8 @@ import { isVariantDisabled } from '@/components/attack/SPAttackException'
 import { useTheme } from '@/composables/useTheme'
 import { useTooltip } from '@/composables/useTooltip'
 import { SP_GROUP_SPLIT_NOTE } from '@/utils/shipSort'
+import { nationalityFlagSrc } from '@/constants/nationalityFlags'
+import { nationalityName } from '@/constants/nationalityNames'
 
 const props = withDefaults(defineProps<{
   ships: Ship[]

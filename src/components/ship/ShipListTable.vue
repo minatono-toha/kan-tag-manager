@@ -61,6 +61,18 @@
               <FilterIcon v-else />
             </span>
           </th>
+          <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="nationalityFilter.length > 0 ? 'filter-active' : 'bg-gray-100'">
+            <div>国籍</div>
+            <span
+              @click="toggleNationalityFilter($event)"
+              class="cursor-pointer absolute bottom-1 right-1 hover:opacity-70 text-gray-500"
+              title="絞り込み"
+              ref="nationalityIconRef"
+            >
+              <SearchIcon v-if="nationalityFilter.length === 0" />
+              <FilterIcon v-else />
+            </span>
+          </th>
           <th v-if="displayMode === 'detail'" :style="{ ...cellStyle, ...headerStyle, boxSizing: 'border-box' }" class="border text-left align-top relative pb-6" :class="groundAtkFilter.length > 0 ? 'filter-active' : 'bg-gray-100'">
             <div>対地装備</div>
             <span
@@ -142,6 +154,17 @@
           </td>
           <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">{{ ship.class }}</td>
           <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">{{ ship.speed }}</td>
+          <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">
+            <span class="inline-flex items-center gap-1">
+              <img
+                v-if="nationalityFlagSrc(getDisplayShip(ship).nationality)"
+                :src="nationalityFlagSrc(getDisplayShip(ship).nationality)"
+                :alt="getDisplayShip(ship).nationality"
+                class="w-4 h-3 flex-none border border-gray-300"
+              />
+              {{ getDisplayShip(ship).nationality || '-' }}
+            </span>
+          </td>
           <td v-if="displayMode === 'detail'" :style="bodyCellStyle" class="border">{{ groundAtkLabel(getDisplayShip(ship)) }}</td>
         </tr>
         <!-- 該当なしの行も通常の行と同じ高さにする(他の2表と行がずれるため、
@@ -205,6 +228,19 @@
       @clear="() => { shipTypeFilter = []; showShipTypeFilter = false }"
       @close="showShipTypeFilter = false"
       ref="shipTypePopupRef"
+    />
+
+    <FilterPopup
+      :show="showNationalityFilter"
+      :position="nationalityFilterPosition"
+      type="checkbox"
+      title="国籍で絞り込み"
+      :modelValue="nationalityFilter"
+      :options="uniqueNationalities"
+      @apply="(value) => { nationalityFilter = value as string[]; showNationalityFilter = false }"
+      @clear="() => { nationalityFilter = []; showNationalityFilter = false }"
+      @close="showNationalityFilter = false"
+      ref="nationalityPopupRef"
     />
 
     <!-- 選択肢は表示に使う GROUND_ATK_LABELS をそのまま渡す(表示と絞り込みで文言を二重管理しない) -->
@@ -290,6 +326,7 @@ import { useFocusTrap } from '@/composables/useFocusTrap'
 import { isVariantDisabled } from '@/components/attack/SPAttackException'
 import { hasSpGroupSplit, getSpGroupSplitSiblings, SP_GROUP_SPLIT_NOTE } from '@/utils/shipSort'
 import { useTooltip } from '@/composables/useTooltip'
+import { nationalityFlagSrc } from '@/constants/nationalityFlags'
 
 const props = withDefaults(defineProps<{
   ships: ExpandedShip[]
@@ -348,6 +385,9 @@ const speedFilterValue = ref('')
 const shipTypePopup = filterManager.register()
 const shipTypeFilter = ref<string[]>([])
 
+const nationalityPopup = filterManager.register()
+const nationalityFilter = ref<string[]>([])
+
 const groundAtkPopup = filterManager.register()
 const groundAtkFilter = ref<string[]>([])
 
@@ -356,6 +396,7 @@ const searchPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 const classSearchPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 const speedPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 const shipTypePopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
+const nationalityPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 const groundAtkPopupRef = ref<InstanceType<typeof FilterPopup> | null>(null)
 
 // Destructure for compatibility with existing template
@@ -375,6 +416,10 @@ const showShipTypeFilter = shipTypePopup.show
 const shipTypeFilterPosition = shipTypePopup.position
 const shipTypeIconRef = shipTypePopup.iconRef
 
+const showNationalityFilter = nationalityPopup.show
+const nationalityFilterPosition = nationalityPopup.position
+const nationalityIconRef = nationalityPopup.iconRef
+
 const showGroundAtkFilter = groundAtkPopup.show
 const groundAtkFilterPosition = groundAtkPopup.position
 const groundAtkIconRef = groundAtkPopup.iconRef
@@ -393,6 +438,10 @@ function toggleSpeedFilter(event: MouseEvent) {
 
 function toggleShipTypeFilter(event: MouseEvent) {
   shipTypePopup.toggle(event)
+}
+
+function toggleNationalityFilter(event: MouseEvent) {
+  nationalityPopup.toggle(event)
 }
 
 function toggleGroundAtkFilter(event: MouseEvent) {
@@ -422,10 +471,10 @@ const currentTargetHasSplit = computed(() =>
   currentTarget.value ? hasSpGroupSplit(props.allShips, currentTarget.value.ship.orig) : false,
 )
 
-// 詳細表示の列数(空表示行の colspan 用)。艦種 / 艦名 / 艦型・艦番 / 速力 / 対地装備。
+// 詳細表示の列数(空表示行の colspan 用)。艦種 / 艦名 / 艦型・艦番 / 速力 / 国籍 / 対地装備。
 const columnCount = computed(() => {
   if (props.displayMode !== 'detail') return 1
-  return 5 + (SHOW_LIBRARY_ID ? 1 : 0)
+  return 6 + (SHOW_LIBRARY_ID ? 1 : 0)
 })
 
 // 対地装備(shiplist.ground_atk)の表示。装備可否は改装段階ごとに変わるため、
@@ -568,6 +617,14 @@ function handleClickOutside(event: MouseEvent) {
     }
   }
 
+  if (showNationalityFilter.value && nationalityPopupRef.value) {
+    const clickedIcon = nationalityIconRef.value?.contains(target)
+    const clickedPopup = nationalityPopupRef.value.popupRef?.contains(target)
+    if (!clickedIcon && !clickedPopup) {
+      showNationalityFilter.value = false
+    }
+  }
+
   if (showGroundAtkFilter.value && groundAtkPopupRef.value) {
     const clickedIcon = groundAtkIconRef.value?.contains(target)
     const clickedPopup = groundAtkPopupRef.value.popupRef?.contains(target)
@@ -633,15 +690,27 @@ const uniqueShipTypes = computed(() => {
   return Array.from(types).sort()
 })
 
+const uniqueNationalities = computed(() => {
+  const codes = new Set<string>()
+  props.ships.forEach(ship => {
+    const displayShip = getDisplayShip(ship)
+    if (displayShip.nationality) {
+      codes.add(displayShip.nationality)
+    }
+  })
+  return Array.from(codes).sort()
+})
+
 const filteredShips = computed(() => {
   const hasNameFilter = searchQuery.value.trim()
   const hasClassFilter = classSearchQuery.value.trim()
   const hasSpeedFilter = speedFilterValue.value
   const hasShipTypeFilter = shipTypeFilter.value.length > 0
+  const hasNationalityFilter = nationalityFilter.value.length > 0
   const hasGroundAtkFilter = groundAtkFilter.value.length > 0
   const hasUnownedFilter = !props.showUnownedShips
 
-  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter && !hasGroundAtkFilter && !hasUnownedFilter) {
+  if (!hasNameFilter && !hasClassFilter && !hasSpeedFilter && !hasShipTypeFilter && !hasNationalityFilter && !hasGroundAtkFilter && !hasUnownedFilter) {
     return props.sourceShips
   }
 
@@ -675,6 +744,9 @@ const filteredShips = computed(() => {
     if (hasShipTypeFilter && !shipTypeFilter.value.includes(displayShip.shipType)) {
       return false
     }
+    if (hasNationalityFilter && !nationalityFilter.value.includes(displayShip.nationality)) {
+      return false
+    }
     if (hasGroundAtkFilter && !groundAtkFilter.value.includes(groundAtkLabel(displayShip))) {
       return false
     }
@@ -689,6 +761,7 @@ const hasColumnFilter = computed(() =>
     classSearchQuery.value.trim() ||
     speedFilterValue.value ||
     shipTypeFilter.value.length > 0 ||
+    nationalityFilter.value.length > 0 ||
     groundAtkFilter.value.length > 0
   ),
 )

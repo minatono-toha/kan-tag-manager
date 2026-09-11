@@ -9,6 +9,8 @@ export interface Ship {
   shipType: string
   shipTypeCategory: string
   speed: string
+  // ISO 3166-1 alpha-2 相当の国籍コード(例: JP, US, GB)
+  nationality: string
   bannerId: number
   filterId: number
   name: string

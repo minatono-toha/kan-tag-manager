@@ -14,7 +14,7 @@ globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObse
 
 const makeShip = (over: Partial<Ship>): Ship => ({
   libraryId: 1, spGroupId: 49, shipType: '水上機母艦', shipTypeCategory: '水上機母艦',
-  speed: '低', bannerId: 102, filterId: 1, name: '千歳', orig: 49, class: '千歳型1番艦',
+  speed: '低', nationality: 'JP', bannerId: 102, filterId: 1, name: '千歳', orig: 49, class: '千歳型1番艦',
   filtertype_jp: '', filtertype_en: '', updateLevel: 0, ...over,
 })
 
@@ -52,8 +52,8 @@ const render = (variantMap = new Map<string, number>()) =>
     },
   })
 
-// 詳細表示の列: 艦種 / 艦名 / 艦型・艦番 / 速力 / 対地装備 (図鑑ID は非表示)
-const GROUND_ATK_COL = 4
+// 詳細表示の列: 艦種 / 国籍 / 艦名 / 艦型・艦番 / 速力 / 対地装備 (図鑑ID は非表示)
+const GROUND_ATK_COL = 5
 const groundAtkCells = (w: ReturnType<typeof render>) =>
   w.findAll('tbody tr').map((tr) => tr.findAll('td')[GROUND_ATK_COL]?.text())
 
