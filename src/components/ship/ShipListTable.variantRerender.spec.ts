@@ -11,7 +11,7 @@ class ResizeObserverStub {
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver
 
 const makeShip = (over: Partial<Ship>): Ship => ({
-  libraryId: 1, spGroupId: 1, shipType: '戦艦', shipTypeCategory: '戦艦', speed: '低',
+  libraryId: 1, spGroupId: 1, shipType: '戦艦', shipTypeCategory: '戦艦', speed: '低', nationality: 'JP',
   bannerId: 80, filterId: 1, name: '長門', orig: 1, class: '長門型1番艦',
   filtertype_jp: '', filtertype_en: '', updateLevel: 0, ...over,
 })

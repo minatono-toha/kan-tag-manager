@@ -4,7 +4,7 @@ import { useAttackData } from './useAttackData'
 import type { ExpandedShip } from '@/types/interfaces'
 
 const makeShip = (over: Partial<ExpandedShip>): ExpandedShip => ({
-  libraryId: 1, spGroupId: 1, shipType: '軽巡洋艦', shipTypeCategory: '軽巡洋艦', speed: '高',
+  libraryId: 1, spGroupId: 1, shipType: '軽巡洋艦', shipTypeCategory: '軽巡洋艦', speed: '高', nationality: 'JP',
   bannerId: 1, filterId: 4, name: '?', orig: 1, class: '', filtertype_jp: '', filtertype_en: '',
   updateLevel: 0, shipIndex: 0, ownershipCount: 0, isSpGroupSplit: false, ...over,
 })

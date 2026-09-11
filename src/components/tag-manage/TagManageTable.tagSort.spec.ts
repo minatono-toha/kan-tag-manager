@@ -4,7 +4,7 @@ import TagManageTable from './TagManageTable.vue'
 import type { ExpandedShip, TagManagement } from '@/types/interfaces'
 
 const ship = (orig: number, name: string): ExpandedShip => ({
-  libraryId: orig, spGroupId: orig, shipType: '駆逐艦', shipTypeCategory: '駆逐艦', speed: '高',
+  libraryId: orig, spGroupId: orig, shipType: '駆逐艦', shipTypeCategory: '駆逐艦', speed: '高', nationality: 'JP',
   bannerId: orig, filterId: 1, name, orig, class: '',
   filtertype_jp: '', filtertype_en: '', updateLevel: 0,
   shipIndex: 0, ownershipCount: 1, isSpGroupSplit: false,

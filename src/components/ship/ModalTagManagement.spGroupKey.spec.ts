@@ -4,7 +4,7 @@ import ModalTagManagement from './ModalTagManagement.vue'
 import type { Ship, TagManagement } from '@/types/interfaces'
 
 const makeShip = (over: Partial<Ship>): Ship => ({
-  libraryId: 49, spGroupId: 49, shipType: '水上機母艦', shipTypeCategory: '水上機母艦', speed: '高',
+  libraryId: 49, spGroupId: 49, shipType: '水上機母艦', shipTypeCategory: '水上機母艦', speed: '高', nationality: 'JP',
   bannerId: 49, filterId: 8, name: '千歳', orig: 49, class: '千歳型1番艦',
   filtertype_jp: '', filtertype_en: '', updateLevel: 0, ...over,
 })

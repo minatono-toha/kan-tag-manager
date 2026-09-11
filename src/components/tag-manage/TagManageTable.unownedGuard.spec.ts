@@ -6,7 +6,7 @@ import type { ExpandedShip, Ship, TagManagement } from '@/types/interfaces'
 const UNOWNED_MESSAGE = '札割り当て操作をする際は先に着任させてください'
 
 const makeShip = (over: Partial<Ship>): Ship => ({
-  libraryId: 1, spGroupId: 500, shipType: '戦艦', shipTypeCategory: '戦艦', speed: '低',
+  libraryId: 1, spGroupId: 500, shipType: '戦艦', shipTypeCategory: '戦艦', speed: '低', nationality: 'JP',
   bannerId: 131, filterId: 1, name: '大和', orig: 500, class: '大和型1番艦',
   filtertype_jp: '', filtertype_en: '', updateLevel: 0, ...over,
 })

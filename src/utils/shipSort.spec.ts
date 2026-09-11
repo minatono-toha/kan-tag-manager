@@ -8,7 +8,7 @@ const pickBaseForm = (forms: Ship[]): Ship =>
   forms.reduce<Ship | undefined>((base, s) => (isBaseFormOf(s, base) ? s : base), undefined)!
 
 const makeShip = (over: Partial<Ship>): Ship => ({
-  libraryId: 1, spGroupId: 240, shipType: '戦艦', shipTypeCategory: '戦艦', speed: '低',
+  libraryId: 1, spGroupId: 240, shipType: '戦艦', shipTypeCategory: '戦艦', speed: '低', nationality: 'JP',
   bannerId: 440, filterId: 1, name: 'Iowa', orig: 240, class: 'Iowa級1番艦',
   filtertype_jp: '', filtertype_en: '', updateLevel: 0, ...over,
 })
